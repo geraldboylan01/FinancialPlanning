@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cash Reserve Calculator</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    label, select, input { margin-top: 10px; display: block; width: 100%; }
+    button { margin-top: 20px; padding: 10px; }
+    #result { margin-top: 20px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Cash Reserve Calculator</h1>
+  <label>Monthly Expenses (€):
+    <input type="number" id="expenses" placeholder="e.g. 2500">
+  </label>
+
+  <label>Income Type:
+    <select id="income">
+      <option value="working">Still Working</option>
+      <option value="retired-fixed">Retired (Fixed Income)</option>
+      <option value="retired-investment">Retired (Investment-based)</option>
+    </select>
+  </label>
+
+  <button onclick="calc()">Calculate</button>
+  <div id="result"></div>
+
+  <script>
+    function calc() {
+      const e = parseFloat(document.getElementById('expenses').value);
+      const t = document.getElementById('income').value;
+      let m = t === "retired-fixed" ? 12 : (t === "retired-investment" ? 24 : 6);
+      if (!isNaN(e)) {
+        const total = e * m;
+        document.getElementById('result').innerText = `Recommended reserve: €${total.toLocaleString()}`;
+      } else {
+        document.getElementById('result').innerText = 'Please enter valid expenses.';
+      }
+    }
+  </script>
+</body>
+</html>
