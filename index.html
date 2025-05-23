@@ -1,44 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Cash Reserve Calculator</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-    label, select, input { margin-top: 10px; display: block; width: 100%; }
-    button { margin-top: 20px; padding: 10px; }
-    #result { margin-top: 20px; font-weight: bold; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Planning Tools</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .container {
+            text-align: center;
+        }
+        .bubble {
+            display: inline-flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 220px;
+            height: 220px;
+            background: linear-gradient(135deg, #00ff88, #0099ff);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+        }
+        .bubble:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 35px rgba(0, 255, 136, 0.9);
+        }
+        .bubble span {
+            font-size: 20px;
+            font-weight: 700;
+            padding: 10px;
+        }
+        .bubble-icon {
+            font-size: 50px;
+        }
+    </style>
 </head>
 <body>
-  <h1>Cash Reserve Calculator</h1>
-  <label>Monthly Expenses (€):
-    <input type="number" id="expenses" placeholder="e.g. 2500">
-  </label>
-
-  <label>Income Type:
-    <select id="income">
-      <option value="working">Still Working</option>
-      <option value="retired-fixed">Retired (Fixed Income)</option>
-      <option value="retired-investment">Retired (Investment-based)</option>
-    </select>
-  </label>
-
-  <button onclick="calc()">Calculate</button>
-  <div id="result"></div>
-
-  <script>
-    function calc() {
-      const e = parseFloat(document.getElementById('expenses').value);
-      const t = document.getElementById('income').value;
-      let m = t === "retired-fixed" ? 12 : (t === "retired-investment" ? 24 : 6);
-      if (!isNaN(e)) {
-        const total = e * m;
-        document.getElementById('result').innerText = `Recommended reserve: €${total.toLocaleString()}`;
-      } else {
-        document.getElementById('result').innerText = 'Please enter valid expenses.';
-      }
-    }
-  </script>
+    <div class="container">
+        <div class="bubble" onclick="location.href='fy-money-calculator.html'">
+            <div class="bubble-icon">💸</div>
+            <span>F*ck You Money<br>Calculator</span>
+        </div>
+    </div>
 </body>
 </html>
