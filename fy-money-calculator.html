@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>F*ck You Money Calculator</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 1rem; }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: .35rem; }
+    input[type="number"], input[type="date"] { width: 100%; padding: .5rem; }
+    .checkbox-group, .radio-group { display: flex; gap: 1rem; flex-wrap: wrap; }
+    button { padding: .7rem 1.5rem; font-size: 1rem; cursor: pointer; }
+    #results { margin-top: 2rem; padding: 1.2rem; border: 1px solid #ccc; background: #f9f9f9; }
+    .error { color: red; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>F*ck You Money Calculator</h1>
+  <form id="fyf-form" autocomplete="off">
+    <div class="form-group">
+      <label for="grossIncome">Gross annual income (€)</label>
+      <input type="number" id="grossIncome" required />
+    </div>
+
+    <div class="form-group">
+      <label for="incomePercent">% of income needed in retirement</label>
+      <input type="number" id="incomePercent" step="0.1" min="0" max="100" value="70" required />
+    </div>
+
+    <div class="form-group checkbox-group">
+      <div>
+        <input type="checkbox" id="statePension" />
+        <label for="statePension">Collect State Pension (you)</label>
+      </div>
+      <div>
+        <input type="checkbox" id="partnerStatePension" />
+        <label for="partnerStatePension">Partner entitled to State Pension</label>
+      </div>
+    </div>
+
+    <div id="partner-dob-group" class="form-group" style="display:none;">
+      <label for="partnerDob">Partner date of birth</label>
+      <input type="date" id="partnerDob" />
+    </div>
+
+    <div class="form-group">
+      <label for="dob">Your date of birth</label>
+      <input type="date" id="dob" required />
+    </div>
+
+    <div class="form-group">
+      <label for="retireAge">Desired retirement age</label>
+      <input type="number" id="retireAge" min="50" max="100" value="65" required />
+    </div>
+
+    <div class="form-group">
+      <label>Portfolio growth rate</label>
+      <div class="radio-group">
+        <label><input type="radio" name="growthRate" value="0.04" /> 4% (40:60)</label>
+        <label><input type="radio" name="growthRate" value="0.05" checked /> 5% (50:50)</label>
+        <label><input type="radio" name="growthRate" value="0.06" /> 6% (60:40)</label>
+        <label><input type="radio" name="growthRate" value="0.07" /> 7% (100:0)</label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="rentalIncome">Annual rental income (€)</label>
+      <input type="number" id="rentalIncome" placeholder="e.g. 12000" />
+    </div>
+
+    <div class="form-group">
+      <label for="otherIncome">Other recurring income (€)</label>
+      <input type="number" id="otherIncome" placeholder="e.g. defined benefit pension" />
+    </div>
+
+    <button type="submit">Calculate</button>
+  </form>
+
+  <div id="results"></div>
+  <div id="console" class="error"></div>
+
+  <script>
+    // --- CONSTANTS ---
+    const CPI_RATE = 0.023;
+    const STATE_PENSION_AMOUNT = 15044;
+    const SP_START_AGE = 66;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      const partnerSPBox = document.getElementById('partnerStatePension');
+      const partnerDOBGroup = document.getElementById('partner-dob-group');
+
+      partnerSPBox.addEventListener('change', () => {
+        partnerDOBGroup.style.display = partnerSPBox.checked ? 'block' : 'none';
+      });
+
+      document.getElementById('fyf-form').addEventListener('submit', calculate);
+    });
+
+    function calculate(e) {
+      e.preventDefault();
+      try {
+        // --- INPUTS ---
+        const gross = parseFloat(document.getElementById('grossIncome').value);
+        const pctNeed = parseFloat(document.getElementById('incomePercent').value) / 100;
+        const includeSP = document.getElementById('statePension').checked;
+        const includePartnerSP = document.getElementById('partnerStatePension').checked;
+        const dobStr = document.getElementById('dob').value;
+        const dob = new Date(dobStr);
+        const partnerDobStr = document.getElementById('partnerDob').value;
+        const partnerDob = partnerDobStr ? new Date(partnerDobStr) : null;
+        const retireAge = parseInt(document.getElementById('retireAge').value, 10);
+        const growthRate = parseFloat(document.querySelector('input[name="growthRate"]:checked').value);
+        const rentalAnnual = parseFloat(document.getElementById('rentalIncome').value) || 0;
+        const otherAnnual = parseFloat(document.getElementById('otherIncome').value) || 0;
+
+        // --- BASIC VALIDATION ---
+        if ([gross, pctNeed, retireAge, growthRate].some(isNaN) || !dobStr) {
+          throw new Error('Please fill all required numeric fields correctly.');
+        }
+        if (includePartnerSP && !partnerDobStr) {
+          throw new Error('Please enter partner date of birth.');
+        }
+
+        // --- AGE & TIME ---
+        const now = new Date();
+        const currentAge = ageInYears(dob, now);
+        const yearsToRetire = Math.max(0, retireAge - currentAge);
+        const yearsRetired = Math.max(0, 100 - retireAge);
+
+        const partnerCurrentAge = partnerDob ? ageInYears(partnerDob, now) : null;
+        const partnerAgeAtRetire = partnerCurrentAge !== null ? partnerCurrentAge + yearsToRetire : null;
+
+        // --- INFLATED NEED AT RETIREMENT ---
+        const baseNeed = gross * pctNeed;
+        const needAtRetire = baseNeed * Math.pow(1 + CPI_RATE, yearsToRetire);
+
+        // --- CAPITAL CALC ---
+        let requiredCapital = 0;
+        let alwaysSurplus = true;
+        for (let t = 0; t < yearsRetired; t++) {
+          const ageThisYear = retireAge + t;
+          const partnerAgeThisYear = partnerAgeAtRetire !== null ? partnerAgeAtRetire + t : null;
+
+          const inflationFactor = Math.pow(1 + CPI_RATE, t);
+          const req = needAtRetire * inflationFactor;
+          const rentInflated = rentalAnnual * inflationFactor;
+          const otherInflated = otherAnnual * inflationFactor;
+
+          let spThisYear = 0;
+          if (includeSP && ageThisYear >= SP_START_AGE) spThisYear += STATE_PENSION_AMOUNT;
+          if (includePartnerSP && partnerAgeThisYear !== null && partnerAgeThisYear >= SP_START_AGE) spThisYear += STATE_PENSION_AMOUNT;
+
+          const netWithdrawal = req - spThisYear - rentInflated - otherInflated;
+          if (netWithdrawal > 0) {
+            alwaysSurplus = false;
+            requiredCapital += netWithdrawal / Math.pow(1 + growthRate, t + 1);
+          }
+        }
+
+        const capRounded = Math.max(0, Math.round(requiredCapital / 1000) * 1000);
+
+        // --- OUTPUT ---
+        if (alwaysSurplus || capRounded === 0) {
+          document.getElementById('results').innerHTML = `
+            <h2>Congratulations!</h2>
+            <p>Your projected recurring income exceeds your expenditure throughout retirement — you do <strong>not</strong> need additional pension capital.</p>
+            <img src="https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif" alt="Success meme" style="max-width:200px;margin-top:1rem;" />
+          `;
+        } else {
+          document.getElementById('results').innerHTML = `
+            <h2>Result</h2>
+            <p>You will need approximately <strong>€${capRounded.toLocaleString()}</strong> in your pension at retirement to fund your lifestyle from age ${retireAge} to 100.</p>
+            <ul>
+              <li>CPI: ${(CPI_RATE * 100).toFixed(1)}% p.a.</li>
+              <li>Growth rate: ${(growthRate * 100).toFixed(1)}% p.a.</li>
+              <li>State pension: €${STATE_PENSION_AMOUNT.toLocaleString()} per person from age ${SP_START_AGE}</li>
+            </ul>
+          `;
+        }
+
+        document.getElementById('console').textContent = '';
+      } catch (err) {
+        document.getElementById('console').textContent = err.message;
+        document.getElementById('results').innerHTML = '';
+      }
+    }
+
+    function ageInYears(date, ref) {
+      return (ref - date) / (1000 * 60 * 60 * 24 * 365.25);
+    }
+  </script>
+</body>
+</html>
