@@ -4,7 +4,147 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>F*ck You Money Calculator</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const CPI = 0.023;
+  const STATE_PENSION = 15044;
+  const SP_START = 66;
+  let chart;
+
+  function yrDiff(d, ref) {
+    return (ref - d) / (1000 * 60 * 60 * 24 * 365.25);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('partnerStatePension').addEventListener('change', e => {
+      document.getElementById('partner-dob-group').style.display = e.target.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('hasDb').addEventListener('change', e => {
+      document.getElementById('db-group').style.display = e.target.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('fyf-form').addEventListener('submit', calc);
+  });
+
+  function calc(e) {
+    e.preventDefault();
+    try {
+      const gross = +document.getElementById('grossIncome').value || 0;
+      const pctNeed = (+document.getElementById('incomePercent').value || 0) / 100;
+      const includeSP = document.getElementById('statePension').checked;
+      const includePartnerSP = document.getElementById('partnerStatePension').checked;
+      const dob = new Date(document.getElementById('dob').value);
+      const partnerDobStr = document.getElementById('partnerDob').value;
+      const partnerDob = partnerDobStr ? new Date(partnerDobStr) : null;
+      const retireAge = +document.getElementById('retireAge').value || 0;
+      const gRate = +document.querySelector('input[name=\"growthRate\"]:checked').value;
+      const rentalToday = +document.getElementById('rentalIncome').value || 0;
+      const hasDb = document.getElementById('hasDb').checked;
+      const dbAnnual = hasDb ? (+document.getElementById('dbPension').value || 0) : 0;
+
+      if (!gross || !pctNeed || !dob || !retireAge) throw new Error('Fill all required numeric fields.');
+      if (includePartnerSP && partnerDobStr === "") throw new Error('Enter partner DOB');
+
+      const now = new Date();
+      const curAge = yrDiff(dob, now);
+      const yrsToRet = retireAge - curAge;
+      const yrsRet = 100 - retireAge;
+      const partnerCurAge = partnerDob ? yrDiff(partnerDob, now) : null;
+      const partnerAgeAtRet = partnerDob ? partnerCurAge + yrsToRet : null;
+
+      const spendBase = gross * pctNeed;
+      const spendAtRet = spendBase * Math.pow(1 + CPI, yrsToRet);
+      const rentAtRet = rentalToday * Math.pow(1 + CPI, yrsToRet);
+
+      let reqCap = 0;
+      let alwaysSurplus = true;
+      let balances = [];
+      let bal = 0;
+
+      for (let t = 0; t < yrsRet; t++) {
+        const age = retireAge + t;
+        const partnerAge = partnerDob ? partnerAgeAtRet + t : null;
+        const infl = Math.pow(1 + CPI, t);
+        const spend = spendAtRet * infl;
+        const rent = rentAtRet * infl;
+        const db = hasDb ? dbAnnual * infl : 0;
+        let sp = 0;
+        if (includeSP && age >= SP_START) sp += STATE_PENSION;
+        if (includePartnerSP && partnerAge && partnerAge >= SP_START) sp += STATE_PENSION;
+        const net = spend - sp - rent - db;
+        if (net > 0) {
+          alwaysSurplus = false;
+          reqCap += net / Math.pow(1 + gRate, t + 1);
+        }
+      }
+
+      reqCap = Math.max(0, Math.round(reqCap / 1000) * 1000);
+
+      bal = reqCap;
+      for (let t = 0; t < yrsRet; t++) {
+        const age = retireAge + t;
+        const partnerAge = partnerDob ? partnerAgeAtRet + t : null;
+        const infl = Math.pow(1 + CPI, t);
+        const spend = spendAtRet * infl;
+        const rent = rentAtRet * infl;
+        const db = hasDb ? dbAnnual * infl : 0;
+        let sp = 0;
+        if (includeSP && age >= SP_START) sp += STATE_PENSION;
+        if (includePartnerSP && partnerAge && partnerAge >= SP_START) sp += STATE_PENSION;
+        const net = Math.max(0, spend - sp - rent - db);
+        bal = bal * (1 + gRate) - net;
+        balances.push({ age, value: Math.max(0, Math.round(bal)) });
+      }
+
+      if (alwaysSurplus || reqCap === 0) {
+        document.getElementById('results').innerHTML = `
+          <h2>Congratulations!</h2>
+          <p>Your projected income exceeds spending every year—you don't need extra pension capital.</p>
+          <img src="https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif" style="max-width:200px">
+        `;
+      } else {
+        document.getElementById('results').innerHTML = `
+          <h2>Result</h2>
+          <p>You need about <strong>€${reqCap.toLocaleString()}</strong> at retirement.</p>
+        `;
+      }
+
+      if (chart) chart.destroy();
+      chart = new Chart(document.getElementById('balanceChart'), {
+        type: 'line',
+        data: {
+          labels: balances.map(d => `Age ${d.age}`),
+          datasets: [{
+            label: 'Pension Balance (€)',
+            data: balances.map(d => d.value),
+            borderColor: '#00cc99',
+            backgroundColor: 'rgba(0,204,153,.1)',
+            fill: true,
+            tension: .3
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: {
+              ticks: {
+                callback: val => '€' + val.toLocaleString()
+              }
+            }
+          }
+        }
+      });
+
+      document.getElementById('console').textContent = '';
+    } catch (err) {
+      document.getElementById('console').textContent = err.message;
+      document.getElementById('results').innerHTML = '';
+      if (chart) chart.destroy();
+    }
+  }
+</script>
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -60,3 +200,47 @@
       <input type="number" id="incomePercent" step="0.1" min="0" max="100" value="70" required />
     </div>
     <div class="form-group checkbox-group">
+      <div><input type="checkbox" id="statePension" /> <label for="statePension">Collect State Pension (you)</label></div>
+      <div><input type="checkbox" id="partnerStatePension" /> <label for="partnerStatePension">Partner entitled to State Pension</label></div>
+    </div>
+    <div id="partner-dob-group" class="form-group" style="display:none;">
+      <label for="partnerDob">Partner date of birth</label>
+      <input type="date" id="partnerDob" />
+    </div>
+    <div class="form-group">
+      <label for="dob">Your date of birth</label>
+      <input type="date" id="dob" required />
+    </div>
+    <div class="form-group">
+      <label for="retireAge">Desired retirement age</label>
+      <input type="number" id="retireAge" min="50" max="100" value="65" required />
+    </div>
+    <div class="form-group">
+      <label>Portfolio growth rate</label>
+      <div class="radio-group">
+        <label><input type="radio" name="growthRate" value="0.04" /> 4% (40:60)</label>
+        <label><input type="radio" name="growthRate" value="0.05" checked /> 5% (50:50)</label>
+        <label><input type="radio" name="growthRate" value="0.06" /> 6% (60:40)</label>
+        <label><input type="radio" name="growthRate" value="0.07" /> 7% (100:0)</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="rentalIncome">Annual rental income today (€)</label>
+      <input type="number" id="rentalIncome" placeholder="e.g. 12000" />
+    </div>
+    <div class="form-group checkbox-group">
+      <div><input type="checkbox" id="hasDb" /> <label for="hasDb">I will receive a Defined Benefit (DB) pension</label></div>
+    </div>
+    <div id="db-group" class="form-group" style="display:none;">
+      <label for="dbPension">DB pension annual amount at retirement (€)</label>
+      <input type="number" id="dbPension" placeholder="e.g. 20000" />
+    </div>
+    <button type="submit">Calculate</button>
+  </form>
+  <div id="results"></div>
+  <div id="chart-container"><canvas id="balanceChart"></canvas></div>
+  <div id="console" class="error"></div>
+
+  <!-- PASTE the JavaScript below this line -->
+</body>
+</html>
