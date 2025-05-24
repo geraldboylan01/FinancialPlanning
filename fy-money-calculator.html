@@ -1,26 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>F*ck You Money Calculator</title>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 900px; margin: 2rem auto; padding: 1rem; }
-    .form-group { margin-bottom: 1rem; }
-    label { display: block; margin-bottom: .35rem; }
-    input[type="number"], input[type="date"] { width: 100%; padding: .5rem; }
-    .checkbox-group, .radio-group { display: flex; gap: 1rem; flex-wrap: wrap; }
-    button { padding: .7rem 1.5rem; font-size: 1rem; cursor: pointer; }
-    #results { margin-top: 2rem; padding: 1.2rem; border: 1px solid #ccc; background: #f9f9f9; }
-    .error { color: red; margin-top: 1rem; }
-    #chart-container { margin-top: 2rem; }
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 1rem;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      margin-bottom: .35rem;
+    }
+    input[type="number"], input[type="date"] {
+      width: 100%;
+      padding: .5rem;
+    }
+    .checkbox-group, .radio-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: .7rem 1.5rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    #results {
+      margin-top: 2rem;
+      padding: 1.2rem;
+      border: 1px solid #ccc;
+      background: #f9f9f9;
+    }
+    .error {
+      color: red;
+      margin-top: 1rem;
+    }
+    #chart-container {
+      margin-top: 2rem;
+    }
   </style>
 </head>
 <body>
   <h1>F*ck You Money Calculator</h1>
-  <!-- Form and calculator content -->
-  <p>The full HTML code has been generated. Upload this file to your GitHub repo as instructed.</p>
-</body>
-</html>
+  <form id="fyf-form" autocomplete="off">
+    <div class="form-group">
+      <label for="grossIncome">Gross annual income (€)</label>
+      <input type="number" id="grossIncome" required />
+    </div>
+    <div class="form-group">
+      <label for="incomePercent">% of income needed in retirement</label>
+      <input type="number" id="incomePercent" step="0.1" min="0" max="100" value="70" required />
+    </div>
+    <div class="form-group checkbox-group">
