@@ -4,7 +4,106 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>F*ck You Money Calculator</title>
-<script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 1rem;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      margin-bottom: .35rem;
+    }
+    input[type="number"], input[type="date"] {
+      width: 100%;
+      padding: .5rem;
+    }
+    .checkbox-group, .radio-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: .7rem 1.5rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    #results {
+      margin-top: 2rem;
+      padding: 1.2rem;
+      border: 1px solid #ccc;
+      background: #f9f9f9;
+    }
+    .error {
+      color: red;
+      margin-top: 1rem;
+    }
+    #chart-container {
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>F*ck You Money Calculator</h1>
+  <form id="fyf-form" autocomplete="off">
+    <div class="form-group">
+      <label for="grossIncome">Gross annual income (€)</label>
+      <input type="number" id="grossIncome" required />
+    </div>
+    <div class="form-group">
+      <label for="incomePercent">% of income needed in retirement</label>
+      <input type="number" id="incomePercent" step="0.1" min="0" max="100" value="70" required />
+    </div>
+    <div class="form-group checkbox-group">
+      <div><input type="checkbox" id="statePension" /> <label for="statePension">Collect State Pension (you)</label></div>
+      <div><input type="checkbox" id="partnerStatePension" /> <label for="partnerStatePension">Partner entitled to State Pension</label></div>
+    </div>
+    <div id="partner-dob-group" class="form-group" style="display:none;">
+      <label for="partnerDob">Partner date of birth</label>
+      <input type="date" id="partnerDob" />
+    </div>
+    <div class="form-group">
+      <label for="dob">Your date of birth</label>
+      <input type="date" id="dob" required />
+    </div>
+    <div class="form-group">
+      <label for="retireAge">Desired retirement age</label>
+      <input type="number" id="retireAge" min="50" max="100" value="65" required />
+    </div>
+    <div class="form-group">
+      <label>Portfolio growth rate</label>
+      <div class="radio-group">
+        <label><input type="radio" name="growthRate" value="0.04" /> 4% (40:60)</label>
+        <label><input type="radio" name="growthRate" value="0.05" checked /> 5% (50:50)</label>
+        <label><input type="radio" name="growthRate" value="0.06" /> 6% (60:40)</label>
+        <label><input type="radio" name="growthRate" value="0.07" /> 7% (100:0)</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="rentalIncome">Annual rental income today (€)</label>
+      <input type="number" id="rentalIncome" placeholder="e.g. 12000" />
+    </div>
+    <div class="form-group checkbox-group">
+      <div><input type="checkbox" id="hasDb" /> <label for="hasDb">I will receive a Defined Benefit (DB) pension</label></div>
+    </div>
+    <div id="db-group" class="form-group" style="display:none;">
+      <label for="dbPension">DB pension annual amount at retirement (€)</label>
+      <input type="number" id="dbPension" placeholder="e.g. 20000" />
+    </div>
+    <button type="submit">Calculate</button>
+  </form>
+  <div id="results"></div>
+  <div id="chart-container"><canvas id="balanceChart"></canvas></div>
+  <div id="console" class="error"></div>
+
+  <!-- PASTE the JavaScript below this line -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
   const CPI = 0.023;
   const STATE_PENSION = 15044;
   const SP_START = 66;
@@ -145,102 +244,5 @@
   }
 </script>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      max-width: 900px;
-      margin: 2rem auto;
-      padding: 1rem;
-    }
-    .form-group {
-      margin-bottom: 1rem;
-    }
-    label {
-      display: block;
-      margin-bottom: .35rem;
-    }
-    input[type="number"], input[type="date"] {
-      width: 100%;
-      padding: .5rem;
-    }
-    .checkbox-group, .radio-group {
-      display: flex;
-      gap: 1rem;
-      flex-wrap: wrap;
-    }
-    button {
-      padding: .7rem 1.5rem;
-      font-size: 1rem;
-      cursor: pointer;
-    }
-    #results {
-      margin-top: 2rem;
-      padding: 1.2rem;
-      border: 1px solid #ccc;
-      background: #f9f9f9;
-    }
-    .error {
-      color: red;
-      margin-top: 1rem;
-    }
-    #chart-container {
-      margin-top: 2rem;
-    }
-  </style>
-</head>
-<body>
-  <h1>F*ck You Money Calculator</h1>
-  <form id="fyf-form" autocomplete="off">
-    <div class="form-group">
-      <label for="grossIncome">Gross annual income (€)</label>
-      <input type="number" id="grossIncome" required />
-    </div>
-    <div class="form-group">
-      <label for="incomePercent">% of income needed in retirement</label>
-      <input type="number" id="incomePercent" step="0.1" min="0" max="100" value="70" required />
-    </div>
-    <div class="form-group checkbox-group">
-      <div><input type="checkbox" id="statePension" /> <label for="statePension">Collect State Pension (you)</label></div>
-      <div><input type="checkbox" id="partnerStatePension" /> <label for="partnerStatePension">Partner entitled to State Pension</label></div>
-    </div>
-    <div id="partner-dob-group" class="form-group" style="display:none;">
-      <label for="partnerDob">Partner date of birth</label>
-      <input type="date" id="partnerDob" />
-    </div>
-    <div class="form-group">
-      <label for="dob">Your date of birth</label>
-      <input type="date" id="dob" required />
-    </div>
-    <div class="form-group">
-      <label for="retireAge">Desired retirement age</label>
-      <input type="number" id="retireAge" min="50" max="100" value="65" required />
-    </div>
-    <div class="form-group">
-      <label>Portfolio growth rate</label>
-      <div class="radio-group">
-        <label><input type="radio" name="growthRate" value="0.04" /> 4% (40:60)</label>
-        <label><input type="radio" name="growthRate" value="0.05" checked /> 5% (50:50)</label>
-        <label><input type="radio" name="growthRate" value="0.06" /> 6% (60:40)</label>
-        <label><input type="radio" name="growthRate" value="0.07" /> 7% (100:0)</label>
-      </div>
-    </div>
-    <div class="form-group">
-      <label for="rentalIncome">Annual rental income today (€)</label>
-      <input type="number" id="rentalIncome" placeholder="e.g. 12000" />
-    </div>
-    <div class="form-group checkbox-group">
-      <div><input type="checkbox" id="hasDb" /> <label for="hasDb">I will receive a Defined Benefit (DB) pension</label></div>
-    </div>
-    <div id="db-group" class="form-group" style="display:none;">
-      <label for="dbPension">DB pension annual amount at retirement (€)</label>
-      <input type="number" id="dbPension" placeholder="e.g. 20000" />
-    </div>
-    <button type="submit">Calculate</button>
-  </form>
-  <div id="results"></div>
-  <div id="chart-container"><canvas id="balanceChart"></canvas></div>
-  <div id="console" class="error"></div>
-
-  <!-- PASTE the JavaScript below this line -->
 </body>
 </html>
