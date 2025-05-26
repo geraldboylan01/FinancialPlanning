@@ -148,9 +148,9 @@ button:hover{
   const CPI = 0.023;
   const STATE_PENSION = 15044;
   const SP_START = 66;
-  let chart;
-    let cashflowChart;
-
+  // ← Initialize both chart variables
+  let chart  = null;
+  let cashflowChart = null;
 
   function yrDiff(d, ref) {
     return (ref - d) / (1000 * 60 * 60 * 24 * 365.25);
@@ -271,7 +271,10 @@ button:hover{
         `;
       }
 
-      if (chart) chart.destroy();
+     // Before you draw the first (balance) chart:
+  if (chart !== null) {
+    chart.destroy();
+  }
       chart = new Chart(document.getElementById('balanceChart'), {
         type: 'line',
         data: {
@@ -298,7 +301,9 @@ button:hover{
         }
       });
 
-      if (cashflowChart) cashflowChart.destroy();
+       if (cashflowChart !== null) {
+    cashflowChart.destroy();
+  }
 
 cashflowChart = new Chart(document.getElementById('cashflowChart'), {
   type: 'bar',
