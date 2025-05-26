@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pension Growth Projection</title>
+
+  <!-- fonts + chart.js -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:'Inter',sans-serif;background:#1a1a1a;color:#fff}
+    h1{font-weight:700;margin-top:0;text-align:center}
+    .wrapper{min-height:100%;display:flex;justify-content:center;align-items:flex-start;padding:2rem 1rem}
+    .card{width:100%;max-width:640px;background:#2a2a2a;border-radius:16px;box-shadow:0 0 25px rgba(0,255,136,.25);padding:2rem}
+    .form-group{margin-bottom:1rem}
+    label{display:block;margin-bottom:.4rem;font-weight:600}
+    input[type=number],input[type=date]{width:100%;padding:.55rem .7rem;border:none;border-radius:8px;background:#404040;color:#fff}
+    input::placeholder{color:#aaa}
+    .radio-group{display:flex;gap:1rem;flex-wrap:wrap}
+    button{margin-top:1rem;width:100%;padding:.8rem 1rem;font-weight:700;font-size:1rem;border:none;border-radius:50px;cursor:pointer;color:#1a1a1a;background:linear-gradient(135deg,#00ff88,#0099ff);transition:transform .25s,box-shadow .25s}
+    button:hover{transform:scale(1.03);box-shadow:0 0 22px rgba(0,255,136,.8)}
+    #results{margin-top:2rem;background:#333;border-radius:12px;padding:1rem 1.2rem}
+    #chart-container{margin-top:1.5rem}
+    .error{color:#ff5c5c;margin-top:.5rem}
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="card">
+      <h1>Pension Projection Tool</h1>
+
+      <form id="proj-form" autocomplete="off">
+        <div class="form-group">
+          <label for="salary">Gross salary (€ - used for limits, max €115 000)</label>
+          <input type="number" id="salary" required />
+        </div>
+
+        <div class="form-group">
+          <label for="currentValue">Current pension value (€)</label>
+          <input type="number" id="currentValue" required />
+        </div>
+
+        <div class="form-group">
+          <label for="personalContrib">Your annual contribution (€)</label>
+          <input type="number" id="personalContrib" required />
+        </div>
+
+        <div class="form-group">
+          <label for="employerContrib">Employer annual contribution (€)</label>
+          <input type="number" id="employerContrib" required />
+        </div>
+
+        <div class="form-group">
+          <label for="dob">Your date of birth</label>
+          <input type="date" id="dob" required />
+        </div>
+
+        <div class="form-group">
+          <label for="retireAge">Desired retirement age</label>
+          <input type="number" id="retireAge" min="50" max="70" value="65" required />
+        </div>
+
+        <div class="form-group">
+          <label>Growth profile</label>
+          <div class="radio-group">
+            <label><input type="radio" name="growth" value="0.04"> Low&nbsp;Risk&nbsp;(4%)</label>
+            <label><input type="radio" name="growth" value="0.05" checked> Medium&nbsp;Risk&nbsp;(5%)</label>
+            <label><input type="radio" name="growth" value="0.06"> High&nbsp;Risk&nbsp;(6%)</label>
+            <label><input type="radio" name="growth" value="0.07"> 100%&nbsp;Equity&nbsp;Risk&nbsp;(7%)</label>
+          </div>
+        </div>
+
+        <button type="submit">Project value</button>
+      </form>
+
+      <div id="results"></div>
+      <div id="chart-container"><canvas id="growthChart"></canvas></div>
+      <div id="console" class="error"></div>
+    </div>
+  </div>
+
+<script>
+const MAX_SALARY_CAP = 115000;
+const AGE_BANDS = [
+  { max: 29,  pct: 0.15 },
+  { max: 39,  pct: 0.20 },
+  { max: 49,  pct: 0.25 },
+  { max: 54,  pct: 0.30 },
+  { max: 59,  pct: 0.35 },
+  { max: 120, pct: 0.40 }
+];
+
+let growthChart = null;
+
+function ageInYears(date, ref){return (ref - date)/(1000*60*60*24*365.25);}
+
+function maxPersonalPct(age){
+  for(const band of AGE_BANDS) if(age <= band.max) return band.pct;
+  return 0.40;
+}
+
+document.getElementById('proj-form').addEventListener('submit',function(e){
+  e.preventDefault();
+  try{
+    // inputs
+    const salary        = +document.getElementById('salary').value;
+    const currentPv     = +document.getElementById('currentValue').value;
+    const personalInput = +document.getElementById('personalContrib').value;
+    const employerInput = +document.getElementById('employerContrib').value;
+    const dob           = new Date(document.getElementById('dob').value);
+    const retireAge     = +document.getElementById('retireAge').value;
+    const gRate         = +document.querySelector('input[name="growth"]:checked').value;
+
+    if(!salary||!currentPv||!personalInput||!employerInput||!dob) throw 'Please fill all numeric fields';
+
+    const now           = new Date();
+    const curAge        = ageInYears(dob, now);
+    const yearsToRet    = Math.max(0, retireAge - curAge);
+
+    // Revenue max personal contribution
+    const allowedPct    = maxPersonalPct(Math.floor(curAge));
+    const allowed€      = allowedPct * Math.min(salary, MAX_SALARY_CAP);
+
+    const personalUsed  = Math.min(personalInput, allowed€);
+
+    // future value formula (annual compounding, contributions end-of-year)
+    const FV_lump = currentPv * Math.pow(1+gRate, yearsToRet);
+
+    const annFactor = (Math.pow(1+gRate, yearsToRet)-1)/gRate;
+    const FV_personal  = personalUsed  * annFactor;
+    const FV_employer  = employerInput * annFactor;
+
+    const FV_total = Math.round(FV_lump + FV_personal + FV_employer);
+
+    // build chart data
+    const balances = [];
+    let bal = currentPv;
+    for(let y=1; y<=yearsToRet; y++){
+      bal = bal*(1+gRate) + personalUsed + employerInput;
+      balances.push({age: Math.floor(curAge)+y, value: Math.round(bal)});
+    }
+
+    document.getElementById('results').innerHTML = `
+      <p>Max personal contribution allowed (age ${Math.floor(curAge)}): <strong>€${allowed€.toLocaleString()}</strong></p>
+      <h2>Projected value at age ${retireAge}: <strong>€${FV_total.toLocaleString()}</strong></h2>
+    `;
+
+    if(growthChart) growthChart.destroy();
+    growthChart = new Chart(document.getElementById('growthChart'),{
+      type:'line',
+      data:{
+        labels: balances.map(b=>`Age ${b.age}`),
+        datasets:[{
+          label:'Projected Pension (€)',
+          data: balances.map(b=>b.value),
+          borderColor:'#00ff88',
+          backgroundColor:'rgba(0,255,136,.1)',
+          fill:true,
+          tension:.25
+        }]
+      },
+      options:{
+        responsive:true,
+        plugins:{legend:{display:false}},
+        scales:{y:{ticks:{callback:v=>'€'+v.toLocaleString()}}}
+      }
+    });
+
+    document.getElementById('console').textContent='';
+  }catch(err){
+    document.getElementById('console').textContent=err;
+    if(growthChart) growthChart.destroy();
+  }
+});
+</script>
+</body>
+</html>
