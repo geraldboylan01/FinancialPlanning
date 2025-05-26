@@ -25,6 +25,13 @@
     #results{margin-top:2rem;background:#333;border-radius:12px;padding:1rem 1.2rem}
     #chart-container{margin-top:1.5rem}
     .error{color:#ff5c5c;margin-top:.5rem}
+    .max-explanation {
+  font-size: 0.9rem;
+  color: #ccc;
+  margin-top: 0.5rem;
+  line-height: 1.4;
+}
+
   </style>
 </head>
 <body>
@@ -176,7 +183,19 @@ function drawChart() {
       fill: false,
       tension: 0.25
     });
-    extraText = `<p><em>Max-contribution value at ${retireAge}: <strong>€${maxBalances.at(-1).value.toLocaleString()}</strong></em></p>`;
+    extra = `
+    <p class="max-note">
+      <em>Max-contribution value at ${retireAge}:
+      <strong>€${maxBalances.at(-1).value.toLocaleString()}</strong></em>
+    </p>
+    <p class="max-explanation">
+      The maximum contribution scenario assumes you make the highest allowable annual pension
+      contributions for your age bracket each year, based on your current salary, until retirement.
+    </p>
+  `;
+} else {
+  extra = '';
+}
   }
 
   // Render the chart
