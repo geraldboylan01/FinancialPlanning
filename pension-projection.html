@@ -107,59 +107,72 @@ const AGE_BANDS = [
 
 let growthChart = null;
 
-function ageInYears(date, ref){return (ref - date)/(1000*60*60*24*365.25);}
-function maxPersonalPct(age){return AGE_BANDS.find(b=>age<=b.max).pct;}
+function ageInYears(date, ref){
+  return (ref - date) / (1000 * 60 * 60 * 24 * 365.25);
+}
+function maxPersonalPct(age){
+  return AGE_BANDS.find(b => age <= b.max).pct;
+}
 
-document.getElementById('proj-form').addEventListener('submit',function(e){
+document.getElementById('proj-form').addEventListener('submit', function(e){
   e.preventDefault();
-  try{
+  try {
     // ---- raw inputs ----
-    const salaryRaw     = +document.getElementById('salary').value;
-    const salaryCapped  = Math.min(salaryRaw, MAX_SALARY_CAP);
+    const salaryRaw   = +document.getElementById('salary').value;
+    const salaryCapped= Math.min(salaryRaw, MAX_SALARY_CAP);
 
-    const currentPv     = +document.getElementById('currentValue').value;
+    const currentPv   = +document.getElementById('currentValue').value;
 
-    const personal€Raw  = +document.getElementById('personalContrib').value || 0;
-    const personalPct   = (+document.getElementById('personalPct').value || 0)/100;
+    const personalRaw = +document.getElementById('personalContrib').value || 0;
+    const personalPct = (+document.getElementById('personalPct').value || 0) / 100;
 
-    const employer€Raw  = +document.getElementById('employerContrib').value || 0;
-    const employerPct   = (+document.getElementById('employerPct').value || 0)/100;
+    const employerRaw = +document.getElementById('employerContrib').value || 0;
+    const employerPct = (+document.getElementById('employerPct').value || 0) / 100;
 
-    const dob           = new Date(document.getElementById('dob').value);
-    const retireAge     = +document.getElementById('retireAge').value;
-    const gRate         = +document.querySelector('input[name="growth"]:checked').value;
+    const dob         = new Date(document.getElementById('dob').value);
+    const retireAge   = +document.getElementById('retireAge').value;
+    const gRate       = +document.querySelector('input[name="growth"]:checked').value;
 
-    if(!salaryRaw||!currentPv||!dob) throw 'Please fill salary, DOB and current value';
+    if (!salaryRaw || !currentPv || !dob) throw 'Please fill salary, DOB and current value';
 
     // ---- derive annual contributions ----
-    const personalCalc  = personal€Raw>0 ? personal€Raw : salaryCapped * personalPct;
-    const employerCalc  = employer€Raw>0 ? employer€Raw : salaryCapped * employerPct;
+    const personalCalc = personalRaw > 0
+      ? personalRaw
+      : salaryCapped * personalPct;
+    const employerCalc = employerRaw > 0
+      ? employerRaw
+      : salaryCapped * employerPct;
 
     // ---- Revenue personal limit ----
-    const curAge   = ageInYears(dob,new Date());
-    const limit€   = maxPersonalPct(Math.floor(curAge))*salaryCapped;
-    const personalUsed = Math.min(personalCalc, limit€);
+    const curAge       = ageInYears(dob, new Date());
+    const limitValue   = maxPersonalPct(Math.floor(curAge)) * salaryCapped;
+    const personalUsed = Math.min(personalCalc, limitValue);
 
     // ---- years & factors ----
     const yearsToRet = Math.max(0, retireAge - curAge);
-    const FV_lump    = currentPv * Math.pow(1+gRate, yearsToRet);
-    const annFactor  = (Math.pow(1+gRate, yearsToRet)-1)/gRate;
+    const FV_lump    = currentPv * Math.pow(1 + gRate, yearsToRet);
+    const annFactor  = (Math.pow(1 + gRate, yearsToRet) - 1) / gRate;
 
     const FV_personal = personalUsed * annFactor;
     const FV_employer = employerCalc * annFactor;
     const FV_total    = Math.round(FV_lump + FV_personal + FV_employer);
 
     // ---- yearly projection for chart ----
-    const balances=[];
-    let bal=currentPv;
-    for(let y=1;y<=yearsToRet;y++){
-      bal = bal*(1+gRate)+ personalUsed + employerCalc;
-      balances.push({age:Math.floor(curAge)+y,value:Math.round(bal)});
+    const balances = [];
+    let bal = currentPv;
+    for (let y = 1; y <= yearsToRet; y++) {
+      bal = bal * (1 + gRate) + personalUsed + employerCalc;
+      balances.push({
+        age: Math.floor(curAge) + y,
+        value: Math.round(bal)
+      });
     }
 
     // ---- output ----
-    document.getElementById('results').innerHTML=`
-      <p>Max personal contribution allowed (age ${Math.floor(curAge)}): <strong>€${limit€.toLocaleString()}</strong>
+    document.getElementById('results').innerHTML = `
+      <p>
+        Max personal contribution allowed (age ${Math.floor(curAge)}):
+        <strong>€${limitValue.toLocaleString()}</strong>
       </p>
       <p>
         Using <strong>€${personalUsed.toLocaleString()}</strong> personal +
@@ -171,9 +184,8 @@ document.getElementById('proj-form').addEventListener('submit',function(e){
       </h2>
     `;
 
-    /* ---------- build / refresh line-chart ---------- */
+    // ---- build / refresh line-chart ----
     if (growthChart) growthChart.destroy();
-
     growthChart = new Chart(
       document.getElementById('growthChart'),
       {
@@ -193,17 +205,13 @@ document.getElementById('proj-form').addEventListener('submit',function(e){
           responsive: true,
           plugins: { legend: { display: false } },
           scales: {
-            y: {
-              ticks: {
-                callback: v => '€' + v.toLocaleString()
-              }
-            }
+            y: { ticks: { callback: v => '€' + v.toLocaleString() } }
           }
         }
       }
     );
 
-    /* clear any previous error */
+    // clear any previous error
     document.getElementById('console').textContent = '';
 
   } catch (err) {
@@ -212,5 +220,6 @@ document.getElementById('proj-form').addEventListener('submit',function(e){
   }
 });
 </script>
+
 </body>
 </html>
