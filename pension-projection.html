@@ -113,9 +113,9 @@ const AGE_BANDS = [
 ];
 
 let growthChart = null;
-let balances = [],       // will hold base scenario data
-    currentPv,           // will hold the lump-sum start
-    curAge,              // current age in years
+let balances = [],       // base scenario data
+    currentPv,           // starting value
+    curAge,              // current age
     yearsToRet,
     salaryCapped,
     personalUsed,
@@ -123,9 +123,9 @@ let balances = [],       // will hold base scenario data
     gRate,
     retireAge;
 
-// Helper functions
+// Helpers
 function ageInYears(date, ref) {
-  return (ref - date) / (1000 * 60 * 60 * 24 * 365.25);
+  return (ref - date) / (1000*60*60*24*365.25);
 }
 function maxPersonalPct(age) {
   return AGE_BANDS.find(b => age <= b.max).pct;
@@ -134,7 +134,7 @@ function maxPersonalByAge(age, capSalary) {
   return maxPersonalPct(Math.floor(age)) * capSalary;
 }
 
-// Ensure the "Show max" toggle lives under the chart-container
+// Injects the checkbox under the chart once
 function ensureMaxToggleExists() {
   if (document.getElementById('maxToggle')) return;
   const div = document.createElement('div');
@@ -146,15 +146,15 @@ function ensureMaxToggleExists() {
       Show max-contribution scenario
     </label>
   `;
-  document.querySelector('#chart-container').insertAdjacentElement('afterend', div);
-  document.getElementById('maxToggle').addEventListener('change', drawChart);
+  document.querySelector('#chart-container')
+          .insertAdjacentElement('afterend', div);
+  document.getElementById('maxToggle')
+          .addEventListener('change', drawChart);
 }
 
-// Core chart-drawing, uses the global variables set by the form submit
+// Draws the chart (base + optional max line) and appends explanatory note
 function drawChart() {
   const showMax = document.getElementById('maxToggle')?.checked;
-
-  // Base dataset
   const datasets = [{
     label: 'Your Projection',
     data: balances.map(b => b.value),
@@ -164,8 +164,7 @@ function drawChart() {
     tension: 0.25
   }];
 
-  // Optional max-contribution dataset
-  let extraText = '';
+  let extraHTML = '';
   if (showMax) {
     const maxBalances = [];
     let maxBal = currentPv;
@@ -175,30 +174,28 @@ function drawChart() {
       maxBal = maxBal * (1 + gRate) + personalMax + employerCalc;
       maxBalances.push({ age: Math.floor(ageNext), value: Math.round(maxBal) });
     }
+
     datasets.push({
       label: 'Max Contribution',
       data: maxBalances.map(b => b.value),
       borderColor: '#0099ff',
-      borderDash: [6, 4],
+      borderDash: [6,4],
       fill: false,
       tension: 0.25
     });
-    extra = `
-    <p class="max-note">
-      <em>Max-contribution value at ${retireAge}:
-      <strong>€${maxBalances.at(-1).value.toLocaleString()}</strong></em>
-    </p>
-    <p class="max-explanation">
-      The maximum contribution scenario assumes you make the highest allowable annual pension
-      contributions for your age bracket each year, based on your current salary, until retirement.
-    </p>
-  `;
-} else {
-  extra = '';
-}
+
+    extraHTML = `
+      <p class="max-note">
+        <em>Max-contribution value at ${retireAge}:
+        <strong>€${maxBalances.at(-1).value.toLocaleString()}</strong></em>
+      </p>
+      <p class="max-explanation">
+        The maximum contribution scenario assumes you make the highest allowable annual pension
+        contributions for your age bracket each year, based on your current salary, until retirement.
+      </p>
+    `;
   }
 
-  // Render the chart
   if (growthChart) growthChart.destroy();
   growthChart = new Chart(document.getElementById('growthChart'), {
     type: 'line',
@@ -215,48 +212,46 @@ function drawChart() {
     }
   });
 
-  // Append the extra line only once (so it doesn’t duplicate)
-  const resultsDiv = document.getElementById('results');
-  // Remove any previous extra line
-  resultsDiv.querySelectorAll('.max-note').forEach(el => el.remove());
-  if (extraText) {
+  // update results div
+  const results = document.getElementById('results');
+  results.querySelectorAll('.max-note, .max-explanation').forEach(el => el.remove());
+  if (extraHTML) {
     const wrapper = document.createElement('div');
-    wrapper.className = 'max-note';
-    wrapper.innerHTML = extraText;
-    resultsDiv.append(wrapper);
+    wrapper.innerHTML = extraHTML;
+    results.append(wrapper);
   }
 }
 
-// Handle form submission
+// Form handler
 document.getElementById('proj-form').addEventListener('submit', e => {
   e.preventDefault();
   try {
-    // Read & prepare inputs
-    const salaryRaw   = +document.getElementById('salary').value;
-    salaryCapped     = Math.min(salaryRaw, MAX_SALARY_CAP);
-    currentPv        = +document.getElementById('currentValue').value;
-    const personalRaw= +document.getElementById('personalContrib').value || 0;
-    const personalPct= (+document.getElementById('personalPct').value || 0) / 100;
-    employerCalc     = (+document.getElementById('employerContrib').value || 0) > 0
+    // Inputs
+    const salaryRaw  = +document.getElementById('salary').value;
+    salaryCapped    = Math.min(salaryRaw, MAX_SALARY_CAP);
+    currentPv       = +document.getElementById('currentValue').value;
+    const personalRaw = +document.getElementById('personalContrib').value || 0;
+    const personalPct = (+document.getElementById('personalPct').value||0)/100;
+    employerCalc    = (+document.getElementById('employerContrib').value || 0) > 0
                       ? +document.getElementById('employerContrib').value
                       : salaryCapped * ((+document.getElementById('employerPct').value||0)/100);
-    retireAge        = +document.getElementById('retireAge').value;
-    gRate            = +document.querySelector('input[name="growth"]:checked').value;
-    const dob        = new Date(document.getElementById('dob').value);
+    retireAge       = +document.getElementById('retireAge').value;
+    gRate           = +document.querySelector('input[name="growth"]:checked').value;
+    const dob       = new Date(document.getElementById('dob').value);
 
-    if (!salaryRaw || !currentPv || !dob) {
+    if (!salaryRaw || !currentPv || isNaN(dob)) {
       throw 'Please fill salary, DOB and current value';
     }
 
-    // Calculate personalUsed
-    curAge    = ageInYears(dob, new Date());
-    const personalCalcRaw = personalRaw > 0
+    // Personal contributions capped by age band
+    curAge  = ageInYears(dob, new Date());
+    const personalCalc = personalRaw > 0
       ? personalRaw
       : salaryCapped * personalPct;
-    const limitValue      = maxPersonalPct(Math.floor(curAge)) * salaryCapped;
-    personalUsed          = Math.min(personalCalcRaw, limitValue);
+    const limitValue   = maxPersonalPct(Math.floor(curAge)) * salaryCapped;
+    personalUsed       = Math.min(personalCalc, limitValue);
 
-    // Prepare balances array
+    // Build balances
     yearsToRet = Math.max(0, retireAge - curAge);
     balances   = [];
     let bal    = currentPv;
@@ -269,7 +264,7 @@ document.getElementById('proj-form').addEventListener('submit', e => {
     document.getElementById('results').innerHTML = `
       <p>
         Max personal contribution allowed (age ${Math.floor(curAge)}):
-        <strong>€${(maxPersonalPct(Math.floor(curAge)) * salaryCapped).toLocaleString()}</strong>
+        <strong>€${limitValue.toLocaleString()}</strong>
       </p>
       <p>
         Using <strong>€${personalUsed.toLocaleString()}</strong> personal +
@@ -281,7 +276,7 @@ document.getElementById('proj-form').addEventListener('submit', e => {
       </h2>
     `;
 
-    // Inject toggle & draw chart
+    // Inject toggle and draw
     ensureMaxToggleExists();
     drawChart();
 
@@ -292,6 +287,7 @@ document.getElementById('proj-form').addEventListener('submit', e => {
   }
 });
 </script>
+
 
 </body>
 </html>
