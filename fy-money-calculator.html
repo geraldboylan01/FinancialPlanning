@@ -298,7 +298,7 @@ button:hover{
         }
       });
 
-      if (window.cashflowChart) cashflowChart.destroy();
+      if (cashflowChart) cashflowChart.destroy();
 
 cashflowChart = new Chart(document.getElementById('cashflowChart'), {
   type: 'bar',
