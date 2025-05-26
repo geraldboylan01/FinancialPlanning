@@ -75,6 +75,10 @@ button:hover{
 #chart-container{
   margin-top:1.5rem;
 }
+  #cashflow-container{
+  margin-top:1.5rem;
+}
+
 
 .error{color:#ff5c5c;margin-top:.5rem}
 </style>
@@ -133,6 +137,9 @@ button:hover{
   </form>
   <div id="results"></div>
   <div id="chart-container"><canvas id="balanceChart"></canvas></div>
+    <div id="cashflow-container" style="margin-top:2rem;">
+  <canvas id="cashflowChart"></canvas>
+</div>
   <div id="console" class="error"></div>
 
   <!-- PASTE the JavaScript below this line -->
@@ -142,6 +149,8 @@ button:hover{
   const STATE_PENSION = 15044;
   const SP_START = 66;
   let chart;
+    let cashflowChart;
+
 
   function yrDiff(d, ref) {
     return (ref - d) / (1000 * 60 * 60 * 24 * 365.25);
@@ -213,21 +222,41 @@ button:hover{
 
       reqCap = Math.max(0, Math.round(reqCap / 1000) * 1000);
 
-      bal = reqCap;
-      for (let t = 0; t < yrsRet; t++) {
-        const age = retireAge + t;
-        const partnerAge = partnerDob ? partnerAgeAtRet + t : null;
-        const infl = Math.pow(1 + CPI, t);
-        const spend = spendAtRet * infl;
-        const rent = rentAtRet * infl;
-        const db = hasDb ? dbAnnual * infl : 0;
-        let sp = 0;
-        if (includeSP && age >= SP_START) sp += STATE_PENSION;
-        if (includePartnerSP && partnerAge && partnerAge >= SP_START) sp += STATE_PENSION;
-        const net = Math.max(0, spend - sp - rent - db);
-        bal = bal * (1 + gRate) - net;
-        balances.push({ age, value: Math.max(0, Math.round(bal)) });
-      }
+     bal = reqCap;
+
+  // 👉 NEW arrays for the cash-flow chart
+  const reqLine = [];
+  const pensionDraw = [];
+  const otherInc = [];
+
+  for (let t = 0; t < yrsRet; t++) {
+    const age = retireAge + t;
+    const partnerAge = partnerDob ? partnerAgeAtRet + t : null;
+    const infl = Math.pow(1 + CPI, t);
+
+    const spend = spendAtRet * infl;
+    const rent  = rentAtRet  * infl;
+    const db    = hasDb ? dbAnnual * infl : 0;
+
+    let sp = 0;
+    if (includeSP && age >= SP_START) sp += STATE_PENSION;
+    if (includePartnerSP && partnerAge && partnerAge >= SP_START) sp += STATE_PENSION;
+
+    // --- bar segments ---
+    const otherIncomeSeg   = Math.min(sp + rent + db, spend);
+    const pensionWithdraw  = Math.max(0, spend - otherIncomeSeg);
+
+    // --- arrays for chart 2 ---
+    reqLine.push(Math.round(spend));
+    pensionDraw.push(Math.round(pensionWithdraw));
+    otherInc.push(Math.round(otherIncomeSeg));
+
+    // --- balance chart logic ---
+    const net = pensionWithdraw;
+    bal = bal * (1 + gRate) - net;
+    balances.push({ age, value: Math.max(0, Math.round(bal)) });
+  }
+
 
       if (alwaysSurplus || reqCap === 0) {
         document.getElementById('results').innerHTML = `
@@ -268,6 +297,48 @@ button:hover{
           }
         }
       });
+
+      if (window.cashflowChart) cashflowChart.destroy();
+
+cashflowChart = new Chart(document.getElementById('cashflowChart'), {
+  type: 'bar',
+  data: {
+    labels: balances.map(d => `Age ${d.age}`),
+    datasets: [
+      {
+        label: 'Pension Withdrawals',
+        data: pensionDraw,
+        backgroundColor: '#00ff88'
+      },
+      {
+        label: 'Other Income',
+        data: otherInc,
+        backgroundColor: '#0099ff'
+      },
+      {
+        type: 'line',
+        label: 'Income Requirement',
+        data: reqLine,
+        borderColor: '#ffffff',
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: false
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { position: 'top' } },
+    scales: {
+      x: { stacked: true },
+      y: {
+        stacked: true,
+        ticks: { callback: v => '€' + v.toLocaleString() }
+      }
+    }
+  }
+});
+
 
       document.getElementById('console').textContent = '';
     } catch (err) {
