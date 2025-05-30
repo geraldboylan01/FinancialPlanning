@@ -231,10 +231,12 @@ document.getElementById('proj-form').addEventListener('submit', e => {
     salaryCapped    = Math.min(salaryRaw, MAX_SALARY_CAP);
     currentPv       = +document.getElementById('currentValue').value;
     const personalRaw = +document.getElementById('personalContrib').value || 0;
-    const personalPct = (+document.getElementById('personalPct').value||0)/100;
-    employerCalc    = (+document.getElementById('employerContrib').value || 0) > 0
-                      ? +document.getElementById('employerContrib').value
-                      : salaryCapped * ((+document.getElementById('employerPct').value||0)/100);
+const personalPct = (+document.getElementById('personalPct').value || 0) / 100;
+
+const employerRaw = +document.getElementById('employerContrib').value || 0;
+const employerPct = (+document.getElementById('employerPct').value || 0) / 100;
+employerCalc      = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
+
     retireAge       = +document.getElementById('retireAge').value;
     gRate           = +document.querySelector('input[name="growth"]:checked').value;
     const dob       = new Date(document.getElementById('dob').value);
