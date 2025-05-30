@@ -127,7 +127,21 @@
       <div id="console" class="error"></div>
     </div>
   </div>
-
+<!-- This is the modal box that appears if the pension exceeds the SFT -->
+<div id="sftModal" class="modal" style="display:none">
+  <div class="modal-content">
+    <span id="sftClose" class="close-btn">&times;</span>
+    <h2>⚠️ Warning</h2>
+    <p id="sftMessage"></p>
+    <p style="margin-top:1rem;font-size:0.9rem;color:#ccc">
+      Amounts above the Standard Fund Threshold<br>
+      (€2 million in 2025, increasing €200k/year to €2.8 million in 2029)<br>
+      are liable to a 40% <u>Chargeable Excess Tax</u>.<br><br>
+      Please seek professional financial advice.
+    </p>
+  </div>
+</div>
+  
 <script>
 const MAX_SALARY_CAP = 115000;
 const AGE_BANDS = [
@@ -402,20 +416,6 @@ if (projValue > sftLimit) {
 });
 </script>
 
-<!-- This is the modal box that appears if the pension exceeds the SFT -->
-<div id="sftModal" class="modal" style="display:none">
-  <div class="modal-content">
-    <span id="sftClose" class="close-btn">&times;</span>
-    <h2>⚠️ Warning</h2>
-    <p id="sftMessage"></p>
-    <p style="margin-top:1rem;font-size:0.9rem;color:#ccc">
-      Amounts above the Standard Fund Threshold<br>
-      (€2 million in 2025, increasing €200k/year to €2.8 million in 2029)<br>
-      are liable to a 40% <u>Chargeable Excess Tax</u>.<br><br>
-      Please seek professional financial advice.
-    </p>
-  </div>
-</div>
 
 </body>
 </html>
