@@ -42,6 +42,21 @@
   background-color: #006644 !important;
   font-weight: 600;
 }
+    /* ─── Modal styles ─────────────────────────────────────── */
+.modal {
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;
+  z-index:9999;
+}
+.modal-content {
+  background:#2a2a2a;border-radius:16px;padding:2rem 2.5rem;max-width:420px;width:90%;
+  text-align:center;box-shadow:0 0 25px rgba(255,0,0,.4);position:relative;
+}
+.close-btn {
+  position:absolute;right:1.2rem;top:0.8rem;font-size:1.8rem;cursor:pointer;color:#fff;
+}
+.modal h2 {margin-top:0;color:#ff5c5c}
+
 
 
   </style>
@@ -124,6 +139,13 @@ const AGE_BANDS = [
   { max: 120, pct: 0.40 }
 ];
 
+  // ─── Standard Fund Threshold schedule ──────────────────────────
+function sftForYear(year) {
+  if (year < 2026) return 2000000;
+  if (year <= 2029) return 2000000 + 200000 * (year - 2025);
+  return 2800000;
+}
+
 let growthChart = null;
 let balances = [],       // base scenario data
     currentPv,           // starting value
@@ -163,6 +185,31 @@ function ensureMaxToggleExists() {
   document.getElementById('maxToggle')
           .addEventListener('change', drawChart);
 }
+  function showSFTWarning(projectedValue, sftLimit, year) {
+  const modal   = document.getElementById('sftModal');
+  const message = document.getElementById('sftMessage');
+  message.innerHTML = `
+    Your projected pension value is <strong>€${projectedValue.toLocaleString()}</strong>,
+    which exceeds the Standard Fund Threshold for ${year} (<strong>€${sftLimit.toLocaleString()}</strong>).
+  `;
+  modal.style.display = 'flex';
+}
+
+// Close handlers (runs once)
+document.getElementById('sftClose').onclick = () =>
+  document.getElementById('sftModal').style.display = 'none';
+
+window.onclick = e => {
+  if (e.target.id === 'sftModal')
+    document.getElementById('sftModal').style.display = 'none';
+};
+  window.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.getElementById('sftModal').style.display = 'none';
+  }
+});
+
+
 
 // Draws the chart (base + optional max line) and appends explanatory note
 function drawChart() {
@@ -318,20 +365,30 @@ employerCalc      = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
     }
 
     // Show base results
-    document.getElementById('results').innerHTML = `
-      <p>
-        Max personal contribution allowed (age ${Math.floor(curAge)}):
-        <strong>€${limitValue.toLocaleString()}</strong>
-      </p>
-      <p>
-        Using <strong>€${personalUsed.toLocaleString()}</strong> personal +
-        <strong>€${employerCalc.toLocaleString()}</strong> employer each year.
-      </p>
-      <h2>
-        Projected value at age ${retireAge}:<br>
-        <strong>€${balances.at(-1).value.toLocaleString()}</strong>
-      </h2>
-    `;
+    const projValue      = balances.at(-1).value;
+const retirementYear = new Date().getFullYear() + Math.ceil(yearsToRet);
+const sftLimit       = sftForYear(retirementYear);
+
+document.getElementById('results').innerHTML = `
+  <p>
+    Max personal contribution allowed (age ${Math.floor(curAge)}):
+    <strong>€${limitValue.toLocaleString()}</strong>
+  </p>
+  <p>
+    Using <strong>€${personalUsed.toLocaleString()}</strong> personal +
+    <strong>€${employerCalc.toLocaleString()}</strong> employer each year.
+  </p>
+  <h2>
+    Projected value at age ${retireAge}:<br>
+    <strong>€${projValue.toLocaleString()}</strong>
+  </h2>
+`;
+
+if (projValue > sftLimit) {
+  showSFTWarning(projValue, sftLimit, retirementYear);
+}
+
+    
 
     // Inject toggle and draw
     ensureMaxToggleExists();
@@ -345,6 +402,21 @@ employerCalc      = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
 });
 </script>
 
+<!-- This is the modal box that appears if the pension exceeds the SFT -->
+<div id="sftModal" class="modal" style="display:none">
+  <div class="modal-content">
+    <span id="sftClose" class="close-btn">&times;</span>
+    <h2>⚠️ Warning</h2>
+    <p id="sftMessage"></p>
+    <p style="margin-top:1rem;font-size:0.9rem;color:#ccc">
+      Amounts above the Standard Fund Threshold<br>
+      (€2 million in 2025, increasing €200k/year to €2.8 million in 2029)<br>
+      are liable to a 40% <u>Chargeable Excess Tax</u>.<br><br>
+      Please seek professional financial advice.
+    </p>
+  </div>
+</div>
 
 </body>
 </html>
+
