@@ -31,6 +31,13 @@
   margin-top: 0.5rem;
   line-height: 1.4;
 }
+    .age-table          {width:100%;border-collapse:collapse;margin-top:.8rem}
+.age-table th,
+.age-table td       {padding:.5rem .6rem;text-align:left}
+.age-table thead    {background:#444}
+.age-table tbody tr:nth-child(even){background:#3a3a3a}
+.age-table th       {font-weight:600}
+.salary-cap-note    {font-size:.85rem;color:#bbb;margin-top:.3rem}
 
   </style>
 </head>
@@ -185,15 +192,31 @@ function drawChart() {
     });
 
     extraHTML = `
-      <p class="max-note">
-        <em>Max-contribution value at ${retireAge}:
-        <strong>€${maxBalances.at(-1).value.toLocaleString()}</strong></em>
-      </p>
-      <p class="max-explanation">
-        The maximum contribution scenario assumes you make the highest allowable annual pension
-        contributions for your age bracket each year, based on your current salary, until retirement.
-      </p>
-    `;
+  <p class="max-note">
+    <em>Max-contribution value at ${retireAge}:
+    <strong>€${maxBalances.at(-1).value.toLocaleString()}</strong></em>
+  </p>
+
+  <table class="age-table">
+    <thead>
+      <tr><th>Age&nbsp;band</th><th>Max&nbsp;personal&nbsp;% of&nbsp;salary</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Up&nbsp;to&nbsp;29</td><td>15 %</td></tr>
+      <tr><td>30&nbsp;–&nbsp;39</td><td>20 %</td></tr>
+      <tr><td>40&nbsp;–&nbsp;49</td><td>25 %</td></tr>
+      <tr><td>50&nbsp;–&nbsp;54</td><td>30 %</td></tr>
+      <tr><td>55&nbsp;–&nbsp;59</td><td>35 %</td></tr>
+      <tr><td>60&nbsp;+</td><td>40 %</td></tr>
+    </tbody>
+  </table>
+
+  <p class="salary-cap-note">
+    *Personal limits apply to a maximum reckonable salary of €115,000.
+    Employer contributions are <strong>not</strong> capped by this limit.
+  </p>
+`;
+
   }
 
   if (growthChart) growthChart.destroy();
@@ -214,7 +237,10 @@ function drawChart() {
 
   // update results div
   const results = document.getElementById('results');
-  results.querySelectorAll('.max-note, .max-explanation').forEach(el => el.remove());
+  results.querySelectorAll(
+  '.max-note, .max-explanation, .age-table, .salary-cap-note')
+  .forEach(el => el.remove());
+
   if (extraHTML) {
     const wrapper = document.createElement('div');
     wrapper.innerHTML = extraHTML;
