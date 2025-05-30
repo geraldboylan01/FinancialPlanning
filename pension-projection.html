@@ -38,6 +38,11 @@
 .age-table tbody tr:nth-child(even){background:#3a3a3a}
 .age-table th       {font-weight:600}
 .salary-cap-note    {font-size:.85rem;color:#bbb;margin-top:.3rem}
+.age-table .highlight {
+  background-color: #006644 !important;
+  font-weight: 600;
+}
+
 
   </style>
 </head>
@@ -191,7 +196,31 @@ function drawChart() {
       tension: 0.25
     });
 
-    extraHTML = `
+    // Build dynamic table rows using the capped salary
+// Build dynamic table rows using the capped salary and user's age band
+const bandLabels = [
+  'Up&nbsp;to&nbsp;29',
+  '30&nbsp;–&nbsp;39',
+  '40&nbsp;–&nbsp;49',
+  '50&nbsp;–&nbsp;54',
+  '55&nbsp;–&nbsp;59',
+  '60&nbsp;+'
+];
+
+// Find the user's age band index
+const currentAge = Math.floor(curAge);
+const bandIndex = AGE_BANDS.findIndex(b => currentAge <= b.max);
+
+// Build the table rows, highlighting the current band
+const rowsHtml = AGE_BANDS.map((band, i) => `
+  <tr class="${i === bandIndex ? 'highlight' : ''}">
+    <td>${bandLabels[i]}</td>
+    <td>${(band.pct * 100).toFixed(0)} %</td>
+    <td>€${(band.pct * salaryCapped).toLocaleString()}</td>
+  </tr>`
+).join('');
+
+extraHTML = `
   <p class="max-note">
     <em>Max-contribution value at ${retireAge}:
     <strong>€${maxBalances.at(-1).value.toLocaleString()}</strong></em>
@@ -199,21 +228,21 @@ function drawChart() {
 
   <table class="age-table">
     <thead>
-      <tr><th>Age&nbsp;band</th><th>Max&nbsp;personal&nbsp;% of&nbsp;salary</th></tr>
+      <tr>
+        <th>Age&nbsp;band</th>
+        <th>Max&nbsp;%</th>
+        <th>Max&nbsp;€ (on&nbsp;€${salaryCapped.toLocaleString()})</th>
+      </tr>
     </thead>
     <tbody>
-      <tr><td>Up&nbsp;to&nbsp;29</td><td>15 %</td></tr>
-      <tr><td>30&nbsp;–&nbsp;39</td><td>20 %</td></tr>
-      <tr><td>40&nbsp;–&nbsp;49</td><td>25 %</td></tr>
-      <tr><td>50&nbsp;–&nbsp;54</td><td>30 %</td></tr>
-      <tr><td>55&nbsp;–&nbsp;59</td><td>35 %</td></tr>
-      <tr><td>60&nbsp;+</td><td>40 %</td></tr>
+      ${rowsHtml}
     </tbody>
   </table>
 
   <p class="salary-cap-note">
-    *Personal limits apply to a maximum reckonable salary of €115,000.
-    Employer contributions are <strong>not</strong> capped by this limit.
+    <strong>Note:</strong> Your current age (${currentAge}) falls in the highlighted band above. This determines your personal pension contribution limit for this year.
+    <br>*Personal limits are calculated on a maximum reckonable salary of €115,000.
+    Employer contributions are <strong>not</strong> subject to this cap.
   </p>
 `;
 
