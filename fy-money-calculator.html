@@ -431,11 +431,15 @@ canvas {
                 <img src="https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif" style="max-width:200px">
               `);
             } else {
-              setHTML('results', `
-                <h2>Result</h2>
-                <p>You and your partner will need about <strong>€${reqCap.toLocaleString()}</strong> invested in pension accounts at retirement.</p>
-              `);
-            }
+  // Decide which wording to use
+  const whoNeeds = includePartnerSP ? 'You and your partner' : 'You';
+
+  setHTML('results', `
+    <h2>Result</h2>
+    <p>${whoNeeds} will need about <strong>€${reqCap.toLocaleString()}</strong> invested in pension accounts at retirement.</p>
+  `);
+}
+
 
             // ─── Build cashflow & balance arrays ─────────────────────
             let bal = reqCap;                // start at required capital
