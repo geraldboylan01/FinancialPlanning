@@ -281,6 +281,7 @@
       <!-- PASTE the JavaScript below this line -->
       <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
       <script>
+        const setHTML = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
         const CPI = 0.023;
         const STATE_PENSION = 15044;
         const SP_START = 66;
@@ -384,22 +385,22 @@
                 ? `The amount you and your partner require (€${reqCap.toLocaleString()}) is above the combined Standard Fund Threshold for ${retirementYear} (2 × €${sftLimitSingle.toLocaleString()} = €${sftLimitCombined.toLocaleString()}).<br><br>Note: the maximum that can be held in a single pension tax-efficiently in ${retirementYear} is €${sftLimitSingle.toLocaleString()}.`
                 : `The amount you require (€${reqCap.toLocaleString()}) is above the Standard Fund Threshold for ${retirementYear} (€${sftLimitSingle.toLocaleString()}).<br><br>This is the maximum that can be held in one pension tax-efficiently for that year.`;
 
-              document.getElementById('sftMessage').innerHTML = msg;
+              setHTML('sftMessage', msg);
               document.getElementById('sftModal').style.display = 'flex';
             }
 
             // ─── Results copy (plural-aware) ─────────────────────────
             if (alwaysSurplus || reqCap === 0) {
-              document.getElementById('results').innerHTML = `
+              setHTML('results', `
                 <h2>Congratulations!</h2>
                 <p>Your projected income exceeds spending every year—you don't need extra pension capital.</p>
                 <img src="https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif" style="max-width:200px">
-              `;
+              `);
             } else {
-              document.getElementById('results').innerHTML = `
+              setHTML('results', `
                 <h2>Result</h2>
                 <p>You and your partner will need about <strong>€${reqCap.toLocaleString()}</strong> invested in pension accounts at retirement.</p>
-              `;
+              `);
             }
 
             // ─── Build cashflow & balance arrays ─────────────────────
@@ -469,11 +470,10 @@ chart = new Chart(document.getElementById('balanceChart'), {
     }
   }
 });
-const balCap = document.getElementById('balance-caption');
-if (balCap) {
-  balCap.innerHTML =
-    'This chart shows the estimated value of your pension pot over time, assuming withdrawals to fund retirement income.';
-}
+setHTML(
+  'balance-caption',
+  'This chart shows the estimated value of your pension pot over time, assuming withdrawals to fund retirement income.'
+  );
 
 /* ─── Cash-flow chart (income vs. withdrawals) ───────────── */
 if (cashflowChart !== null) cashflowChart.destroy();
@@ -531,16 +531,15 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
   }
 });
            
-const cfCap = document.getElementById('cashflow-caption');
-if (cfCap) {
-  cfCap.innerHTML =
-    'The bars show how your annual income needs are met from different sources after retirement. <br>Green: pension withdrawals; Blue: state pension/rent/DB income; White line: your total income need each year.';
-}
+setHTML(
+   'cashflow-caption',
+  'The bars show how your annual income needs are met from different sources after retirement.<br>Green = pension withdrawals; Blue = State-pension / rent / DB; White line = total income need.'
+  );
 
             document.getElementById('console').textContent = '';
           } catch (err) {
             document.getElementById('console').textContent = err.message;
-            document.getElementById('results').innerHTML = '';
+            setHTML('results', '');
             if (chart)    chart.destroy();
             if (cashflowChart) cashflowChart.destroy();
           }
