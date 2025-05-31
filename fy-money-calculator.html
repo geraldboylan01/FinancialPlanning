@@ -464,15 +464,13 @@ chart = new Chart(document.getElementById('balanceChart'), {
     scales: {
       y: {
         beginAtZero: true,
-        ticks: {
-          callback: val => '€' + val.toLocaleString()
-        }
+        ticks: { callback: v => '€' + v.toLocaleString() }
       }
     }
   }
 });
 document.getElementById('balance-caption').innerHTML =
-  "This chart shows the estimated value of your pension pot over time, assuming withdrawals to fund retirement income.";
+  'This chart shows the estimated value of your pension pot over time, assuming withdrawals to fund retirement income.';
 
 
             // ─── Cashflow chart ───────────────────────────────────────
