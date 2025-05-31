@@ -449,6 +449,7 @@
 
               const net = pensionWithdraw;
               bal = bal * (1 + gRate) - net;
+              balances.push({ age, value: Math.max(0, Math.round(bal)) });
             }
 
             cashflowChart = new Chart(document.getElementById('cashflowChart'), {
