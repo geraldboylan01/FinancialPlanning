@@ -472,27 +472,28 @@ chart = new Chart(document.getElementById('balanceChart'), {
 document.getElementById('balance-caption').innerHTML =
   'This chart shows the estimated value of your pension pot over time, assuming withdrawals to fund retirement income.';
 
+/* ─── Cash-flow chart (income vs. withdrawals) ───────────── */
+if (cashflowChart !== null) cashflowChart.destroy();
 
-            // ─── Cashflow chart ───────────────────────────────────────
-            if (cashflowChart !== null) cashflowChart.destroy();
 cashflowChart = new Chart(document.getElementById('cashflowChart'), {
   type: 'bar',
   data: {
     labels: balances.map(d => `Age ${d.age}`),
     datasets: [
       {
-        label: 'Pension Withdrawals',
+        label: 'Pension withdrawals',
         data: pensionDraw,
         backgroundColor: '#00ff88'
       },
       {
-        label: 'Other Income',
+        label: 'Other income (State Pension / rent / DB)',
         data: otherInc,
         backgroundColor: '#0099ff'
       },
       {
+        /* requirement line */
         type: 'line',
-        label: 'Income Requirement',
+        label: 'Total income need',
         data: reqLine,
         borderColor: '#ffffff',
         borderWidth: 2,
@@ -518,11 +519,15 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
       y: {
         stacked: true,
         beginAtZero: true,
-        ticks: { callback: v => '€' + v.toLocaleString(), color: '#fff' }
+        ticks: {
+          callback: v => '€' + v.toLocaleString(),
+          color: '#fff'
+        }
       }
     }
   }
 });
+           
 document.getElementById('cashflow-caption').innerHTML =
   "The bars show how your annual income needs are met from different sources after retirement. <br>Green: pension withdrawals; Blue: state pension/rent/DB income; White line: your total income need each year.";
 
