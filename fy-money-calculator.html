@@ -469,8 +469,11 @@ chart = new Chart(document.getElementById('balanceChart'), {
     }
   }
 });
-document.getElementById('balance-caption').innerHTML =
-  'This chart shows the estimated value of your pension pot over time, assuming withdrawals to fund retirement income.';
+const balCap = document.getElementById('balance-caption');
+if (balCap) {
+  balCap.innerHTML =
+    'This chart shows the estimated value of your pension pot over time, assuming withdrawals to fund retirement income.';
+}
 
 /* ─── Cash-flow chart (income vs. withdrawals) ───────────── */
 if (cashflowChart !== null) cashflowChart.destroy();
@@ -528,8 +531,11 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
   }
 });
            
-document.getElementById('cashflow-caption').innerHTML =
-  "The bars show how your annual income needs are met from different sources after retirement. <br>Green: pension withdrawals; Blue: state pension/rent/DB income; White line: your total income need each year.";
+const cfCap = document.getElementById('cashflow-caption');
+if (cfCap) {
+  cfCap.innerHTML =
+    'The bars show how your annual income needs are met from different sources after retirement. <br>Green: pension withdrawals; Blue: state pension/rent/DB income; White line: your total income need each year.';
+}
 
             document.getElementById('console').textContent = '';
           } catch (err) {
