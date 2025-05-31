@@ -1,63 +1,119 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Financial Planning Tools</title>
-    <link rel="icon" type="image/png" href="favicon.png" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            background: #1a1a1a;
-            color: #fff;
-        }
-        .container {
-            text-align: center;
-        }
-        .bubble {
-            display: inline-flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            width: 220px;
-            height: 220px;
-            background: linear-gradient(135deg, #00ff88, #0099ff);
-            border-radius: 50%;
-            cursor: pointer;
-            transition: transform 0.3s, box-shadow 0.3s;
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
-        }
-        .bubble:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 35px rgba(0, 255, 136, 0.9);
-        }
-        .bubble span {
-            font-size: 20px;
-            font-weight: 700;
-            padding: 10px;
-        }
-        .bubble-icon {
-            font-size: 50px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <!-- This meta tag is already correct for responsive behavior -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Financial Planning Tools</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+    /* 1. Base reset and body centering */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html,
+    body {
+      height: 100%;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    }
+
+    /* 2. Make the container flex and allow wrapping */
+    .container {
+      display: flex;
+      flex-wrap: wrap;          /* allow bubbles to move down on small screens */
+      justify-content: center;  /* center horizontally */
+      align-items: center;      /* center vertically if they're on the same row */
+      gap: 1rem;                /* space between bubbles */
+      max-width: 100%;          /* ensure it never overflows the viewport */
+    }
+
+    /* 3. Responsive bubble sizing */
+    .bubble {
+      /* Use viewport‐relative sizing, up to a max of 220px */
+      width: 40vw;              /* 40% of viewport width */
+      max-width: 220px;         /* never exceed 220px */
+      height: 40vw;             /* keep it square (circle) */
+      max-height: 220px;        /* never exceed 220px */
+      /* Keep the circle shape */
+      background: linear-gradient(135deg, #00ff88, #0099ff);
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+      box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
+      text-decoration: none;    /* in case you wrap in an <a> */
+    }
+    .bubble:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 35px rgba(0, 255, 136, 0.9);
+    }
+
+    .bubble-icon {
+      font-size: 10vw;          /* scale icon with viewport, up to a max below */
+      max-font-size: 50px;      /* browsers will ignore this, so we’ll override with media query if needed */
+      margin-bottom: 0.5rem;
+      line-height: 1;
+    }
+    .bubble span {
+      font-size: 4vw;          /* Title text also scales */
+      max-font-size: 20px;     /* never exceed 20px */
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.2;
+    }
+
+    /* 4. On very small viewports, stack them and shrink fonts/icons a bit more */
+    @media (max-width: 480px) {
+      .bubble {
+        width: 60vw;
+        height: 60vw;
+        max-width: none;
+        max-height: none;
+      }
+      .bubble-icon {
+        font-size: 8vw;
+      }
+      .bubble span {
+        font-size: 5vw;
+      }
+      /* If you want them stacked (one above the other) on very narrow screens: */
+      .container {
+        flex-direction: column;
+        gap: 1.5rem;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="bubble" onclick="location.href='fy-money-calculator.html'">
-            <div class="bubble-icon">💸</div>
-            <span>F*ck You Money<br>Calculator</span>
-        </div>
-        <div class="bubble" style="margin-left:3rem" onclick="location.href='pension-projection.html'">
+  <div class="container">
+    <!-- Bubble #1 -->
+    <div class="bubble" onclick="location.href='fy-money-calculator.html'">
+      <div class="bubble-icon">💸</div>
+      <span>F*ck You Money<br />Calculator</span>
+    </div>
+
+    <!-- Bubble #2 -->
+    <div class="bubble" onclick="location.href='pension-projection.html'">
       <div class="bubble-icon">📈</div>
-      <span>Pension Growth<br>Projection</span>
+      <span>Pension Growth<br />Projection</span>
     </div>
-    </div>
+  </div>
 </body>
 </html>
