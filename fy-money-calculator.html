@@ -146,6 +146,31 @@
   margin-left: auto;
   margin-right: auto;
 }
+    /* 1) Wrap each <canvas> in a container that fixes width=100% and height=280px on desktop */
+.chart-wrapper {
+  position: relative;
+  width: 100%;
+  height: 280px;    /* desktop/tablet height; can be tuned */
+  margin: 0 auto;
+}
+
+/* 2) On very small phones, shrink the chart height */
+@media (max-width: 480px) {
+  .chart-wrapper {
+    height: 200px; /* less vertical space on narrow screens */
+  }
+  /* Optionally shrink caption text a bit */
+  #balance-caption,
+  #cashflow-caption {
+    font-size: 0.9rem;
+  }
+}
+
+/* 3) Make sure the <canvas> itself always collapses to its parent’s width */
+canvas {
+  display: block;     /* remove default inline-block spacing */
+  max-width: 100%;
+}
 
   </style>
 
@@ -254,14 +279,22 @@
         <button type="submit">Calculate</button>
       </form>
 
-     <div id="chart-container">
-  <canvas id="balanceChart"></canvas>
+    <div id="chart-container">
+  <!-- WRAP the canvas inside .chart-wrapper -->
+  <div class="chart-wrapper">
+    <canvas id="balanceChart"></canvas>
+  </div>
   <div id="balance-caption"></div>
 </div>
+
 <div id="cashflow-container" style="margin-top:2rem;">
-  <canvas id="cashflowChart"></canvas>
+  <!-- WRAP this canvas too -->
+  <div class="chart-wrapper">
+    <canvas id="cashflowChart"></canvas>
+  </div>
   <div id="cashflow-caption"></div>
 </div>
+
       <div id="console" class="error"></div>
 
       <!-- SFT warning modal -->
@@ -435,6 +468,10 @@
               balances.push({ age, value: Math.max(0, Math.round(bal)) });
             }
 
+            // ─── (Insert mobile‐detection flag) ─────────
+const isMobile = window.innerWidth < 480;
+
+            
             // ─── Balance chart ───────────────────────────────────────
             if (chart !== null) chart.destroy();
 chart = new Chart(document.getElementById('balanceChart'), {
@@ -445,31 +482,51 @@ chart = new Chart(document.getElementById('balanceChart'), {
       label: 'Pension Balance (€)',
       data: balances.map(d => d.value),
       borderColor: '#00cc99',
-      backgroundColor: 'rgba(0,204,153,.1)',
+      backgroundColor: 'rgba(0,204,153,0.1)',
       fill: true,
-      tension: .3
+      tension: 0.3
     }]
   },
   options: {
     responsive: true,
+    maintainAspectRatio: false,    // ← ADDED: let .chart-wrapper dictate height
     plugins: {
       legend: { display: false },
       title: {
         display: true,
         text: 'Projected Pension Account Value Over Retirement',
         color: '#fff',
-        font: { size: 19, weight: 'bold' },
-        padding: { top: 18, bottom: 8 }
+        font: {
+          size: isMobile ? 14 : 18,  // ← ADJUST font size on mobile vs desktop
+          weight: 'bold'
+        },
+        padding: {
+          top: isMobile ? 8 : 12,     // ← smaller padding on mobile
+          bottom: isMobile ? 4 : 6
+        }
       }
     },
     scales: {
+      x: {
+        ticks: {
+          color: '#fff',
+          autoSkip: true,          // ← only show a subset of ticks
+          maxTicksLimit: 8,        // ← never more than 8 labels
+          maxRotation: 45,         // ← allow slanted text if needed
+          minRotation: 30
+        }
+      },
       y: {
         beginAtZero: true,
-        ticks: { callback: v => '€' + v.toLocaleString() }
+        ticks: {
+          callback: v => '€' + v.toLocaleString(),
+          color: '#fff'
+        }
       }
     }
   }
 });
+
 setHTML(
   'balance-caption',
   'This chart shows the estimated value of your pension pot over time, assuming withdrawals to fund retirement income.'
@@ -494,7 +551,6 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
         backgroundColor: '#0099ff'
       },
       {
-        /* requirement line */
         type: 'line',
         label: 'Total income need',
         data: reqLine,
@@ -507,18 +563,42 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
   },
   options: {
     responsive: true,
+    maintainAspectRatio: false,    // ← ADDED
     plugins: {
-      legend: { position: 'top', labels: { color: '#fff' } },
+      legend: {
+        position: 'top',
+        labels: {
+          color: '#fff',
+          font: {
+            size: isMobile ? 10 : 12   // ← shrink legend font on mobile
+          }
+        }
+      },
       title: {
         display: true,
         text: 'Annual Retirement Income Needs and Sources',
         color: '#fff',
-        font: { size: 19, weight: 'bold' },
-        padding: { top: 18, bottom: 8 }
+        font: {
+          size: isMobile ? 14 : 18,    // ← shrink title font on mobile
+          weight: 'bold'
+        },
+        padding: {
+          top: isMobile ? 8 : 12,
+          bottom: isMobile ? 4 : 6
+        }
       }
     },
     scales: {
-      x: { stacked: true, ticks: { color: '#fff' } },
+      x: {
+        stacked: true,
+        ticks: {
+          color: '#fff',
+          autoSkip: true,          // ← only show a subset of x‐labels
+          maxTicksLimit: 8,
+          maxRotation: 45,
+          minRotation: 30
+        }
+      },
       y: {
         stacked: true,
         beginAtZero: true,
@@ -530,6 +610,7 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
     }
   }
 });
+
            
 setHTML(
    'cashflow-caption',
