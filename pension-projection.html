@@ -290,9 +290,14 @@ function drawChart() {
     options: {
       responsive: true,
       plugins: { legend: { position: 'top' } },
-      scales: { y: { ticks: { callback: v => '€' + v.toLocaleString() } } }
-    }
-  });
+      scales: {
+        y: {
+          beginAtZero: true,         // ← ensures the Y-axis always starts at 0
+          ticks: { callback: v => '€' + v.toLocaleString() }
+        }
+      }   // ← closes `scales`
+    }     // ← closes `options`
+  });    // ← closes `new Chart(...)`
 
   /* ─── 5. BUILD / SHOW THE MAX-BANDS TABLE & NOTES ────── */
   // First clear any previous injects
