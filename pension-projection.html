@@ -56,6 +56,41 @@
   position:absolute;right:1.2rem;top:0.8rem;font-size:1.8rem;cursor:pointer;color:#fff;
 }
 .modal h2 {margin-top:0;color:#ff5c5c}
+/* ─── Growth-profile cards ─────────────────────────── */
+.risk-options{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:1rem;
+}
+.risk-options input[type=radio]{    /* hide the native circles */
+  display:none;
+}
+.risk-card{
+  background:#333;
+  border:2px solid #555;
+  border-radius:14px;
+  padding:1rem 1.2rem;
+  min-height:110px;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  transition:border-color .25s, box-shadow .25s;
+}
+.risk-title{font-weight:600;font-size:1.05rem;margin-bottom:.3rem}
+.risk-desc {font-size:.9rem;line-height:1.35;color:#ccc}
+
+/* Highlight when selected */
+.risk-options input[type=radio]:checked + .risk-card{
+  border-color:#00ff88;
+  box-shadow:0 0 12px rgba(0,255,136,.6);
+}
+
+/* Keyboard focus (accessibility) */
+.risk-options input[type=radio]:focus + .risk-card{
+  outline:2px dashed #00ff88;
+  outline-offset:4px;
+}
 
 
 
@@ -109,15 +144,42 @@
           <input type="number" id="retireAge" min="50" max="70" value="65" required />
         </div>
 
-        <div class="form-group">
-          <label>Growth profile</label>
-          <div class="radio-group">
-            <label><input type="radio" name="growth" value="0.04"> Low&nbsp;Risk&nbsp;(4%)</label>
-            <label><input type="radio" name="growth" value="0.05" checked> Medium&nbsp;Risk&nbsp;(5%)</label>
-            <label><input type="radio" name="growth" value="0.06"> High&nbsp;Risk&nbsp;(6%)</label>
-            <label><input type="radio" name="growth" value="0.07"> 100%&nbsp;Equity&nbsp;Risk&nbsp;(7%)</label>
-          </div>
-        </div>
+       <div class="form-group">
+  <label style="display:block;margin-bottom:.6rem;font-weight:700">
+    Choose a growth profile
+  </label>
+
+  <div class="risk-options">
+    <!-- Low -->
+    <input  type="radio" id="riskLow"    name="growth" value="0.04">
+    <label for="riskLow"  class="risk-card">
+      <span class="risk-title">Low risk</span>
+      <span class="risk-desc">≈ 70 % bonds / 30 % stocks<br>Typical long-term return&nbsp;≈ 4 % p.a.</span>
+    </label>
+
+    <!-- Medium (default checked) -->
+    <input  type="radio" id="riskMed"    name="growth" value="0.05" checked>
+    <label for="riskMed" class="risk-card">
+      <span class="risk-title">Balanced risk</span>
+      <span class="risk-desc">≈ 50 % bonds / 50 % stocks<br>Typical long-term return&nbsp;≈ 5 % p.a.</span>
+    </label>
+
+    <!-- High -->
+    <input  type="radio" id="riskHigh"   name="growth" value="0.06">
+    <label for="riskHigh" class="risk-card">
+      <span class="risk-title">High risk</span>
+      <span class="risk-desc">≈ 30 % bonds / 70 % stocks<br>Typical long-term return&nbsp;≈ 6 % p.a.</span>
+    </label>
+
+    <!-- Very High -->
+    <input  type="radio" id="riskVHigh"  name="growth" value="0.07">
+    <label for="riskVHigh" class="risk-card">
+      <span class="risk-title">Very-high risk</span>
+      <span class="risk-desc">0 % bonds / 100 % stocks<br>Typical long-term return&nbsp;≈ 7 % p.a.</span>
+    </label>
+  </div>
+</div>
+
 
         <button type="submit">Project value</button>
       </form>
