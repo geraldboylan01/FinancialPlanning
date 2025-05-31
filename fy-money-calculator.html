@@ -4,357 +4,449 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>F*ck You Money Calculator</title>
-<!-- Add inside <head> -->
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <!-- Add inside <head> -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
 
-<style>
-*{box-sizing:border-box}
-html,body{
-  height:100%;
-  margin:0;
-  font-family:'Inter',sans-serif;
-  background:#1a1a1a;
-  color:#fff;
-}
-h1{font-weight:700;margin-top:0;text-align:center}
+  <style>
+    *{box-sizing:border-box}
+    html,body{
+      height:100%;
+      margin:0;
+      font-family:'Inter',sans-serif;
+      background:#1a1a1a;
+      color:#fff;
+    }
+    h1{font-weight:700;margin-top:0;text-align:center}
 
-.wrapper{
-  min-height:100%;
-  display:flex;
-  justify-content:center;
-  align-items:flex-start;
-  padding:2rem 1rem;
-}
+    .wrapper{
+      min-height:100%;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding:2rem 1rem;
+    }
 
-.card{
-  width:100%;
-  max-width:640px;
-  background:#2a2a2a;
-  border-radius:16px;
-  box-shadow:0 0 25px rgba(0,255,136,.25);
-  padding:2rem;
-}
+    .card{
+      width:100%;
+      max-width:640px;
+      background:#2a2a2a;
+      border-radius:16px;
+      box-shadow:0 0 25px rgba(0,255,136,.25);
+      padding:2rem;
+    }
 
-.form-group{margin-bottom:1rem}
-label{display:block;margin-bottom:.4rem;font-weight:600}
-input[type=number],input[type=date]{
-  width:100%;
-  padding:.55rem .7rem;
-  border:none;
-  border-radius:8px;
-  background:#404040;
-  color:#fff;
-}
-input[type=number]::placeholder{color:#aaa}
-.checkbox-group,.radio-group{display:flex;flex-wrap:wrap;gap:1rem}
+    .form-group{margin-bottom:1rem}
+    label{display:block;margin-bottom:.4rem;font-weight:600}
+    input[type=number],input[type=date]{
+      width:100%;
+      padding:.55rem .7rem;
+      border:none;
+      border-radius:8px;
+      background:#404040;
+      color:#fff;
+    }
+    input[type=number]::placeholder{color:#aaa}
+    .checkbox-group,.radio-group{display:flex;flex-wrap:wrap;gap:1rem}
 
-button{
-  margin-top:1rem;
-  width:100%;
-  padding:.8rem 1rem;
-  font-weight:700;
-  font-size:1rem;
-  border:none;
-  border-radius:50px;
-  cursor:pointer;
-  color:#1a1a1a;
-  background:linear-gradient(135deg,#00ff88,#0099ff);
-  transition:transform .25s,box-shadow .25s;
-}
-button:hover{
-  transform:scale(1.03);
-  box-shadow:0 0 22px rgba(0,255,136,.8);
-}
+    button{
+      margin-top:1rem;
+      width:100%;
+      padding:.8rem 1rem;
+      font-weight:700;
+      font-size:1rem;
+      border:none;
+      border-radius:50px;
+      cursor:pointer;
+      color:#1a1a1a;
+      background:linear-gradient(135deg,#00ff88,#0099ff);
+      transition:transform .25s,box-shadow .25s;
+    }
+    button:hover{
+      transform:scale(1.03);
+      box-shadow:0 0 22px rgba(0,255,136,.8);
+    }
 
-#results{
-  margin-top:2rem;
-  background:#333;
-  border-radius:12px;
-  padding:1rem 1.2rem;
-}
-#chart-container{
-  margin-top:1.5rem;
-}
-  #cashflow-container{
-  margin-top:1.5rem;
-}
+    #results{
+      margin-top:2rem;
+      background:#333;
+      border-radius:12px;
+      padding:1rem 1.2rem;
+    }
+    #chart-container{
+      margin-top:1.5rem;
+    }
+    #cashflow-container{
+      margin-top:1.5rem;
+    }
+
+    .error{color:#ff5c5c;margin-top:.5rem}
 
 
-.error{color:#ff5c5c;margin-top:.5rem}
-</style>
+    /* ─── Growth-profile cards ─────────────────────────── */
+    .risk-options {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:1rem;
+      margin-top:0.5rem;
+    }
+    .risk-options input[type=radio] {
+      display:none; /* hide native radio circle */
+    }
+    .risk-card {
+      background:#333;
+      border:2px solid #555;
+      border-radius:14px;
+      padding:1rem 1.2rem;
+      min-height:110px;
+      cursor:pointer;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      transition:border-color .25s, box-shadow .25s;
+    }
+    .risk-title { font-weight:600; font-size:1.05rem; margin-bottom:.3rem; }
+    .risk-desc { font-size:.9rem; line-height:1.35; color:#ccc; }
+
+    /* Highlight when selected */
+    .risk-options input[type=radio]:checked + .risk-card {
+      border-color:#00ff88;
+      box-shadow:0 0 12px rgba(0,255,136,.6);
+    }
+
+    /* Keyboard focus (accessibility) */
+    .risk-options input[type=radio]:focus + .risk-card {
+      outline:2px dashed #00ff88;
+      outline-offset:4px;
+    }
+  </style>
 
 </head>
 <body>
   <div class="wrapper">
-  <div class="card">
-  <h1>F*ck You Money Calculator</h1>
-  <form id="fyf-form" autocomplete="off">
-    <div class="form-group">
-      <label for="grossIncome">Gross annual income (€)</label>
-      <input type="number" id="grossIncome" required />
-    </div>
-    <div class="form-group">
-      <label for="incomePercent">% of income needed in retirement</label>
-      <input type="number" id="incomePercent" step="0.1" min="0" max="100" value="70" required />
-    </div>
-    <div class="form-group checkbox-group">
-      <div><input type="checkbox" id="statePension" /> <label for="statePension">Collect State Pension (you)</label></div>
-      <div><input type="checkbox" id="partnerStatePension" /> <label for="partnerStatePension">Partner entitled to State Pension</label></div>
-    </div>
-    <div id="partner-dob-group" class="form-group" style="display:none;">
-      <label for="partnerDob">Partner date of birth</label>
-      <input type="date" id="partnerDob" />
-    </div>
-    <div class="form-group">
-      <label for="dob">Your date of birth</label>
-      <input type="date" id="dob" required />
-    </div>
-    <div class="form-group">
-      <label for="retireAge">Desired retirement age</label>
-      <input type="number" id="retireAge" min="50" max="100" value="65" required />
-    </div>
-    <div class="form-group">
-      <label>Portfolio growth rate</label>
-      <div class="radio-group">
-        <label><input type="radio" name="growthRate" value="0.04" /> 4% (40:60)</label>
-        <label><input type="radio" name="growthRate" value="0.05" checked /> 5% (50:50)</label>
-        <label><input type="radio" name="growthRate" value="0.06" /> 6% (60:40)</label>
-        <label><input type="radio" name="growthRate" value="0.07" /> 7% (100:0)</label>
+    <div class="card">
+      <h1>F*ck You Money Calculator</h1>
+
+      <form id="fyf-form" autocomplete="off">
+        <div class="form-group">
+          <label for="grossIncome">Gross annual income (€)</label>
+          <input type="number" id="grossIncome" required />
+        </div>
+        <div class="form-group">
+          <label for="incomePercent">% of income needed in retirement</label>
+          <input type="number" id="incomePercent" step="0.1" min="0" max="100" value="70" required />
+        </div>
+        <div class="form-group checkbox-group">
+          <div>
+            <input type="checkbox" id="statePension" />
+            <label for="statePension">Collect State Pension (you)</label>
+          </div>
+          <div>
+            <input type="checkbox" id="partnerStatePension" />
+            <label for="partnerStatePension">Partner entitled to State Pension</label>
+          </div>
+        </div>
+        <div id="partner-dob-group" class="form-group" style="display:none;">
+          <label for="partnerDob">Partner date of birth</label>
+          <input type="date" id="partnerDob" />
+        </div>
+        <div class="form-group">
+          <label for="dob">Your date of birth</label>
+          <input type="date" id="dob" required />
+        </div>
+        <div class="form-group">
+          <label for="retireAge">Desired retirement age</label>
+          <input type="number" id="retireAge" min="50" max="100" value="65" required />
+        </div>
+
+        <!-- ─── Replaced “Portfolio growth rate” radios with card-style inputs ─── -->
+        <div class="form-group">
+          <label style="display:block;margin-bottom:.6rem;font-weight:700">
+            Choose a growth profile
+          </label>
+          <div class="risk-options">
+            <!-- Low risk: 40% stocks / 60% bonds -->
+            <input type="radio" id="riskLow" name="growthRate" value="0.04" />
+            <label for="riskLow" class="risk-card">
+              <span class="risk-title">Low risk</span>
+              <span class="risk-desc">
+                ≈ 40% stocks / 60% bonds<br>
+                Typical long-term return ≈ 4% p.a.
+              </span>
+            </label>
+
+            <!-- Balanced risk (50/50) -->
+            <input type="radio" id="riskMed" name="growthRate" value="0.05" checked />
+            <label for="riskMed" class="risk-card">
+              <span class="risk-title">Balanced risk</span>
+              <span class="risk-desc">
+                ≈ 50% stocks / 50% bonds<br>
+                Typical long-term return ≈ 5% p.a.
+              </span>
+            </label>
+
+            <!-- High risk: 60% stocks / 40% bonds -->
+            <input type="radio" id="riskHigh" name="growthRate" value="0.06" />
+            <label for="riskHigh" class="risk-card">
+              <span class="risk-title">High risk</span>
+              <span class="risk-desc">
+                ≈ 60% stocks / 40% bonds<br>
+                Typical long-term return ≈ 6% p.a.
+              </span>
+            </label>
+
+            <!-- Very high risk: 100% stocks -->
+            <input type="radio" id="riskVHigh" name="growthRate" value="0.07" />
+            <label for="riskVHigh" class="risk-card">
+              <span class="risk-title">Very-high risk</span>
+              <span class="risk-desc">
+                100% stocks / 0% bonds<br>
+                Typical long-term return ≈ 7% p.a.
+              </span>
+            </label>
+          </div>
+        </div>
+        <!-- ─── End of card-style radios ─────────────────────────────────── -->
+
+        <div class="form-group">
+          <label for="rentalIncome">Annual rental income today (€)</label>
+          <input type="number" id="rentalIncome" placeholder="e.g. 12000" />
+        </div>
+        <div class="form-group checkbox-group">
+          <div>
+            <input type="checkbox" id="hasDb" />
+            <label for="hasDb">I will receive a Defined Benefit (DB) pension</label>
+          </div>
+        </div>
+        <div id="db-group" class="form-group" style="display:none;">
+          <label for="dbPension">DB pension annual amount at retirement (€)</label>
+          <input type="number" id="dbPension" placeholder="e.g. 20000" />
+        </div>
+
+        <button type="submit">Calculate</button>
+      </form>
+
+      <div id="results"></div>
+      <div id="chart-container"><canvas id="balanceChart"></canvas></div>
+      <div id="cashflow-container" style="margin-top:2rem;">
+        <canvas id="cashflowChart"></canvas>
       </div>
-    </div>
-    <div class="form-group">
-      <label for="rentalIncome">Annual rental income today (€)</label>
-      <input type="number" id="rentalIncome" placeholder="e.g. 12000" />
-    </div>
-    <div class="form-group checkbox-group">
-      <div><input type="checkbox" id="hasDb" /> <label for="hasDb">I will receive a Defined Benefit (DB) pension</label></div>
-    </div>
-    <div id="db-group" class="form-group" style="display:none;">
-      <label for="dbPension">DB pension annual amount at retirement (€)</label>
-      <input type="number" id="dbPension" placeholder="e.g. 20000" />
-    </div>
-    <button type="submit">Calculate</button>
-  </form>
-  <div id="results"></div>
-  <div id="chart-container"><canvas id="balanceChart"></canvas></div>
-    <div id="cashflow-container" style="margin-top:2rem;">
-  <canvas id="cashflowChart"></canvas>
-</div>
-  <div id="console" class="error"></div>
+      <div id="console" class="error"></div>
 
-  <!-- PASTE the JavaScript below this line -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-  const CPI = 0.023;
-  const STATE_PENSION = 15044;
-  const SP_START = 66;
-  // ← Initialize both chart variables
-  let chart  = null;
-  let cashflowChart = null;
+      <!-- PASTE the JavaScript below this line -->
+      <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <script>
+        const CPI = 0.023;
+        const STATE_PENSION = 15044;
+        const SP_START = 66;
+        let chart = null;
+        let cashflowChart = null;
 
-  function yrDiff(d, ref) {
-    return (ref - d) / (1000 * 60 * 60 * 24 * 365.25);
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('partnerStatePension').addEventListener('change', e => {
-      document.getElementById('partner-dob-group').style.display = e.target.checked ? 'block' : 'none';
-    });
-
-    document.getElementById('hasDb').addEventListener('change', e => {
-      document.getElementById('db-group').style.display = e.target.checked ? 'block' : 'none';
-    });
-
-    document.getElementById('fyf-form').addEventListener('submit', calc);
-  });
-
-  function calc(e) {
-    e.preventDefault();
-    try {
-      const gross = +document.getElementById('grossIncome').value || 0;
-      const pctNeed = (+document.getElementById('incomePercent').value || 0) / 100;
-      const includeSP = document.getElementById('statePension').checked;
-      const includePartnerSP = document.getElementById('partnerStatePension').checked;
-      const dob = new Date(document.getElementById('dob').value);
-      const partnerDobStr = document.getElementById('partnerDob').value;
-      const partnerDob = partnerDobStr ? new Date(partnerDobStr) : null;
-      const retireAge = +document.getElementById('retireAge').value || 0;
-      const gRate = +document.querySelector('input[name=\"growthRate\"]:checked').value;
-      const rentalToday = +document.getElementById('rentalIncome').value || 0;
-      const hasDb = document.getElementById('hasDb').checked;
-      const dbAnnual = hasDb ? (+document.getElementById('dbPension').value || 0) : 0;
-
-      if (!gross || !pctNeed || !dob || !retireAge) throw new Error('Fill all required numeric fields.');
-      if (includePartnerSP && partnerDobStr === "") throw new Error('Enter partner DOB');
-
-      const now = new Date();
-      const curAge = yrDiff(dob, now);
-      const yrsToRet = retireAge - curAge;
-      const yrsRet = 100 - retireAge;
-      const partnerCurAge = partnerDob ? yrDiff(partnerDob, now) : null;
-      const partnerAgeAtRet = partnerDob ? partnerCurAge + yrsToRet : null;
-
-      const spendBase = gross * pctNeed;
-      const spendAtRet = spendBase * Math.pow(1 + CPI, yrsToRet);
-      const rentAtRet = rentalToday * Math.pow(1 + CPI, yrsToRet);
-
-      let reqCap = 0;
-      let alwaysSurplus = true;
-      let balances = [];
-      let bal = 0;
-
-      for (let t = 0; t < yrsRet; t++) {
-        const age = retireAge + t;
-        const partnerAge = partnerDob ? partnerAgeAtRet + t : null;
-        const infl = Math.pow(1 + CPI, t);
-        const spend = spendAtRet * infl;
-        const rent = rentAtRet * infl;
-        const db = hasDb ? dbAnnual * infl : 0;
-        let sp = 0;
-        if (includeSP && age >= SP_START) sp += STATE_PENSION;
-        if (includePartnerSP && partnerAge && partnerAge >= SP_START) sp += STATE_PENSION;
-        const net = spend - sp - rent - db;
-        if (net > 0) {
-          alwaysSurplus = false;
-          reqCap += net / Math.pow(1 + gRate, t + 1);
+        function yrDiff(d, ref) {
+          return (ref - d) / (1000 * 60 * 60 * 24 * 365.25);
         }
-      }
 
-      reqCap = Math.max(0, Math.round(reqCap / 1000) * 1000);
+        document.addEventListener('DOMContentLoaded', () => {
+          document.getElementById('partnerStatePension').addEventListener('change', e => {
+            document.getElementById('partner-dob-group').style.display = e.target.checked ? 'block' : 'none';
+          });
 
-     bal = reqCap;
+          document.getElementById('hasDb').addEventListener('change', e => {
+            document.getElementById('db-group').style.display = e.target.checked ? 'block' : 'none';
+          });
 
-  // 👉 NEW arrays for the cash-flow chart
-  const reqLine = [];
-  const pensionDraw = [];
-  const otherInc = [];
+          document.getElementById('fyf-form').addEventListener('submit', calc);
+        });
 
-  for (let t = 0; t < yrsRet; t++) {
-    const age = retireAge + t;
-    const partnerAge = partnerDob ? partnerAgeAtRet + t : null;
-    const infl = Math.pow(1 + CPI, t);
+        function calc(e) {
+          e.preventDefault();
+          try {
+            const gross = +document.getElementById('grossIncome').value || 0;
+            const pctNeed = (+document.getElementById('incomePercent').value || 0) / 100;
+            const includeSP = document.getElementById('statePension').checked;
+            const includePartnerSP = document.getElementById('partnerStatePension').checked;
+            const dob = new Date(document.getElementById('dob').value);
+            const partnerDobStr = document.getElementById('partnerDob').value;
+            const partnerDob = partnerDobStr ? new Date(partnerDobStr) : null;
+            const retireAge = +document.getElementById('retireAge').value || 0;
 
-    const spend = spendAtRet * infl;
-    const rent  = rentAtRet  * infl;
-    const db    = hasDb ? dbAnnual * infl : 0;
+            // ← Read the selected growth‐rate card
+            const gRate = +document.querySelector('input[name="growthRate"]:checked').value;
 
-    let sp = 0;
-    if (includeSP && age >= SP_START) sp += STATE_PENSION;
-    if (includePartnerSP && partnerAge && partnerAge >= SP_START) sp += STATE_PENSION;
+            const rentalToday = +document.getElementById('rentalIncome').value || 0;
+            const hasDb = document.getElementById('hasDb').checked;
+            const dbAnnual = hasDb ? (+document.getElementById('dbPension').value || 0) : 0;
 
-    // --- bar segments ---
-    const otherIncomeSeg   = Math.min(sp + rent + db, spend);
-    const pensionWithdraw  = Math.max(0, spend - otherIncomeSeg);
+            if (!gross || !pctNeed || !dob || !retireAge) throw new Error('Fill all required numeric fields.');
+            if (includePartnerSP && partnerDobStr === "") throw new Error('Enter partner DOB');
 
-    // --- arrays for chart 2 ---
-    reqLine.push(Math.round(spend));
-    pensionDraw.push(Math.round(pensionWithdraw));
-    otherInc.push(Math.round(otherIncomeSeg));
+            const now = new Date();
+            const curAge = yrDiff(dob, now);
+            const yrsToRet = retireAge - curAge;
+            const yrsRet = 100 - retireAge;
+            const partnerCurAge = partnerDob ? yrDiff(partnerDob, now) : null;
+            const partnerAgeAtRet = partnerDob ? partnerCurAge + yrsToRet : null;
 
-    // --- balance chart logic ---
-    const net = pensionWithdraw;
-    bal = bal * (1 + gRate) - net;
-    balances.push({ age, value: Math.max(0, Math.round(bal)) });
-  }
+            const spendBase = gross * pctNeed;
+            const spendAtRet = spendBase * Math.pow(1 + CPI, yrsToRet);
+            const rentAtRet = rentalToday * Math.pow(1 + CPI, yrsToRet);
 
+            let reqCap = 0;
+            let alwaysSurplus = true;
+            let balances = [];
+            let bal = 0;
 
-      if (alwaysSurplus || reqCap === 0) {
-        document.getElementById('results').innerHTML = `
-          <h2>Congratulations!</h2>
-          <p>Your projected income exceeds spending every year—you don't need extra pension capital.</p>
-          <img src="https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif" style="max-width:200px">
-        `;
-      } else {
-        document.getElementById('results').innerHTML = `
-          <h2>Result</h2>
-          <p>You need about <strong>€${reqCap.toLocaleString()}</strong> at retirement.</p>
-        `;
-      }
-
-     // Before you draw the first (balance) chart:
-  if (chart !== null) {
-    chart.destroy();
-  }
-      chart = new Chart(document.getElementById('balanceChart'), {
-        type: 'line',
-        data: {
-          labels: balances.map(d => `Age ${d.age}`),
-          datasets: [{
-            label: 'Pension Balance (€)',
-            data: balances.map(d => d.value),
-            borderColor: '#00cc99',
-            backgroundColor: 'rgba(0,204,153,.1)',
-            fill: true,
-            tension: .3
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            y: {
-              ticks: {
-                callback: val => '€' + val.toLocaleString()
+            for (let t = 0; t < yrsRet; t++) {
+              const age = retireAge + t;
+              const partnerAge = partnerDob ? partnerAgeAtRet + t : null;
+              const infl = Math.pow(1 + CPI, t);
+              const spend = spendAtRet * infl;
+              const rent = rentAtRet * infl;
+              const db = hasDb ? dbAnnual * infl : 0;
+              let sp = 0;
+              if (includeSP && age >= SP_START) sp += STATE_PENSION;
+              if (includePartnerSP && partnerAge && partnerAge >= SP_START) sp += STATE_PENSION;
+              const net = spend - sp - rent - db;
+              if (net > 0) {
+                alwaysSurplus = false;
+                reqCap += net / Math.pow(1 + gRate, t + 1);
               }
             }
+
+            reqCap = Math.max(0, Math.round(reqCap / 1000) * 1000);
+
+            bal = reqCap;
+
+            // 👉 NEW arrays for the cash-flow chart
+            const reqLine = [];
+            const pensionDraw = [];
+            const otherInc = [];
+
+            for (let t = 0; t < yrsRet; t++) {
+              const age = retireAge + t;
+              const partnerAge = partnerDob ? partnerAgeAtRet + t : null;
+              const infl = Math.pow(1 + CPI, t);
+
+              const spend = spendAtRet * infl;
+              const rent = rentAtRet * infl;
+              const db = hasDb ? dbAnnual * infl : 0;
+
+              let sp = 0;
+              if (includeSP && age >= SP_START) sp += STATE_PENSION;
+              if (includePartnerSP && partnerAge && partnerAge >= SP_START) sp += STATE_PENSION;
+
+              // --- bar segments ---
+              const otherIncomeSeg = Math.min(sp + rent + db, spend);
+              const pensionWithdraw = Math.max(0, spend - otherIncomeSeg);
+
+              // --- arrays for chart 2 ---
+              reqLine.push(Math.round(spend));
+              pensionDraw.push(Math.round(pensionWithdraw));
+              otherInc.push(Math.round(otherIncomeSeg));
+
+              // --- balance chart logic ---
+              const net = pensionWithdraw;
+              bal = bal * (1 + gRate) - net;
+              balances.push({ age, value: Math.max(0, Math.round(bal)) });
+            }
+
+            if (alwaysSurplus || reqCap === 0) {
+              document.getElementById('results').innerHTML = `
+                <h2>Congratulations!</h2>
+                <p>Your projected income exceeds spending every year—you don't need extra pension capital.</p>
+                <img src="https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif" style="max-width:200px">
+              `;
+            } else {
+              document.getElementById('results').innerHTML = `
+                <h2>Result</h2>
+                <p>You need about <strong>€${reqCap.toLocaleString()}</strong> at retirement.</p>
+              `;
+            }
+
+            // Before you draw the first (balance) chart:
+            if (chart !== null) {
+              chart.destroy();
+            }
+            chart = new Chart(document.getElementById('balanceChart'), {
+              type: 'line',
+              data: {
+                labels: balances.map(d => `Age ${d.age}`),
+                datasets: [{
+                  label: 'Pension Balance (€)',
+                  data: balances.map(d => d.value),
+                  borderColor: '#00cc99',
+                  backgroundColor: 'rgba(0,204,153,.1)',
+                  fill: true,
+                  tension: .3
+                }]
+              },
+              options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                  y: {
+                    beginAtZero: true,
+                    ticks: {
+                      callback: val => '€' + val.toLocaleString()
+                    }
+                  }
+                }
+              }
+            });
+
+            if (cashflowChart !== null) {
+              cashflowChart.destroy();
+            }
+            cashflowChart = new Chart(document.getElementById('cashflowChart'), {
+              type: 'bar',
+              data: {
+                labels: balances.map(d => `Age ${d.age}`),
+                datasets: [
+                  {
+                    label: 'Pension Withdrawals',
+                    data: pensionDraw,
+                    backgroundColor: '#00ff88'
+                  },
+                  {
+                    label: 'Other Income',
+                    data: otherInc,
+                    backgroundColor: '#0099ff'
+                  },
+                  {
+                    type: 'line',
+                    label: 'Income Requirement',
+                    data: reqLine,
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: false
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                plugins: { legend: { position: 'top' } },
+                scales: {
+                  x: { stacked: true },
+                  y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    ticks: { callback: v => '€' + v.toLocaleString() }
+                  }
+                }
+              }
+            });
+
+            document.getElementById('console').textContent = '';
+          } catch (err) {
+            document.getElementById('console').textContent = err.message;
+            document.getElementById('results').innerHTML = '';
+            if (chart) chart.destroy();
+            if (cashflowChart) cashflowChart.destroy();
           }
         }
-      });
-
-       if (cashflowChart !== null) {
-    cashflowChart.destroy();
-  }
-
-cashflowChart = new Chart(document.getElementById('cashflowChart'), {
-  type: 'bar',
-  data: {
-    labels: balances.map(d => `Age ${d.age}`),
-    datasets: [
-      {
-        label: 'Pension Withdrawals',
-        data: pensionDraw,
-        backgroundColor: '#00ff88'
-      },
-      {
-        label: 'Other Income',
-        data: otherInc,
-        backgroundColor: '#0099ff'
-      },
-      {
-        type: 'line',
-        label: 'Income Requirement',
-        data: reqLine,
-        borderColor: '#ffffff',
-        borderWidth: 2,
-        pointRadius: 0,
-        fill: false
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { position: 'top' } },
-    scales: {
-      x: { stacked: true },
-      y: {
-        stacked: true,
-        ticks: { callback: v => '€' + v.toLocaleString() }
-      }
-    }
-  }
-});
-
-
-      document.getElementById('console').textContent = '';
-    } catch (err) {
-      document.getElementById('console').textContent = err.message;
-      document.getElementById('results').innerHTML = '';
-      if (chart) chart.destroy();
-    }
-  }
-</script>
+      </script>
 
     </div>
-</div>
+  </div>
 </body>
 </html>
