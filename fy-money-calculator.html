@@ -137,6 +137,16 @@
       position: absolute; right: 1.2rem; top: 0.8rem;
       font-size: 1.8rem; cursor: pointer; color: #fff;
     }
+    #balance-caption, #cashflow-caption {
+  color: #ccc;
+  text-align: center;
+  font-size: 0.98rem;
+  margin: .3rem 0 1.2rem 0;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
   </style>
 
 </head>
@@ -244,11 +254,14 @@
         <button type="submit">Calculate</button>
       </form>
 
-      <div id="results"></div>
-      <div id="chart-container"><canvas id="balanceChart"></canvas></div>
-      <div id="cashflow-container" style="margin-top:2rem;">
-        <canvas id="cashflowChart"></canvas>
-      </div>
+     <div id="chart-container">
+  <canvas id="balanceChart"></canvas>
+  <div id="balance-caption"></div>
+</div>
+<div id="cashflow-container" style="margin-top:2rem;">
+  <canvas id="cashflowChart"></canvas>
+  <div id="cashflow-caption"></div>
+</div>
       <div id="console" class="error"></div>
 
       <!-- SFT warning modal -->
@@ -422,79 +435,98 @@
             }
 
             // ─── Balance chart ───────────────────────────────────────
-            if (chart !== null) {
-              chart.destroy();
-            }
-            chart = new Chart(document.getElementById('balanceChart'), {
-              type: 'line',
-              data: {
-                labels: balances.map(d => `Age ${d.age}`),
-                datasets: [{
-                  label: 'Pension Balance (€)',
-                  data: balances.map(d => d.value),
-                  borderColor: '#00cc99',
-                  backgroundColor: 'rgba(0,204,153,.1)',
-                  fill: true,
-                  tension: .3
-                }]
-              },
-              options: {
-                responsive: true,
-                plugins: { legend: { display: false } },
-                scales: {
-                  y: {
-                    beginAtZero: true,
-                    ticks: {
-                      callback: val => '€' + val.toLocaleString()
-                    }
-                  }
-                }
-              }
-            });
+            if (chart !== null) chart.destroy();
+chart = new Chart(document.getElementById('balanceChart'), {
+  type: 'line',
+  data: {
+    labels: balances.map(d => `Age ${d.age}`),
+    datasets: [{
+      label: 'Pension Balance (€)',
+      data: balances.map(d => d.value),
+      borderColor: '#00cc99',
+      backgroundColor: 'rgba(0,204,153,.1)',
+      fill: true,
+      tension: .3
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      title: {
+        display: true,
+        text: 'Projected Pension Account Value Over Retirement',
+        color: '#fff',
+        font: { size: 19, weight: 'bold' },
+        padding: { top: 18, bottom: 8 }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          callback: val => '€' + val.toLocaleString()
+        }
+      }
+    }
+  }
+});
+document.getElementById('balance-caption').innerHTML =
+  "This chart shows the estimated value of your pension pot over time, assuming withdrawals to fund retirement income.";
+
 
             // ─── Cashflow chart ───────────────────────────────────────
-            if (cashflowChart !== null) {
-              cashflowChart.destroy();
-            }
-            cashflowChart = new Chart(document.getElementById('cashflowChart'), {
-              type: 'bar',
-              data: {
-                labels: balances.map(d => `Age ${d.age}`),
-                datasets: [
-                  {
-                    label: 'Pension Withdrawals',
-                    data: pensionDraw,
-                    backgroundColor: '#00ff88'
-                  },
-                  {
-                    label: 'Other Income',
-                    data: otherInc,
-                    backgroundColor: '#0099ff'
-                  },
-                  {
-                    type: 'line',
-                    label: 'Income Requirement',
-                    data: reqLine,
-                    borderColor: '#ffffff',
-                    borderWidth: 2,
-                    pointRadius: 0,
-                    fill: false
-                  }
-                ]
-              },
-              options: {
-                responsive: true,
-                plugins: { legend: { position: 'top' } },
-                scales: {
-                  x: { stacked: true },
-                  y: {
-                    stacked: true,
-                    beginAtZero: true,
-                    ticks: { callback: v => '€' + v.toLocaleString() }
-                  }
-                }
-              }
-            });
+            if (cashflowChart !== null) cashflowChart.destroy();
+cashflowChart = new Chart(document.getElementById('cashflowChart'), {
+  type: 'bar',
+  data: {
+    labels: balances.map(d => `Age ${d.age}`),
+    datasets: [
+      {
+        label: 'Pension Withdrawals',
+        data: pensionDraw,
+        backgroundColor: '#00ff88'
+      },
+      {
+        label: 'Other Income',
+        data: otherInc,
+        backgroundColor: '#0099ff'
+      },
+      {
+        type: 'line',
+        label: 'Income Requirement',
+        data: reqLine,
+        borderColor: '#ffffff',
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: false
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { position: 'top', labels: { color: '#fff' } },
+      title: {
+        display: true,
+        text: 'Annual Retirement Income Needs and Sources',
+        color: '#fff',
+        font: { size: 19, weight: 'bold' },
+        padding: { top: 18, bottom: 8 }
+      }
+    },
+    scales: {
+      x: { stacked: true, ticks: { color: '#fff' } },
+      y: {
+        stacked: true,
+        beginAtZero: true,
+        ticks: { callback: v => '€' + v.toLocaleString(), color: '#fff' }
+      }
+    }
+  }
+});
+document.getElementById('cashflow-caption').innerHTML =
+  "The bars show how your annual income needs are met from different sources after retirement. <br>Green: pension withdrawals; Blue: state pension/rent/DB income; White line: your total income need each year.";
 
             document.getElementById('console').textContent = '';
           } catch (err) {
