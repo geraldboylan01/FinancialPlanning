@@ -5,132 +5,137 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>F*ck You Money Calculator</title>
   <!-- Add inside <head> -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
+    rel="stylesheet"
+  />
 
   <style>
-    *{box-sizing:border-box}
-    html,body{
-      height:100%;
-      margin:0;
-      font-family:'Inter',sans-serif;
-      background:#1a1a1a;
-      color:#fff;
+    * { box-sizing: border-box }
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: #1a1a1a;
+      color: #fff;
     }
-    h1{font-weight:700;margin-top:0;text-align:center}
+    h1 { font-weight: 700; margin-top: 0; text-align: center }
 
-    .wrapper{
-      min-height:100%;
-      display:flex;
-      justify-content:center;
-      align-items:flex-start;
-      padding:2rem 1rem;
-    }
-
-    .card{
-      width:100%;
-      max-width:640px;
-      background:#2a2a2a;
-      border-radius:16px;
-      box-shadow:0 0 25px rgba(0,255,136,.25);
-      padding:2rem;
+    .wrapper {
+      min-height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 2rem 1rem;
     }
 
-    .form-group{margin-bottom:1rem}
-    label{display:block;margin-bottom:.4rem;font-weight:600}
-    input[type=number],input[type=date]{
-      width:100%;
-      padding:.55rem .7rem;
-      border:none;
-      border-radius:8px;
-      background:#404040;
-      color:#fff;
-    }
-    input[type=number]::placeholder{color:#aaa}
-    .checkbox-group,.radio-group{display:flex;flex-wrap:wrap;gap:1rem}
-
-    button{
-      margin-top:1rem;
-      width:100%;
-      padding:.8rem 1rem;
-      font-weight:700;
-      font-size:1rem;
-      border:none;
-      border-radius:50px;
-      cursor:pointer;
-      color:#1a1a1a;
-      background:linear-gradient(135deg,#00ff88,#0099ff);
-      transition:transform .25s,box-shadow .25s;
-    }
-    button:hover{
-      transform:scale(1.03);
-      box-shadow:0 0 22px rgba(0,255,136,.8);
+    .card {
+      width: 100%;
+      max-width: 640px;
+      background: #2a2a2a;
+      border-radius: 16px;
+      box-shadow: 0 0 25px rgba(0, 255, 136, .25);
+      padding: 2rem;
     }
 
-    #results{
-      margin-top:2rem;
-      background:#333;
-      border-radius:12px;
-      padding:1rem 1.2rem;
+    .form-group { margin-bottom: 1rem }
+    label { display: block; margin-bottom: .4rem; font-weight: 600 }
+    input[type=number], input[type=date] {
+      width: 100%;
+      padding: .55rem .7rem;
+      border: none;
+      border-radius: 8px;
+      background: #404040;
+      color: #fff;
     }
-    #chart-container{
-      margin-top:1.5rem;
+    input[type=number]::placeholder { color: #aaa }
+    .checkbox-group, .radio-group { display: flex; flex-wrap: wrap; gap: 1rem }
+
+    button {
+      margin-top: 1rem;
+      width: 100%;
+      padding: .8rem 1rem;
+      font-weight: 700;
+      font-size: 1rem;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      color: #1a1a1a;
+      background: linear-gradient(135deg, #00ff88, #0099ff);
+      transition: transform .25s, box-shadow .25s;
     }
-    #cashflow-container{
-      margin-top:1.5rem;
+    button:hover {
+      transform: scale(1.03);
+      box-shadow: 0 0 22px rgba(0, 255, 136, .8);
     }
 
-    .error{color:#ff5c5c;margin-top:.5rem}
+    #results {
+      margin-top: 2rem;
+      background: #333;
+      border-radius: 12px;
+      padding: 1rem 1.2rem;
+    }
+    #chart-container {
+      margin-top: 1.5rem;
+    }
+    #cashflow-container {
+      margin-top: 1.5rem;
+    }
 
+    .error { color: #ff5c5c; margin-top: .5rem }
 
     /* ─── Growth-profile cards ─────────────────────────── */
     .risk-options {
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:1rem;
-      margin-top:0.5rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: .5rem;
     }
     .risk-options input[type=radio] {
-      display:none; /* hide native radio circle */
+      display: none; /* hide native radio circle */
     }
     .risk-card {
-      background:#333;
-      border:2px solid #555;
-      border-radius:14px;
-      padding:1rem 1.2rem;
-      min-height:110px;
-      cursor:pointer;
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-      transition:border-color .25s, box-shadow .25s;
+      background: #333;
+      border: 2px solid #555;
+      border-radius: 14px;
+      padding: 1rem 1.2rem;
+      min-height: 110px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transition: border-color .25s, box-shadow .25s;
     }
-    .risk-title { font-weight:600; font-size:1.05rem; margin-bottom:.3rem; }
-    .risk-desc { font-size:.9rem; line-height:1.35; color:#ccc; }
+    .risk-title { font-weight: 600; font-size: 1.05rem; margin-bottom: .3rem }
+    .risk-desc { font-size: .9rem; line-height: 1.35; color: #ccc }
 
     /* Highlight when selected */
     .risk-options input[type=radio]:checked + .risk-card {
-      border-color:#00ff88;
-      box-shadow:0 0 12px rgba(0,255,136,.6);
+      border-color: #00ff88;
+      box-shadow: 0 0 12px rgba(0, 255, 136, .6);
     }
 
     /* Keyboard focus (accessibility) */
     .risk-options input[type=radio]:focus + .risk-card {
-      outline:2px dashed #00ff88;
-      outline-offset:4px;
+      outline: 2px dashed #00ff88;
+      outline-offset: 4px;
     }
 
     /* ─── Modal (SFT warning) ─────────────────────────── */
-    .modal{
-      position:fixed;top:0;left:0;width:100%;height:100%;
-      background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;
-      z-index:9999;
+    .modal {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0, 0, 0, .7); display: flex;
+      align-items: center; justify-content: center; z-index: 9999;
     }
-    .modal-content{
-      background:#2a2a2a;border-radius:16px;padding:2rem 2.5rem;max-width:420px;width:90%;
-      text-align:center;box-shadow:0 0 25px rgba(255,0,0,.4);position:relative;
+    .modal-content {
+      background: #2a2a2a; border-radius: 16px;
+      padding: 2rem 2.5rem; max-width: 420px; width: 90%;
+      text-align: center; box-shadow: 0 0 25px rgba(255, 0, 0, .4);
+      position: relative;
     }
-    .close-btn{
-      position:absolute;right:1.2rem;top:0.8rem;font-size:1.8rem;cursor:pointer;color:#fff;
+    .close-btn {
+      position: absolute; right: 1.2rem; top: 0.8rem;
+      font-size: 1.8rem; cursor: pointer; color: #fff;
     }
   </style>
 
@@ -174,7 +179,7 @@
 
         <!-- ─── Replaced “Portfolio growth rate” radios with card-style inputs ─── -->
         <div class="form-group">
-          <label style="display:block;margin-bottom:.6rem;font-weight:700">
+          <label style="display:block; margin-bottom:.6rem; font-weight:700">
             Choose a growth profile
           </label>
           <div class="risk-options">
@@ -335,11 +340,9 @@
             const spendAtRet = spendBase * Math.pow(1 + CPI, yrsToRet);
             const rentAtRet = rentalToday * Math.pow(1 + CPI, yrsToRet);
 
+            // ─── Calculate required capital ─────────────────────────
             let reqCap = 0;
             let alwaysSurplus = true;
-            let balances = [];
-            let bal = 0;
-
             for (let t = 0; t < yrsRet; t++) {
               const age = retireAge + t;
               const partnerAge = partnerDob ? partnerAgeAtRet + t : null;
@@ -356,25 +359,23 @@
                 reqCap += net / Math.pow(1 + gRate, t + 1);
               }
             }
-
             reqCap = Math.max(0, Math.round(reqCap / 1000) * 1000);
-            bal = reqCap;
 
-            // ─── SFT check ─────────────────────────────────────
+            // ─── SFT check ───────────────────────────────────────────
             const retirementYear = now.getFullYear() + Math.ceil(yrsToRet);
             const sftLimitSingle = sftForYear(retirementYear);
             const sftLimitCombined = includePartnerSP ? sftLimitSingle * 2 : sftLimitSingle;
 
             if (reqCap > sftLimitCombined) {
               const msg = includePartnerSP
-                ? `The amount you and your partner require (€${reqCap.toLocaleString()}) is above the combined Standard Fund Threshold for ${retirementYear} (2 × €${sftLimitSingle.toLocaleString()} = €${sftLimitCombined.toLocaleString()}).\n\nNote: the maximum that can be held in a single pension tax-efficiently in ${retirementYear} is €${sftLimitSingle.toLocaleString()}.`
-                : `The amount you require (€${reqCap.toLocaleString()}) is above the Standard Fund Threshold for ${retirementYear} (€${sftLimitSingle.toLocaleString()}).\n\nThis is the maximum that can be held in one pension tax-efficiently for that year.`;
+                ? `The amount you and your partner require (€${reqCap.toLocaleString()}) is above the combined Standard Fund Threshold for ${retirementYear} (2 × €${sftLimitSingle.toLocaleString()} = €${sftLimitCombined.toLocaleString()}).<br><br>Note: the maximum that can be held in a single pension tax-efficiently in ${retirementYear} is €${sftLimitSingle.toLocaleString()}.`
+                : `The amount you require (€${reqCap.toLocaleString()}) is above the Standard Fund Threshold for ${retirementYear} (€${sftLimitSingle.toLocaleString()}).<br><br>This is the maximum that can be held in one pension tax-efficiently for that year.`;
 
-              document.getElementById('sftMessage').innerHTML = msg.replace(/\n/g, '<br>');
+              document.getElementById('sftMessage').innerHTML = msg;
               document.getElementById('sftModal').style.display = 'flex';
             }
 
-            // ─── Results copy (plural-aware) ─────────────────────
+            // ─── Results copy (plural-aware) ─────────────────────────
             if (alwaysSurplus || reqCap === 0) {
               document.getElementById('results').innerHTML = `
                 <h2>Congratulations!</h2>
@@ -388,7 +389,39 @@
               `;
             }
 
-            // ─── Balance chart ────────────────────────────────────
+            // ─── Build cashflow & balance arrays ─────────────────────
+            let bal = reqCap;                // start at required capital
+            const balances = [];             // reset balances array
+            const reqLine = [];
+            const pensionDraw = [];
+            const otherInc = [];
+
+            for (let t = 0; t < yrsRet; t++) {
+              const age = retireAge + t;
+              const partnerAge = partnerDob ? partnerAgeAtRet + t : null;
+              const infl = Math.pow(1 + CPI, t);
+
+              const spend = spendAtRet * infl;
+              const rent = rentAtRet * infl;
+              const db = hasDb ? dbAnnual * infl : 0;
+
+              let sp = 0;
+              if (includeSP && age >= SP_START) sp += STATE_PENSION;
+              if (includePartnerSP && partnerAge && partnerAge >= SP_START) sp += STATE_PENSION;
+
+              const otherIncomeSeg = Math.min(sp + rent + db, spend);
+              const pensionWithdraw = Math.max(0, spend - otherIncomeSeg);
+
+              reqLine.push(Math.round(spend));
+              pensionDraw.push(Math.round(pensionWithdraw));
+              otherInc.push(Math.round(otherIncomeSeg));
+
+              // update balance after withdrawal:
+              bal = bal * (1 + gRate) - pensionWithdraw;
+              balances.push({ age, value: Math.max(0, Math.round(bal)) });
+            }
+
+            // ─── Balance chart ───────────────────────────────────────
             if (chart !== null) {
               chart.destroy();
             }
@@ -419,39 +452,10 @@
               }
             });
 
-            // ─── Cashflow chart ───────────────────────────────────
+            // ─── Cashflow chart ───────────────────────────────────────
             if (cashflowChart !== null) {
               cashflowChart.destroy();
             }
-            // Build data arrays for cashflow chart:
-            const reqLine = [];
-            const pensionDraw = [];
-            const otherInc = [];
-            for (let t = 0; t < yrsRet; t++) {
-              const age = retireAge + t;
-              const partnerAge = partnerDob ? partnerAgeAtRet + t : null;
-              const infl = Math.pow(1 + CPI, t);
-
-              const spend = spendAtRet * infl;
-              const rent = rentAtRet * infl;
-              const db = hasDb ? dbAnnual * infl : 0;
-
-              let sp = 0;
-              if (includeSP && age >= SP_START) sp += STATE_PENSION;
-              if (includePartnerSP && partnerAge && partnerAge >= SP_START) sp += STATE_PENSION;
-
-              const otherIncomeSeg = Math.min(sp + rent + db, spend);
-              const pensionWithdraw = Math.max(0, spend - otherIncomeSeg);
-
-              reqLine.push(Math.round(spend));
-              pensionDraw.push(Math.round(pensionWithdraw));
-              otherInc.push(Math.round(otherIncomeSeg));
-
-              const net = pensionWithdraw;
-              bal = bal * (1 + gRate) - net;
-              balances.push({ age, value: Math.max(0, Math.round(bal)) });
-            }
-
             cashflowChart = new Chart(document.getElementById('cashflowChart'), {
               type: 'bar',
               data: {
@@ -496,7 +500,7 @@
           } catch (err) {
             document.getElementById('console').textContent = err.message;
             document.getElementById('results').innerHTML = '';
-            if (chart) chart.destroy();
+            if (chart)    chart.destroy();
             if (cashflowChart) cashflowChart.destroy();
           }
         }
