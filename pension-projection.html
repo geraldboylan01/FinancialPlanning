@@ -233,7 +233,7 @@ function drawChart() {
   const datasets  = [];
   const labels    = balances.map(b => `Age ${b.age}`);
 
-  /* ---------- BASE-LINE DATASET ---------- */
+  /* ─── 1. BASE-LINE DATASET ───────────────────────────── */
   datasets.push({
     label: 'Your Projection',
     data:  balances.map(b => b.value),
@@ -243,7 +243,7 @@ function drawChart() {
     tension: 0.25
   });
 
-  /* ---------- OPTIONAL MAX-CONTRIB DATASET ---------- */
+  /* ─── 2. OPTIONAL MAX-CONTRIB DATASET ────────────────── */
   let maxBalances = [];
   if (showMax) {
     let maxBal = currentPv;
@@ -264,25 +264,25 @@ function drawChart() {
     });
   }
 
-  /* ---------- DECIDE WHETHER WE NEED THE SFT LINE ---------- */
+  /* ─── 3. ADD RED SFT LINE IF NEEDED ──────────────────── */
   const baseCrosses = balances.some(b => b.value >= sftLimitGlobal);
   const maxCrosses  = showMax && maxBalances.some(b => b.value >= sftLimitGlobal);
 
   if (baseCrosses || maxCrosses) {
     datasets.push({
       label: `SFT (€${sftLimitGlobal.toLocaleString()})`,
-      data:  labels.map(() => sftLimitGlobal),   // flat horizontal line
+      data:  labels.map(() => sftLimitGlobal),
       borderColor: '#ff4d4d',
       borderDash: [8, 4],
       borderWidth: 2,
       pointRadius: 0,
       fill: false,
       tension: 0,
-      order: 0                                    // keeps it behind the other lines
+      order: 0
     });
   }
 
-  /* ---------- RENDER / RERENDER THE CHART ---------- */
+  /* ─── 4. RENDER / RERENDER THE CHART ─────────────────── */
   if (growthChart) growthChart.destroy();
   growthChart = new Chart(document.getElementById('growthChart'), {
     type: 'line',
@@ -290,16 +290,57 @@ function drawChart() {
     options: {
       responsive: true,
       plugins: { legend: { position: 'top' } },
-      scales: {
-        y: {
-          ticks: { callback: v => '€' + v.toLocaleString() }
-        }
-      }
+      scales: { y: { ticks: { callback: v => '€' + v.toLocaleString() } } }
     }
   });
 
-  /* ---------- ANY EXTRA INFO (unchanged) ---------- */
-  // … keep the existing block that builds the max-scenario table & notes …
+  /* ─── 5. BUILD / SHOW THE MAX-BANDS TABLE & NOTES ────── */
+  // First clear any previous injects
+  const results = document.getElementById('results');
+  results.querySelectorAll(
+    '.max-note, .age-table, .salary-cap-note'
+  ).forEach(el => el.remove());
+
+  if (showMax) {
+    // Build the HTML exactly as before
+    const bandLabels = [
+      'Up&nbsp;to&nbsp;29', '30&nbsp;–&nbsp;39', '40&nbsp;–&nbsp;49',
+      '50&nbsp;–&nbsp;54', '55&nbsp;–&nbsp;59', '60&nbsp;+'
+    ];
+    const currentAge = Math.floor(curAge);
+    const bandIndex  = AGE_BANDS.findIndex(b => currentAge <= b.max);
+    const rowsHtml   = AGE_BANDS.map((band, i) => `
+      <tr class="${i === bandIndex ? 'highlight' : ''}">
+        <td>${bandLabels[i]}</td>
+        <td>${(band.pct * 100).toFixed(0)} %</td>
+        <td>€${(band.pct * salaryCapped).toLocaleString()}</td>
+      </tr>`).join('');
+
+    const extraHTML = `
+      <p class="max-note">
+        <em>Max-contribution value at ${retireAge}:
+        <strong>€${maxBalances.at(-1).value.toLocaleString()}</strong></em>
+      </p>
+
+      <table class="age-table">
+        <thead>
+          <tr><th>Age&nbsp;band</th><th>Max&nbsp;%</th>
+              <th>Max&nbsp;€ (on&nbsp;€${salaryCapped.toLocaleString()})</th></tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+
+      <p class="salary-cap-note">
+        <strong>Note:</strong> Your current age (${currentAge}) is highlighted.
+        Personal limits are calculated on a max reckonable salary of €115,000;
+        employer contributions are <strong>not</strong> subject to this cap.
+      </p>
+    `;
+
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = extraHTML;
+    results.append(wrapper);
+  }
 }
 
 
