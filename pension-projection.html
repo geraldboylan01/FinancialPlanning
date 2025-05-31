@@ -255,13 +255,13 @@ function drawChart() {
     }
 
     datasets.push({
-      label: 'Max Contribution',
-      data:  maxBalances.map(b => b.value),
-      borderColor: '#0099ff',
-      borderDash: [6, 4],
-      fill: false,
-      tension: 0.25
-    });
+  label: 'Max Contribution',
+  data:  maxBalances.map(b => b.value),
+  borderColor: '#0099ff', // solid blue stroke
+  fill: false,            // no shading under the line
+  tension: 0.25
+});
+
   }
 
   /* ─── 3. ADD RED SFT LINE IF NEEDED ──────────────────── */
