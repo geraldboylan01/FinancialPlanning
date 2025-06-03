@@ -315,6 +315,9 @@ function drawChart() {
       maxBal = maxBal * (1 + gRate) + personalMax + employerCalc;
       maxBalances.push({ age: Math.floor(ageNext), value: Math.round(maxBal) });
     }
+    if (maxBalances.length === 0) {
+      maxBalances.push({ age: Math.floor(curAge), value: Math.round(maxBal) });
+    }
 
     datasets.push({
   label: 'Max Contribution',
@@ -383,10 +386,11 @@ function drawChart() {
         <td>€${(band.pct * salaryCapped).toLocaleString()}</td>
       </tr>`).join('');
 
+    const maxValue = maxBalances.at(-1)?.value ?? currentPv;
     const extraHTML = `
       <p class="max-note">
         <em>Max-contribution value at ${retireAge}:
-        <strong>€${maxBalances.at(-1).value.toLocaleString()}</strong></em>
+        <strong>€${maxValue.toLocaleString()}</strong></em>
       </p>
 
       <table class="age-table">
@@ -449,6 +453,9 @@ employerCalc      = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
     for (let y = 1; y <= yearsToRet; y++) {
       bal = bal * (1 + gRate) + personalUsed + employerCalc;
       balances.push({ age: Math.floor(curAge) + y, value: Math.round(bal) });
+    }
+    if (balances.length === 0) {
+      balances.push({ age: Math.floor(curAge), value: Math.round(bal) });
     }
 
     // Show base results
