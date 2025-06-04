@@ -112,28 +112,16 @@
       .bubble span  { font-size: 20px; }
     }
 
-    /* Textbox for user messages */
-    .message-box {
-      width: 100%;
-      max-width: 720px;
-      padding: 0.7rem 1rem;
-      border: none;
-      border-radius: 8px;
-      background: #2a2a2a;
-      color: #fff;
-    }
-    .message-box::placeholder {
-      color: #aaa;
-    }
-
-    /* Title styling */
-    .page-title {
+    /* Title styling inside info box */
+    .info-title {
       font-size: 2rem;
       font-weight: 700;
       text-align: center;
+      color: #bfa571; /* match favicon colour */
+      margin-bottom: 0.5rem;
     }
     @media (min-width: 700px) {
-      .page-title { font-size: 2.5rem; }
+      .info-title { font-size: 2.5rem; }
     }
 
     /* Informational box under the bubbles */
@@ -181,7 +169,22 @@
   </style>
 </head>
 <body>
-  <textarea class="message-box" placeholder="Type your message..."></textarea>
+  <div class="info-box">
+    <img src="favicon.png" alt="Irish pension logo" />
+    <div>
+      <h1 class="info-title">People's Planner</h1>
+      <p>🇮🇪 Built for Irish Pensions</p>
+      <p>All of our tools are designed specifically for Irish pension rules — because pensions are the most tax-efficient way to invest in Ireland.</p>
+      <p>When you invest through a pension:</p>
+      <ul>
+        <li>You don’t pay income tax on the money you contribute</li>
+        <li>Your investments grow tax-free, with no 8-year deemed disposal</li>
+        <li>You can take a portion tax-free at retirement</li>
+      </ul>
+      <p>That’s why our calculators focus on helping you understand how much you need in your pension to retire comfortably — and how to get there.</p>
+    </div>
+  </div>
+
   <div class="container">
     <!-- Bubble #1 -->
     <div class="bubble" onclick="location.href='fy-money-calculator.html'">
@@ -193,21 +196,6 @@
     <div class="bubble" onclick="location.href='pension-projection.html'">
       <div class="bubble-icon">📈</div>
       <span>Pension Growth<br />Projection</span>
-    </div>
-  </div>
-  <h1 class="page-title">People's Planner</h1>
-  <div class="info-box">
-    <img src="favicon.png" alt="Irish pension logo" />
-    <div>
-      <p>🇮🇪 Built for Irish Pensions</p>
-      <p>All of our tools are designed specifically for Irish pension rules — because pensions are the most tax-efficient way to invest in Ireland.</p>
-      <p>When you invest through a pension:</p>
-      <ul>
-        <li>You don’t pay income tax on the money you contribute</li>
-        <li>Your investments grow tax-free, with no 8-year deemed disposal</li>
-        <li>You can take a portion tax-free at retirement</li>
-      </ul>
-      <p>That’s why our calculators focus on helping you understand how much you need in your pension to retire comfortably — and how to get there.</p>
     </div>
   </div>
 </body>
