@@ -105,12 +105,12 @@
     .chart-wrapper {
       position: relative;
       width: 100%;
-      height: 280px;          /* desktop / tablet */
+      height: 320px;          /* desktop / tablet */
       margin: 0 auto;
     }
 
     @media (max-width: 480px) {
-      .chart-wrapper { height: 200px; }   /* phones */
+      .chart-wrapper { height: 240px; }   /* phones */
       .age-table th,
       .age-table td { font-size: 0.8rem; } /* slightly smaller */
     }
@@ -410,7 +410,14 @@ function drawChart() {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'top' },
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#ccc',
+            font: { size: 12 },
+            padding: 8
+          }
+        },
         title: {
           display: true,
           text: 'Projected Pension Value',
@@ -514,7 +521,14 @@ function drawContribChart(showMax) {
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { position: 'top' },
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#ccc',
+            font: { size: 12 },
+            padding: 8
+          }
+        },
         title: {
           display: true,
           text: 'Annual Contributions & Investment Growth',
