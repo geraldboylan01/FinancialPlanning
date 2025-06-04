@@ -107,6 +107,26 @@
   font-size: 1.1rem;
 }
 
+    /* ─── Chart wrappers keep a fixed height ────────────────────── */
+    .chart-wrapper {
+      position: relative;
+      width: 100%;
+      height: 280px;          /* desktop / tablet */
+      margin: 0 auto;
+    }
+
+    @media (max-width: 480px) {
+      .chart-wrapper { height: 200px; }   /* phones */
+      .age-table th,
+      .age-table td { font-size: 0.8rem; } /* slightly smaller */
+    }
+
+    /* ─── Scroll container for wide tables ─────────────────────── */
+    .table-scroll {
+      overflow-x: auto;
+      margin-top: 0.8rem;
+    }
+
 
 
   </style>
@@ -202,12 +222,16 @@
       <div id="results"></div>
       <div id="chart-container">
         <h3 class="chart-heading">Projected Pension Value</h3>
-        <canvas id="growthChart"></canvas>
+        <div class="chart-wrapper">
+          <canvas id="growthChart"></canvas>
+        </div>
 
-        <h3 class="chart-heading" style="margin-top:1.2rem;">
+        <h3 class="chart-heading" style="margin-top:1.2rem">
           Annual Contributions&nbsp;&amp;&nbsp;Investment&nbsp;Growth
         </h3>
-        <canvas id="contribChart"></canvas>
+        <div class="chart-wrapper">
+          <canvas id="contribChart"></canvas>
+        </div>
       </div>
       <div id="console" class="error"></div>
     </div>
@@ -394,6 +418,7 @@ function drawChart() {
     data: { labels, datasets },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { position: 'top' },
         title: {
@@ -444,13 +469,15 @@ function drawChart() {
         <strong>€${maxValue.toLocaleString()}</strong></em>
       </p>
 
-      <table class="age-table">
-        <thead>
-          <tr><th>Age&nbsp;band</th><th>Max&nbsp;%</th>
-              <th>Max&nbsp;€ (on&nbsp;€${salaryCapped.toLocaleString()})</th></tr>
-        </thead>
-        <tbody>${rowsHtml}</tbody>
-      </table>
+      <div class="table-scroll">
+        <table class="age-table">
+          <thead>
+            <tr><th>Age&nbsp;band</th><th>Max&nbsp;%</th>
+                <th>Max&nbsp;€ (on&nbsp;€${salaryCapped.toLocaleString()})</th></tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
 
       <p class="salary-cap-note">
         <strong>Note:</strong> Your current age (${currentAge}) is highlighted.
@@ -495,6 +522,7 @@ function drawContribChart(showMax) {
     },
     options: {
       responsive: true,
+      maintainAspectRatio: false,
       plugins: {
         legend: { position: 'top' },
         title: {
