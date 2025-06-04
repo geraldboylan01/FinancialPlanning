@@ -317,24 +317,31 @@ function drawChart() {
   let maxBalances = [];
   if (showMax) {
     let maxBal = currentPv;
+
+    // 1️⃣ starting value
+    maxBalances.push({
+      age: Math.floor(curAge),
+      value: Math.round(maxBal)
+    });
+
+    // 2️⃣ annual growth + max contrib
     for (let y = 1; y <= yearsToRet; y++) {
       const ageNext     = curAge + y;
       const personalMax = maxPersonalByAge(ageNext, salaryCapped);
       maxBal = maxBal * (1 + gRate) + personalMax + employerCalc;
-      maxBalances.push({ age: Math.floor(ageNext), value: Math.round(maxBal) });
-    }
-    if (maxBalances.length === 0) {
-      maxBalances.push({ age: Math.floor(curAge), value: Math.round(maxBal) });
+      maxBalances.push({
+        age: Math.floor(ageNext),
+        value: Math.round(maxBal)
+      });
     }
 
     datasets.push({
-  label: 'Max Contribution',
-  data:  maxBalances.map(b => b.value),
-  borderColor: '#0099ff', // solid blue stroke
-  fill: false,            // no shading under the line
-  tension: 0.25
-});
-
+      label: 'Max Contribution',
+      data: maxBalances.map(b => b.value),
+      borderColor: '#0099ff',
+      fill: false,
+      tension: 0.25
+    });
   }
 
   /* ─── 3. ADD RED SFT LINE IF NEEDED ──────────────────── */
@@ -454,16 +461,26 @@ employerCalc      = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
     const limitValue   = maxPersonalPct(Math.floor(curAge)) * salaryCapped;
     personalUsed       = Math.min(personalCalc, limitValue);
 
-    // Build balances
-    yearsToRet = Math.max(0, retireAge - curAge);
-    balances   = [];
-    let bal    = currentPv;
-    for (let y = 1; y <= yearsToRet; y++) {
+    // ─── Build balances (base scenario) ─────────────────────────────
+    const yearsToRetInt = Math.ceil(retireAge - curAge);   // integer!
+    yearsToRet = yearsToRetInt;     // keep global in sync
+
+    balances = [];
+    let bal = currentPv;
+
+    // 1️⃣ push the pot *at submission time*
+    balances.push({
+      age: Math.floor(curAge),
+      value: Math.round(bal)
+    });
+
+    // 2️⃣ now grow + contribute for each full year up to retirement
+    for (let y = 1; y <= yearsToRetInt; y++) {
       bal = bal * (1 + gRate) + personalUsed + employerCalc;
-      balances.push({ age: Math.floor(curAge) + y, value: Math.round(bal) });
-    }
-    if (balances.length === 0) {
-      balances.push({ age: Math.floor(curAge), value: Math.round(bal) });
+      balances.push({
+        age: Math.floor(curAge) + y,
+        value: Math.round(bal)
+      });
     }
 
     // Show base results
