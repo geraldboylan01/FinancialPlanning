@@ -100,6 +100,13 @@
   outline-offset:4px;
 }
 
+.chart-heading {
+  text-align: center;
+  margin: 0.4rem 0 0.6rem;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
 
 
   </style>
@@ -194,8 +201,13 @@
 
       <div id="results"></div>
       <div id="chart-container">
+        <h3 class="chart-heading">Projected Pension Value</h3>
         <canvas id="growthChart"></canvas>
-        <canvas id="contribChart" style="margin-top:1.2rem;"></canvas>
+
+        <h3 class="chart-heading" style="margin-top:1.2rem;">
+          Annual Contributions&nbsp;&amp;&nbsp;Investment&nbsp;Growth
+        </h3>
+        <canvas id="contribChart"></canvas>
       </div>
       <div id="console" class="error"></div>
     </div>
@@ -382,7 +394,16 @@ function drawChart() {
     data: { labels, datasets },
     options: {
       responsive: true,
-      plugins: { legend: { position: 'top' } },
+      plugins: {
+        legend: { position: 'top' },
+        title: {
+          display: true,
+          text: 'Projected Pension Value',
+          color: '#fff',
+          font: { size: 16, weight: 'bold' },
+          padding: { top: 10, bottom: 6 }
+        }
+      },
       scales: {
         y: {
           beginAtZero: true,         // ← ensures the Y-axis always starts at 0
@@ -474,7 +495,16 @@ function drawContribChart(showMax) {
     },
     options: {
       responsive: true,
-      plugins: { legend: { position: 'top' } },
+      plugins: {
+        legend: { position: 'top' },
+        title: {
+          display: true,
+          text: 'Annual Contributions & Investment Growth',
+          color: '#fff',
+          font: { size: 16, weight: 'bold' },
+          padding: { top: 10, bottom: 6 }
+        }
+      },
       scales: {
         x: { stacked: true },
         y: {
