@@ -100,12 +100,6 @@
   outline-offset:4px;
 }
 
-.chart-heading {
-  text-align: center;
-  margin: 0.4rem 0 0.6rem;
-  font-weight: 700;
-  font-size: 1.1rem;
-}
 
     /* ─── Chart wrappers keep a fixed height ────────────────────── */
     .chart-wrapper {
@@ -221,15 +215,11 @@
 
       <div id="results"></div>
       <div id="chart-container">
-        <h3 class="chart-heading">Projected Pension Value</h3>
         <div class="chart-wrapper">
           <canvas id="growthChart"></canvas>
         </div>
 
-        <h3 class="chart-heading" style="margin-top:1.2rem">
-          Annual Contributions&nbsp;&amp;&nbsp;Investment&nbsp;Growth
-        </h3>
-        <div class="chart-wrapper">
+        <div class="chart-wrapper" style="margin-top:1.2rem;">
           <canvas id="contribChart"></canvas>
         </div>
       </div>
