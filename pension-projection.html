@@ -193,7 +193,10 @@
       </form>
 
       <div id="results"></div>
-      <div id="chart-container"><canvas id="growthChart"></canvas></div>
+      <div id="chart-container">
+        <canvas id="growthChart"></canvas>
+        <canvas id="contribChart" style="margin-top:1.2rem;"></canvas>
+      </div>
       <div id="console" class="error"></div>
     </div>
   </div>
@@ -231,6 +234,9 @@ function sftForYear(year) {
 }
 
 let growthChart = null;
+let contribChart = null;
+let contribsBase = [], growthBase = [];
+let contribsMax  = [], growthMax  = [];
 let balances = [],       // base scenario data
     currentPv,           // starting value
     curAge,              // current age
@@ -315,6 +321,8 @@ function drawChart() {
 
   /* ─── 2. OPTIONAL MAX-CONTRIB DATASET ────────────────── */
   let maxBalances = [];
+  contribsMax = [];
+  growthMax   = [];
   if (showMax) {
     let maxBal = currentPv;
 
@@ -323,12 +331,17 @@ function drawChart() {
       age: Math.floor(curAge),
       value: Math.round(maxBal)
     });
+    contribsMax.push(0);
+    growthMax.push(0);
 
     // 2️⃣ annual growth + max contrib
     for (let y = 1; y <= yearsToRet; y++) {
+      const balBefore = maxBal;
       const ageNext     = curAge + y;
       const personalMax = maxPersonalByAge(ageNext, salaryCapped);
       maxBal = maxBal * (1 + gRate) + personalMax + employerCalc;
+      contribsMax.push(Math.round(personalMax + employerCalc));
+      growthMax.push(Math.round(maxBal - balBefore - (personalMax + employerCalc)));
       maxBalances.push({
         age: Math.floor(ageNext),
         value: Math.round(maxBal)
@@ -378,6 +391,8 @@ function drawChart() {
       }   // ← closes `scales`
     }     // ← closes `options`
   });    // ← closes `new Chart(...)`
+
+  drawContribChart(showMax);
 
   /* ─── 5. BUILD / SHOW THE MAX-BANDS TABLE & NOTES ────── */
   // First clear any previous injects
@@ -430,6 +445,48 @@ function drawChart() {
 }
 
 
+function drawContribChart(showMax) {
+  const labels = balances.map(b => `Age ${b.age}`);
+  const dataC  = showMax ? contribsMax  : contribsBase;
+  const dataG  = showMax ? growthMax    : growthBase;
+  const colourContrib = showMax ? '#0099ff' : '#00ff88';
+
+  if (contribChart) contribChart.destroy();
+
+  contribChart = new Chart(document.getElementById('contribChart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Contributions',
+          data: dataC,
+          backgroundColor: colourContrib,
+          stack: 'stack1'
+        },
+        {
+          label: 'Investment growth',
+          data: dataG,
+          backgroundColor: '#6666ff',
+          stack: 'stack1'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        x: { stacked: true },
+        y: {
+          stacked: true,
+          beginAtZero: true,
+          ticks: { callback: v => '€' + v.toLocaleString() }
+        }
+      }
+    }
+  });
+}
+
 // Form handler
 document.getElementById('proj-form').addEventListener('submit', e => {
   e.preventDefault();
@@ -474,14 +531,20 @@ employerCalc      = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
       value: Math.round(bal)
     });
 
+    contribsBase   = [0];   // no contribution before projection starts
+    growthBase     = [0];
+
     // 2️⃣ now grow + contribute for each full year up to retirement
-    for (let y = 1; y <= yearsToRetInt; y++) {
-      bal = bal * (1 + gRate) + personalUsed + employerCalc;
-      balances.push({
-        age: Math.floor(curAge) + y,
-        value: Math.round(bal)
-      });
-    }
+      for (let y = 1; y <= yearsToRetInt; y++) {
+        const balBefore = bal;
+        bal = bal * (1 + gRate) + personalUsed + employerCalc;
+        contribsBase.push(Math.round(personalUsed + employerCalc));
+        growthBase.push(Math.round(bal - balBefore - (personalUsed + employerCalc)));
+        balances.push({
+          age: Math.floor(curAge) + y,
+          value: Math.round(bal)
+        });
+      }
 
     // Show base results
     const projValue      = balances.at(-1).value;
@@ -540,6 +603,7 @@ if (projValue > sftLimit) {
   } catch (err) {
     document.getElementById('console').textContent = err;
     if (growthChart) growthChart.destroy();
+    if (contribChart) contribChart.destroy();
   }
 });
 </script>
