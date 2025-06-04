@@ -25,6 +25,14 @@
     #results{margin-top:2rem;background:#333;border-radius:12px;padding:1rem 1.2rem}
     #chart-container{margin-top:1.5rem}
     .error{color:#ff5c5c;margin-top:.5rem}
+    .warning-block{
+      background:#444;
+      border-left:4px solid #ffa500;
+      padding:.75rem;
+      margin:1rem 0;
+      border-radius:8px
+    }
+    .warning-block.danger{border-color:#ff5c5c}
     .max-explanation {
   font-size: 0.9rem;
   color: #ccc;
@@ -464,8 +472,27 @@ const retirementYear = new Date().getFullYear() + Math.ceil(yearsToRet);
 const sftLimit       = sftForYear(retirementYear);
 sftLimitGlobal = sftLimit;
 
+let ageWarning = '';
+if (retireAge >= 75) {
+  ageWarning = `
+    <div class="warning-block danger">
+      ⛔ Retirement Age 75 and Over<br>
+      Under Irish Revenue rules, all pensions — including PRSAs — must be accessed by age 75.<br>
+      If benefits are not drawn down by this age, the pension is automatically deemed to vest, and the full value may be treated as taxable income.<br>
+      These projections are illustrative only — professional guidance is strongly recommended.
+    </div>`;
+} else if (retireAge >= 70) {
+  ageWarning = `
+    <div class="warning-block">
+      ⚠️ Retirement Age Over 70 (Occupational Pensions &amp; PRBs)<br>
+      Most occupational pensions and Personal Retirement Bonds (PRBs) must be drawn down by age 70 under Irish Revenue rules.<br>
+      If your selected retirement age is over 70, please be aware this may not be allowed for those pension types.<br><br>
+      Note: The exception to this is PRSAs, which can remain unretired until age 75.<br><br>
+      Please seek professional advice to ensure your retirement plan complies with pension access rules.
+    </div>`;
+}
 
-document.getElementById('results').innerHTML = `
+const resultsHTML = `
   <p>
     Max personal contribution allowed (age ${Math.floor(curAge)}):
     <strong>€${limitValue.toLocaleString()}</strong>
@@ -478,7 +505,9 @@ document.getElementById('results').innerHTML = `
     Projected value at age ${retireAge}:<br>
     <strong>€${projValue.toLocaleString()}</strong>
   </h2>
-`;
+` + ageWarning;
+
+document.getElementById('results').innerHTML = resultsHTML;
 
 if (projValue > sftLimit) {
   showSFTWarning(projValue, sftLimit, retirementYear);
