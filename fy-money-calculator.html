@@ -510,36 +510,44 @@ canvas {
             setHTML('results', resultHTML + earlyWarning);
 
 
-            // ─── Build cashflow & balance arrays ─────────────────────
-            let bal = reqCap;                // start at required capital
-            const balances = [];             // reset balances array
-            const reqLine = [];
-            const pensionDraw = [];
-            const otherInc = [];
+            // ─── Build cash-flow & balance arrays ───────────────────────────────
+            let bal            = reqCap;        // pot size on the day you retire
+            const balances     = [];
+            const reqLine      = [];
+            const pensionDraw  = [];
+            const otherInc     = [];
 
-            for (let t = 0; t < yrsRet; t++) {
-              const age = retireAge + t;
-              const partnerAge = partnerDob ? partnerAgeAtRet + t : null;
+            /*  Loop from t = 0  (retirement year) up to and including
+                t = yrsRet (age 100).  PUSH the values before we grow/draw
+                so the first dot is the starting balance.                         */
+            for (let t = 0; t <= yrsRet; t++) {
+              const age  = retireAge + t;
               const infl = Math.pow(1 + CPI, t);
 
               const spend = spendAtRet * infl;
-              const rent = rentAtRet * infl;
-              const db = hasDb ? dbAnnual * infl : 0;
+              const rent  = rentAtRet  * infl;
+              const db    = hasDb ? dbAnnual * infl : 0;
 
               let sp = 0;
               if (includeSP && age >= SP_START) sp += STATE_PENSION;
-              if (includePartnerSP && partnerAge && partnerAge >= SP_START) sp += STATE_PENSION;
+              if (includePartnerSP &&
+                  partnerDob &&
+                  (partnerAgeAtRet + t) >= SP_START) sp += STATE_PENSION;
 
-              const otherIncomeSeg = Math.min(sp + rent + db, spend);
+              const otherIncomeSeg  = Math.min(sp + rent + db, spend);
               const pensionWithdraw = Math.max(0, spend - otherIncomeSeg);
 
+              /* 1️⃣  Push data for THIS YEAR *before* altering the pot.
+                    That makes balances[0] equal to reqCap and keeps
+                    all arrays the same length for the charts.                    */
+              balances.push({ age, value: Math.max(0, Math.round(bal)) });
               reqLine.push(Math.round(spend));
               pensionDraw.push(Math.round(pensionWithdraw));
               otherInc.push(Math.round(otherIncomeSeg));
 
-              // update balance after withdrawal:
+              /* 2️⃣  Grow the pot, then subtract this year’s withdrawal,
+                    leaving the closing balance ready for the next iteration.     */
               bal = bal * (1 + gRate) - pensionWithdraw;
-              balances.push({ age, value: Math.max(0, Math.round(bal)) });
             }
 
             // ─── (Insert mobile‐detection flag) ─────────
