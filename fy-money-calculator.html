@@ -85,6 +85,15 @@
 
     .error { color: #ff5c5c; margin-top: .5rem }
 
+    .warning-block {
+      background: #444;
+      border-left: 4px solid #ffa500;
+      padding: .75rem;
+      margin: 1rem 0;
+      border-radius: 8px;
+    }
+    .warning-block.danger { border-color: #ff5c5c }
+
     /* ─── Growth-profile cards ─────────────────────────── */
     .risk-options {
       display: grid;
@@ -425,21 +434,47 @@ canvas {
             }
 
             // ─── Results copy (plural-aware) ─────────────────────────
+            let resultHTML = '';
             if (alwaysSurplus || reqCap === 0) {
-              setHTML('results', `
+              resultHTML = `
                 <h2>Congratulations!</h2>
                 <p>Your projected income exceeds spending every year—you don't need extra pension capital.</p>
                 <img src="https://media.giphy.com/media/5GoVLqeAOo6PK/giphy.gif" style="max-width:200px">
-              `);
+              `;
             } else {
-  // Decide which wording to use
-  const whoNeeds = includePartnerSP ? 'You and your partner' : 'You';
+              // Decide which wording to use
+              const whoNeeds = includePartnerSP ? 'You and your partner' : 'You';
 
-  setHTML('results', `
-    <h2>Result</h2>
-    <p>${whoNeeds} will need about <strong>€${reqCap.toLocaleString()}</strong> invested in pension accounts at retirement.</p>
-  `);
-}
+              resultHTML = `
+                <h2>Result</h2>
+                <p>${whoNeeds} will need about <strong>€${reqCap.toLocaleString()}</strong> invested in pension accounts at retirement.</p>
+              `;
+            }
+
+            let earlyWarning = '';
+            if (retireAge < 50) {
+              earlyWarning = `
+                <div class="warning-block danger">
+                  ⛔ Retiring Before Age 50<br>
+                  Under Irish Revenue rules, pensions cannot be accessed before age 50, except in rare cases such as ill-health retirement.<br>
+                  These projections are illustrative only — professional guidance is strongly recommended.
+                </div>`;
+            } else if (retireAge < 60) {
+              earlyWarning = `
+                <div class="warning-block">
+                  ⚠️ Retiring Between Age 50–59<br>
+                  Access to pension benefits before the usual retirement age is only possible in limited cases.<br><br>
+                  Typical Normal Retirement Ages (NRAs) are:<br>
+                  60–70 for most occupational pensions<br>
+                  60–75 for PRSAs and Personal Retirement Bonds (PRBs)<br><br>
+                  Early access (from age 50) may be possible only if certain Revenue conditions are met — e.g.:<br>
+                  You’ve left employment linked to the pension<br>
+                  You’re a proprietary director who fully severs ties with the sponsoring company<br><br>
+                  Please seek professional advice before relying on projections assuming early access.
+                </div>`;
+            }
+
+            setHTML('results', resultHTML + earlyWarning);
 
 
             // ─── Build cashflow & balance arrays ─────────────────────
