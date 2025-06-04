@@ -111,6 +111,7 @@
     .info-box {
       display: flex;
       align-items: center;
+      gap: 0.75rem;
       background: #2a2a2a;
       border-radius: 12px;
       box-shadow: 0 0 20px rgba(0, 255, 136, 0.25);
@@ -121,8 +122,9 @@
     }
 
     .info-box img {
-      width: 64px;
-      height: 64px;
+      max-width: 100%;
+      height: auto;
+      max-height: 80px;
       flex-shrink: 0;
       margin-right: 0.75rem;
     }
@@ -135,10 +137,10 @@
     @media (max-width: 480px) {
       .info-box {
         align-items: center;
+        flex-wrap: wrap;
       }
       .info-box img {
-        width: 48px;
-        height: 48px;
+        max-height: 64px;
       }
     }
 
