@@ -31,7 +31,8 @@
       justify-content: flex-start;
       align-items: center;
       gap: 1.5rem;
-      padding: calc(env(safe-area-inset-top,0)+2rem) 1rem 2rem;
+      /* Increased space at top and bottom to ensure the info box outline is visible */
+      padding: calc(env(safe-area-inset-top,0) + 3rem) 1rem calc(env(safe-area-inset-bottom,0) + 3rem);
     }
 
     @media (min-width: 700px) {
