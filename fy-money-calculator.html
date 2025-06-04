@@ -460,6 +460,7 @@ canvas {
             }
 
             let earlyWarning = '';
+
             if (retireAge < 50) {
               earlyWarning = `
                 <div class="warning-block danger">
@@ -467,7 +468,8 @@ canvas {
                   Under Irish Revenue rules, pensions cannot be accessed before age 50, except in rare cases such as ill-health retirement.<br>
                   These projections are illustrative only — professional guidance is strongly recommended.
                 </div>`;
-            } else if (retireAge < 60) {
+            }
+            else if (retireAge < 60) {
               earlyWarning = `
                 <div class="warning-block">
                   ⚠️ Retiring Between Age 50–59<br>
@@ -480,7 +482,12 @@ canvas {
                   You’re a proprietary director who fully severs ties with the sponsoring company<br><br>
                   Please seek professional advice before relying on projections assuming early access.
                 </div>`;
-            } else if (retireAge >= 70 && retireAge < 75) {
+            }
+            else if (retireAge < 70) {
+              // Ages 60–69: no warning block needed
+              earlyWarning = '';
+            }
+            else if (retireAge < 75) {
               earlyWarning = `
                 <div class="warning-block">
                   ⚠️ Retirement Age Over 70 (Occupational Pensions &amp; PRBs)<br>
@@ -489,7 +496,8 @@ canvas {
                   Note: The exception to this is PRSAs, which can remain unretired until age 75.<br><br>
                   Please seek professional advice to ensure your retirement plan complies with pension access rules.
                 </div>`;
-            } else {
+            }
+            else {
               earlyWarning = `
                 <div class="warning-block danger">
                   ⛔ Retirement Age 75 and Over<br>
