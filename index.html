@@ -30,7 +30,7 @@
       justify-content: center;
       align-items: center;
       gap: 1.5rem;
-      padding: 1rem;
+      padding: calc(env(safe-area-inset-top,0)+2rem) 1rem 2rem;
     }
 
     /* 2. Make the container flex and allow wrapping */
@@ -110,6 +110,7 @@
     /* Informational box under the bubbles */
     .info-box {
       display: flex;
+      flex-direction: row;
       align-items: center;
       gap: 0.75rem;
       background: #2a2a2a;
@@ -122,9 +123,9 @@
     }
 
     .info-box img {
-      max-width: 100%;
+      width: auto;
+      max-width: 100px;
       height: auto;
-      max-height: 80px;
       flex-shrink: 0;
       margin-right: 0.75rem;
     }
@@ -134,13 +135,16 @@
       padding-left: 1rem;
     }
 
-    @media (max-width: 480px) {
+    @media (max-width: 600px) {
       .info-box {
+        flex-direction: column;
         align-items: center;
-        flex-wrap: wrap;
+        text-align: center;
       }
       .info-box img {
-        max-height: 64px;
+        margin-right: 0;
+        margin-bottom: 0.75rem;
+        max-width: 100px;
       }
     }
 
