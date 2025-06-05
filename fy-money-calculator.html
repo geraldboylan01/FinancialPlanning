@@ -857,17 +857,12 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           }
 
           /* — Cover — */
-          doc.setFillColor(BG_DARK);
-          doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F');
-
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(40);
-          doc.setTextColor(ACCENT_GREEN);
-          doc.text('F*ck You Money Calculator', pageW / 2, 60, { align: 'center' });
-
-          const logoW = 250;
-          doc.addImage('./favicon.png', 'PNG', (pageW - logoW) / 2, 90, logoW, 0, '', 'FAST');
-
+          // COVER (dark background first)
+          pageBG();
+          doc.setFontSize(48).setFont(undefined,'bold').setTextColor(ACCENT_GREEN);
+          doc.text('People\'s Planner', pageW/2, 90, {align:'center'});
+          const logoW = 220;
+          doc.addImage('./favicon.png','PNG',(pageW-logoW)/2,130,logoW,0,'','FAST');
           addFooter(1);
           doc.addPage();
 
