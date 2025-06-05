@@ -842,6 +842,7 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           const ACCENT_CYAN  = '#0099ff';
           const doc = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
           const pageW = doc.internal.pageSize.getWidth();
+          doc.setFont('helvetica', 'normal');
 
           function pageBG() {
             doc.setFillColor(BG_DARK);
