@@ -361,19 +361,19 @@ canvas {
 
       <!-- PASTE the JavaScript below this line -->
       <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-      <!-- jsPDF core -->
-      <!-- jsPDF + AutoTable  (ES-module build, safe for file:// and http://) -->
-      <script type="module">
-        /* core library */
-        import { jsPDF } from 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm';
-        /* plugin registers itself on jsPDF.API */
-        import 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/+esm';
+      <!-- ✅ 1. jsPDF core (UMD build attaches itself to window.jspdf) -->
+      <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+      <!-- ✅ 2. AutoTable plugin (must come right after jsPDF) -->
+      <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/dist/jspdf.plugin.autotable.min.js"></script>
 
-        /* expose constructor exactly where the rest of the code expects it */
-        window.jspdf = { jsPDF };
-      </script>
-      <!-- expose constructor where our code expects it -->
-      <!-- AutoTable plugin -->
+      <!-- ──────────────────────────────────────────────────────────
+           Everything BELOW this comment can keep using:
+
+               const doc = new jspdf.jsPDF(...)
+
+           because the UMD bundle has synchronously created
+           window.jspdf.jsPDF by the time our code runs.
+         ────────────────────────────────────────────────────────── -->
       <script>
         const setHTML = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
         const CPI = 0.023;
