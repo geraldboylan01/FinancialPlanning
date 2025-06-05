@@ -859,8 +859,9 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
 
           /* — Cover — */
           // COVER (dark background first)
+          const COVER_TITLE_COLOR = '#BBA26F';   // harp gold (favicon)
           pageBG();
-          doc.setFontSize(48).setFont(undefined,'bold').setTextColor(ACCENT_GREEN);
+          doc.setFontSize(48).setFont(undefined,'bold').setTextColor(COVER_TITLE_COLOR);
           doc.text('People\'s Planner', pageW/2, 90, {align:'center'});
           const logoW = 220;
           doc.addImage('./favicon.png','PNG',(pageW-logoW)/2,130,logoW,0,'','FAST');
