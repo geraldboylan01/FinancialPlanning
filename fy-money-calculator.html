@@ -371,10 +371,31 @@ canvas {
         let latestRun = null;
         const ASSUMPTIONS_TABLE_CONSTANT = [
           ['Inflation (CPI)', '2.3 % per year, fixed'],
-          ['Portfolio growth', '4 %–7 % depending on risk profile'],
-          ['State pension', `€${STATE_PENSION.toLocaleString()} per year`],
-          ['State pension start age', SP_START]
+          ['Portfolio growth', '4 %–7 % depending on chosen risk profile'],
+          ['Spending target', '% of gross salary, uprated by CPI'],
+          ['Defined-Benefit pension', 'Stays flat until first payment, then increases with CPI'],
+          ['Rental income', 'Inflates from today with CPI'],
+          ['State Pension (Contributory)', '€15,044 p.a. from age 66, no indexation'],
+          ['Projection horizon', 'From retirement age to age 100'],
+          ['Withdrawal order', 'SPC / Rent / DB first, pension pot covers any shortfall'],
+          ['Revenue rules modelled', 'No tax and no compulsory ARF withdrawals'],
+          ['Standard Fund Threshold', 'Compared to Revenue limits for the retirement year']
         ];
+
+        const LABEL_MAP = {
+          grossIncome: 'Gross income (€)',
+          incomePercent: '% of income needed',
+          statePension: 'User gets State Pension',
+          partnerStatePension: 'Partner gets State Pension',
+          dob: 'Your date of birth',
+          partnerDob: 'Partner DOB',
+          retireAge: 'Retirement age',
+          growthRate: 'Growth rate selected',
+          rentalIncome: 'Current rental income (€)',
+          hasDb: 'Defined-Benefit pension?',
+          dbPension: 'DB pension at retirement (€)',
+          dbStartAge: 'DB pension start age'
+        };
 
         // ─────────── Modal close handlers ───────────
         document.getElementById('sftClose').onclick = () =>
@@ -771,8 +792,12 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           }
 
         function gatherData(requiredPot, retirementYear) {
+          const grossIncome = +document.getElementById('grossIncome').value || 0;
+          const rentalIncome = +document.getElementById('rentalIncome').value || 0;
+          const dbPension = +document.getElementById('dbPension').value || 0;
           const inputs = {
-            grossIncome: +document.getElementById('grossIncome').value || 0,
+            grossIncome,
+            grossIncome_pretty: fmtEuro(grossIncome),
             incomePercent: +document.getElementById('incomePercent').value || 0,
             statePension: document.getElementById('statePension').checked,
             partnerStatePension: document.getElementById('partnerStatePension').checked,
@@ -780,9 +805,11 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
             partnerDob: document.getElementById('partnerDob').value,
             retireAge: +document.getElementById('retireAge').value || 0,
             growthRate: +document.querySelector('input[name="growthRate"]:checked').value,
-            rentalIncome: +document.getElementById('rentalIncome').value || 0,
+            rentalIncome,
+            rentalIncome_pretty: fmtEuro(rentalIncome),
             hasDb: document.getElementById('hasDb').checked,
-            dbPension: +document.getElementById('dbPension').value || 0,
+            dbPension,
+            dbPension_pretty: fmtEuro(dbPension),
             dbStartAge: +document.getElementById('dbStartAge').value || 0
           };
 
@@ -794,6 +821,9 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
 
           return { inputs, outputs, assumptions: ASSUMPTIONS_TABLE_CONSTANT };
         }
+
+        const fmtBool = b => b ? 'Yes' : 'No';
+        const fmtEuro = n => '€' + n.toLocaleString();
 
         function generatePDF() {
           if (!latestRun) return;
@@ -820,21 +850,27 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           const lh = 16;
           doc.setFontSize(12).setTextColor(0);
 
-          const inEntries = Object.entries(latestRun.inputs);
-          const halfIn = Math.ceil(inEntries.length / 2);
-          inEntries.forEach(([k, v], i) => {
+          const inPairs = Object.entries(latestRun.inputs).filter(([k]) => k !== 'chartImgs');
+          const halfIn = Math.ceil(inPairs.length / 2);
+          inPairs.forEach(([key, val], i) => {
+            const label = LABEL_MAP[key] || key;
+            const friendly =
+              typeof val === 'boolean' ? fmtBool(val) :
+              typeof val === 'number' && (key.includes('Income') || key.includes('Pension')) ? fmtEuro(val) :
+              val;
             const x = i < halfIn ? leftX : midX;
             const yPos = y + lh * (i < halfIn ? i : i - halfIn);
-            doc.text(`${k}: ${v}`, x, yPos);
+            doc.text(`${label}: ${friendly}`, x, yPos);
           });
 
-          y += lh * Math.max(halfIn, inEntries.length - halfIn) + lh;
+          y += lh * Math.max(halfIn, inPairs.length - halfIn) + lh;
           const outEntries = Object.entries(latestRun.outputs);
           const halfOut = Math.ceil(outEntries.length / 2);
           outEntries.forEach(([k, v], i) => {
+            const friendly = k === 'requiredPot' ? fmtEuro(v) : v;
             const x = i < halfOut ? leftX : midX;
             const yPos = y + lh * (i < halfOut ? i : i - halfOut);
-            doc.text(`${k}: ${v}`, x, yPos);
+            doc.text(`${k}: ${friendly}`, x, yPos);
           });
 
           let curY = y + lh * Math.max(halfOut, outEntries.length - halfOut) + 20;
@@ -855,6 +891,5 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
   </div>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@^2"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@^3"></script>
-  <script src="https://cdn.jsdelivr.net/npm/html2canvas@^1"></script>
 </body>
 </html>
