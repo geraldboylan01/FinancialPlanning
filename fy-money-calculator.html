@@ -837,12 +837,17 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
 
         function generatePDF() {
           if (!latestRun) return;
+          const BG_DARK      = '#1a1a1a';
+          const ACCENT_GREEN = '#00ff88';
+          const ACCENT_CYAN  = '#0099ff';
           const doc = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
           const pageW = doc.internal.pageSize.getWidth();
 
-          const ACCENT_GREEN = '#00ff88';
-          const ACCENT_CYAN  = '#0099ff';
-          const BG_DARK      = '#1a1a1a';
+          function pageBG() {
+            doc.setFillColor(BG_DARK);
+            doc.rect(0, 0, doc.internal.pageSize.getWidth(),
+                     doc.internal.pageSize.getHeight(), 'F');
+          }
 
           function sectionHeader(txt, y) {
             doc.setFontSize(18).setTextColor(ACCENT_CYAN).setFont(undefined, 'bold');
