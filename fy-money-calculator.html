@@ -362,14 +362,18 @@ canvas {
       <!-- PASTE the JavaScript below this line -->
       <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
       <!-- jsPDF core -->
-      <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-      <!-- expose constructor where our code expects it -->
-      <script>
-        window.jspdf = window.jspdf || {};
-        window.jspdf.jsPDF = window.jspdf.jsPDF || window.jsPDF;
+      <!-- jsPDF + AutoTable  (ES-module build, safe for file:// and http://) -->
+      <script type="module">
+        /* core library */
+        import { jsPDF } from 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm';
+        /* plugin registers itself on jsPDF.API */
+        import 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/+esm';
+
+        /* expose constructor exactly where the rest of the code expects it */
+        window.jspdf = { jsPDF };
       </script>
+      <!-- expose constructor where our code expects it -->
       <!-- AutoTable plugin -->
-      <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/dist/jspdf.plugin.autotable.min.js"></script>
       <script>
         const setHTML = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
         const CPI = 0.023;
