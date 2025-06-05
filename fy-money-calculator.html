@@ -839,74 +839,92 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           if (!latestRun) return;
           const doc = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
           const pageW = doc.internal.pageSize.getWidth();
-          const lh = 16;
+
+          const ACCENT_GREEN = '#00ff88';
+          const ACCENT_CYAN  = '#0099ff';
+          const BG_DARK      = '#1a1a1a';
+
+          function sectionHeader(txt, y) {
+            doc.setFontSize(18).setTextColor(ACCENT_CYAN).setFont(undefined, 'bold');
+            doc.text(txt, 50, y);
+            doc.setFontSize(12).setTextColor('#FFFFFF').setFont(undefined, 'normal');
+            return y + 24;
+          }
 
           /* — Cover — */
-          doc.setFontSize(36).text("People's Planner", 50, 80);
-          doc.addImage('./favicon.png', 'PNG', 100, 130, 400, 400, '', 'FAST');
-          addFooter(1);                      // page 1 footer
-          doc.addPage();
+          doc.setFillColor(BG_DARK);
+          doc.rect(0, 0, pageW, doc.internal.pageSize.getHeight(), 'F');
 
-          /* — Assumptions — */
-          doc.autoTable({
-            head: [['Assumption', 'Value']],
-            body: latestRun.assumptions,
-            styles: { fontSize: 10, cellWidth: 'wrap' },
-            columnStyles: { 0: { cellWidth: 200 } }
-          });
-          doc.setFontSize(10).setTextColor(150)
-             .text('For guidance only – not personalised advice.',
-                   50, doc.lastAutoTable.finalY + 24);
-          addFooter(2);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(40);
+          doc.setTextColor(ACCENT_GREEN);
+          doc.text('F*ck You Money Calculator', pageW / 2, 60, { align: 'center' });
+
+          const logoW = 250;
+          doc.addImage('./favicon.png', 'PNG', (pageW - logoW) / 2, 90, logoW, 0, '', 'FAST');
+
+          addFooter(1);
           doc.addPage();
 
           /* — Inputs & Outputs — */
-          doc.setFontSize(12).setTextColor(0);
-          let y = 50;
-          const leftX = 50, midX = pageW / 2 + 10;
+          let y = sectionHeader('Your inputs', 50);
 
-          const inputPairs = Object.entries(latestRun.inputs);
-          const half = Math.ceil(inputPairs.length / 2);
-          inputPairs.forEach(([key, val], i) => {
-            const x = i < half ? leftX : midX;
-            const yPos = y + lh * (i < half ? i : i - half);
-            const label = LABEL_MAP[key] || key;
-            const pretty =
-              typeof val === 'boolean' ? (val ? 'Yes' : 'No') :
-              typeof val === 'number' && (key.includes('Income') || key.includes('Pension')) ?
-                '€' + val.toLocaleString() : val;
-            doc.text(`${label}: ${pretty}`, x, yPos);
+          doc.autoTable({
+            startY: y,
+            margin: { left: 40, right: 40 },
+            headStyles: { fillColor: ACCENT_GREEN, textColor: '#000' },
+            bodyStyles: { textColor: '#FFF', fillColor: '#2a2a2a' },
+            columnStyles: { 0: { cellWidth: 120 } },
+            body: Object.entries(latestRun.inputs)
+                       .map(([k, v]) => [LABEL_MAP[k] || k, String(v || '—')])
           });
+          y = doc.lastAutoTable.finalY + 20;
 
-          y += lh * half + lh * 2;
-          doc.setFont(undefined, 'bold').text('Outputs', leftX, y);
-          doc.setFont(undefined, 'normal');
-          y += lh;
-          const out = {
-            'Required pot (€)': '€' + latestRun.outputs.requiredPot.toLocaleString(),
-            'Retirement year': latestRun.outputs.retirementYear.toString(),
-            'SFT warning': latestRun.outputs.sftMessage
-                             .replace(/<br\s*\/?>/gi, ' ')
-                             .replace(/<\/?[^>]+(>|$)/g, '')  // strip tags
-          };
-          Object.entries(out).forEach(([k,v], i) =>
-            doc.text(`${k}: ${v}`, leftX, y + lh * i));
+          y = sectionHeader('Outputs', y);
+          doc.autoTable({
+            startY: y,
+            margin: { left: 40, right: 40 },
+            head: [['Metric', 'Value']],
+            body: [
+              ['Required pot (€)', '€' + latestRun.outputs.requiredPot.toLocaleString()],
+              ['Retirement year', latestRun.outputs.retirementYear],
+              ['SFT warning', latestRun.outputs.sftMessage.replace(/<[^>]+>/g, '')]
+            ],
+            headStyles: { fillColor: ACCENT_CYAN, textColor: '#000' },
+            bodyStyles: { textColor: '#FFF', fillColor: '#2a2a2a' }
+          });
+          addFooter(2);
+          doc.addPage();
 
-          /* — Charts — */
-          y += lh * Object.keys(out).length + 20;
-          const imgW = pageW * 0.6;
-          doc.addImage(latestRun.chartImgs.balance, 'PNG',
-                       (pageW - imgW) / 2, y, imgW, 0, '', 'FAST');
-          doc.addImage(latestRun.chartImgs.cashflow, 'PNG',
-                       (pageW - imgW) / 2, y + imgW * 0.65 + 10,
-                       imgW, 0, '', 'FAST');
+          /* — Projection summary — */
+          let y3 = sectionHeader('Projection summary', 50);
 
+          doc.setFillColor('#2a2a2a');
+          doc.roundedRect(40, y3, pageW - 80, 120, 8, 8, 'F');
+
+          const lineH = 14;
+          doc.setFontSize(10).setTextColor('#FFF');
+          Object.entries(latestRun.inputs).forEach(([k, v], i) => {
+            const text = `${LABEL_MAP[k] || k}: ${String(v || '—')}`;
+            const col = i < 6 ? 0 : 1;
+            const row = i < 6 ? i : i - 6;
+            doc.text(text, 50 + col * (pageW / 2 - 60), y3 + 16 + row * lineH);
+          });
+          y3 += 140;
+
+          const chartW = pageW * 0.8;
+          const chartX = (pageW - chartW) / 2;
+
+          doc.addImage(latestRun.chartImgs.balance, 'PNG', chartX, y3, chartW, 0, '', 'FAST');
+          y3 += chartW * 0.6 + 20;
+
+          doc.addImage(latestRun.chartImgs.cashflow, 'PNG', chartX, y3, chartW, 0, '', 'FAST');
           addFooter(3);
 
           doc.save('peoples_planner_report.pdf');
 
           /* Helper */
-          function addFooter(pageNo){
+          function addFooter(pageNo) {
             doc.setFontSize(9).setTextColor(120);
             const txt = `Page ${pageNo}`;
             doc.text(txt, pageW - doc.getTextWidth(txt) - 40,
