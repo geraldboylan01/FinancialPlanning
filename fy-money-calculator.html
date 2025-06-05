@@ -349,7 +349,7 @@ canvas {
         const CPI = 0.023;
         const STATE_PENSION = 15044;
         const SP_START = 66;
-        let chart = null;
+        let balanceChart = null;
         let cashflowChart = null;
         let latestRun = null;
         const ASSUMPTIONS_TABLE_CONSTANT = {
@@ -580,8 +580,8 @@ const isMobile = window.innerWidth < 480;
 
             
             // ─── Balance chart ───────────────────────────────────────
-            if (chart !== null) chart.destroy();
-chart = new Chart(document.getElementById('balanceChart'), {
+            if (balanceChart !== null) balanceChart.destroy();
+balanceChart = new Chart(document.getElementById('balanceChart'), {
   type: 'line',
   data: {
     labels: balances.map(d => `Age ${d.age}`),
@@ -725,12 +725,16 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
   );
 
             latestRun = gatherData(reqCap, retirementYear);
+            latestRun.chartImgs = {
+              balance: balanceChart.toBase64Image(),
+              cashflow: cashflowChart.toBase64Image()
+            };
 
             document.getElementById('console').textContent = '';
           } catch (err) {
             document.getElementById('console').textContent = err.message;
             setHTML('results', '');
-            if (chart)    chart.destroy();
+            if (balanceChart)    balanceChart.destroy();
             if (cashflowChart) cashflowChart.destroy();
           }
           }
@@ -794,7 +798,7 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           });
 
           y += lh * Math.max(halfIn, inEntries.length - halfIn) + lh;
-          const outEntries = Object.entries(latestRun.outputs).filter(([k]) => k !== 'chartImgs');
+          const outEntries = Object.entries(latestRun.outputs);
           const halfOut = Math.ceil(outEntries.length / 2);
           outEntries.forEach(([k, v], i) => {
             const x = i < halfOut ? leftX : midX;
@@ -803,13 +807,13 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           });
 
           let curY = y + lh * Math.max(halfOut, outEntries.length - halfOut) + 20;
-          if (latestRun.outputs.chartImgs) {
+          if (latestRun.chartImgs) {
             const pageW = doc.internal.pageSize.getWidth();
             const imgW = pageW * 0.6;
-            latestRun.outputs.chartImgs.forEach(img => {
-              doc.addImage(img, 'PNG', (pageW - imgW) / 2, curY, imgW, 0, '', 'FAST');
-              curY += imgW * 0.6 + 10;
-            });
+            doc.addImage(latestRun.chartImgs.balance, 'PNG', (pageW - imgW) / 2, curY, imgW, 0, '', 'FAST');
+            curY += imgW * 0.6 + 10;
+            doc.addImage(latestRun.chartImgs.cashflow, 'PNG', (pageW - imgW) / 2, curY, imgW, 0, '', 'FAST');
+            curY += imgW * 0.6 + 10;
           }
 
           doc.save('peoples_planner_report.pdf');
