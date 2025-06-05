@@ -351,6 +351,12 @@ canvas {
         const SP_START = 66;
         let chart = null;
         let cashflowChart = null;
+        let latestRun = null;
+        const ASSUMPTIONS_TABLE_CONSTANT = {
+          inflationRate: CPI,
+          statePension: STATE_PENSION,
+          statePensionStartAge: SP_START
+        };
 
         // ─────────── Modal close handlers ───────────
         document.getElementById('sftClose').onclick = () =>
@@ -441,7 +447,8 @@ canvas {
               if (net > 0) {
                 alwaysSurplus = false;
                 reqCap += net / Math.pow(1 + gRate, t + 1);
-              }
+}
+
             }
             reqCap = Math.max(0, Math.round(reqCap / 1000) * 1000);
 
@@ -712,10 +719,12 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
 });
 
            
-setHTML(
+  setHTML(
    'cashflow-caption',
   'The bars show how your annual income needs are met from different sources after retirement.<br>Green = pension withdrawals; Blue = State-pension / rent / DB; White line = total income need.'
   );
+
+            latestRun = gatherData(reqCap, retirementYear);
 
             document.getElementById('console').textContent = '';
           } catch (err) {
@@ -724,8 +733,33 @@ setHTML(
             if (chart)    chart.destroy();
             if (cashflowChart) cashflowChart.destroy();
           }
+          }
+
+        function gatherData(requiredPot, retirementYear) {
+          const inputs = {
+            grossIncome: +document.getElementById('grossIncome').value || 0,
+            incomePercent: +document.getElementById('incomePercent').value || 0,
+            statePension: document.getElementById('statePension').checked,
+            partnerStatePension: document.getElementById('partnerStatePension').checked,
+            dob: document.getElementById('dob').value,
+            partnerDob: document.getElementById('partnerDob').value,
+            retireAge: +document.getElementById('retireAge').value || 0,
+            growthRate: +document.querySelector('input[name="growthRate"]:checked').value,
+            rentalIncome: +document.getElementById('rentalIncome').value || 0,
+            hasDb: document.getElementById('hasDb').checked,
+            dbPension: +document.getElementById('dbPension').value || 0,
+            dbStartAge: +document.getElementById('dbStartAge').value || 0
+          };
+
+          const outputs = {
+            requiredPot: requiredPot,
+            retirementYear: retirementYear,
+            sftMessage: document.getElementById('sftMessage').innerHTML
+          };
+
+          return { inputs, outputs, assumptions: ASSUMPTIONS_TABLE_CONSTANT };
         }
-      </script>
+        </script>
 
     </div>
   </div>
