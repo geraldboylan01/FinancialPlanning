@@ -361,6 +361,7 @@ canvas {
 
       <!-- PASTE the JavaScript below this line -->
       <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@^3"></script>
       <script>
         const setHTML = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
         const CPI = 0.023;
@@ -797,7 +798,6 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           const dbPension = +document.getElementById('dbPension').value || 0;
           const inputs = {
             grossIncome,
-            grossIncome_pretty: fmtEuro(grossIncome),
             incomePercent: +document.getElementById('incomePercent').value || 0,
             statePension: document.getElementById('statePension').checked,
             partnerStatePension: document.getElementById('partnerStatePension').checked,
@@ -806,10 +806,8 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
             retireAge: +document.getElementById('retireAge').value || 0,
             growthRate: +document.querySelector('input[name="growthRate"]:checked').value,
             rentalIncome,
-            rentalIncome_pretty: fmtEuro(rentalIncome),
             hasDb: document.getElementById('hasDb').checked,
             dbPension,
-            dbPension_pretty: fmtEuro(dbPension),
             dbStartAge: +document.getElementById('dbStartAge').value || 0
           };
 
@@ -828,68 +826,85 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
         function generatePDF() {
           if (!latestRun) return;
           const doc = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+          const pageW = doc.internal.pageSize.getWidth();
+          const lh = 16;
 
-          // Cover page
+          /* — Cover — */
           doc.setFontSize(36).text("People's Planner", 50, 80);
           doc.addImage('./favicon.png', 'PNG', 100, 130, 400, 400, '', 'FAST');
+          addFooter(1);                      // page 1 footer
           doc.addPage();
 
-          // Assumptions page
+          /* — Assumptions — */
           doc.autoTable({
             head: [['Assumption', 'Value']],
-            body: latestRun.assumptions
+            body: latestRun.assumptions,
+            styles: { fontSize: 10, cellWidth: 'wrap' },
+            columnStyles: { 0: { cellWidth: 200 } }
           });
-          doc.setFontSize(10).setTextColor(150);
-          doc.text('For guidance only – not personalised advice.', 50, doc.lastAutoTable.finalY + 24);
+          doc.setFontSize(10).setTextColor(150)
+             .text('For guidance only – not personalised advice.',
+                   50, doc.lastAutoTable.finalY + 24);
+          addFooter(2);
           doc.addPage();
 
-          // Inputs & outputs page
-          const leftX = 50;
-          const midX = doc.internal.pageSize.getWidth() / 2 + 10;
-          let y = 50;
-          const lh = 16;
+          /* — Inputs & Outputs — */
           doc.setFontSize(12).setTextColor(0);
+          let y = 50;
+          const leftX = 50, midX = pageW / 2 + 10;
 
-          const inPairs = Object.entries(latestRun.inputs).filter(([k]) => k !== 'chartImgs');
-          const halfIn = Math.ceil(inPairs.length / 2);
-          inPairs.forEach(([key, val], i) => {
+          const inputPairs = Object.entries(latestRun.inputs);
+          const half = Math.ceil(inputPairs.length / 2);
+          inputPairs.forEach(([key, val], i) => {
+            const x = i < half ? leftX : midX;
+            const yPos = y + lh * (i < half ? i : i - half);
             const label = LABEL_MAP[key] || key;
-            const friendly =
-              typeof val === 'boolean' ? fmtBool(val) :
-              typeof val === 'number' && (key.includes('Income') || key.includes('Pension')) ? fmtEuro(val) :
-              val;
-            const x = i < halfIn ? leftX : midX;
-            const yPos = y + lh * (i < halfIn ? i : i - halfIn);
-            doc.text(`${label}: ${friendly}`, x, yPos);
+            const pretty =
+              typeof val === 'boolean' ? (val ? 'Yes' : 'No') :
+              typeof val === 'number' && (key.includes('Income') || key.includes('Pension')) ?
+                '€' + val.toLocaleString() : val;
+            doc.text(`${label}: ${pretty}`, x, yPos);
           });
 
-          y += lh * Math.max(halfIn, inPairs.length - halfIn) + lh;
-          const outEntries = Object.entries(latestRun.outputs);
-          const halfOut = Math.ceil(outEntries.length / 2);
-          outEntries.forEach(([k, v], i) => {
-            const friendly = k === 'requiredPot' ? fmtEuro(v) : v;
-            const x = i < halfOut ? leftX : midX;
-            const yPos = y + lh * (i < halfOut ? i : i - halfOut);
-            doc.text(`${k}: ${friendly}`, x, yPos);
-          });
+          y += lh * half + lh * 2;
+          doc.setFont(undefined, 'bold').text('Outputs', leftX, y);
+          doc.setFont(undefined, 'normal');
+          y += lh;
+          const out = {
+            'Required pot (€)': '€' + latestRun.outputs.requiredPot.toLocaleString(),
+            'Retirement year': latestRun.outputs.retirementYear.toString(),
+            'SFT warning': latestRun.outputs.sftMessage
+                             .replace(/<br\s*\/?>/gi, ' ')
+                             .replace(/<\/?[^>]+(>|$)/g, '')  // strip tags
+          };
+          Object.entries(out).forEach(([k,v], i) =>
+            doc.text(`${k}: ${v}`, leftX, y + lh * i));
 
-          let curY = y + lh * Math.max(halfOut, outEntries.length - halfOut) + 20;
-          if (latestRun.chartImgs) {
-            const pageW = doc.internal.pageSize.getWidth();
-            const imgW = pageW * 0.6;
-            doc.addImage(latestRun.chartImgs.balance, 'PNG', (pageW - imgW) / 2, curY, imgW, 0, '', 'FAST');
-            curY += imgW * 0.6 + 10;
-            doc.addImage(latestRun.chartImgs.cashflow, 'PNG', (pageW - imgW) / 2, curY, imgW, 0, '', 'FAST');
-            curY += imgW * 0.6 + 10;
-          }
+          /* — Charts — */
+          y += lh * Object.keys(out).length + 20;
+          const imgW = pageW * 0.6;
+          doc.addImage(latestRun.chartImgs.balance, 'PNG',
+                       (pageW - imgW) / 2, y, imgW, 0, '', 'FAST');
+          doc.addImage(latestRun.chartImgs.cashflow, 'PNG',
+                       (pageW - imgW) / 2, y + imgW * 0.65 + 10,
+                       imgW, 0, '', 'FAST');
+
+          addFooter(3);
 
           doc.save('peoples_planner_report.pdf');
+
+          /* Helper */
+          function addFooter(pageNo){
+            doc.setFontSize(9).setTextColor(120);
+            const txt = `Page ${pageNo}`;
+            doc.text(txt, pageW - doc.getTextWidth(txt) - 40,
+                     doc.internal.pageSize.getHeight() - 30);
+          }
         }
         </script>
 
     </div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@^2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@^3"></script>
 </body>
 </html>
