@@ -879,8 +879,9 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
             margin: {left:40, right:40},
             head: [['Assumption','Value']],
             body: latestRun.assumptions,
-            headStyles: {fillColor:ACCENT_CYAN,textColor:'#000'},
-            bodyStyles: {fillColor:'#2a2a2a',textColor:'#fff'}
+            headStyles:    { fillColor: ACCENT_CYAN, textColor:'#000' },
+            bodyStyles:    { fillColor:'#2a2a2a', textColor:'#fff' },
+            alternateRowStyles: { fillColor:'#242424', textColor:'#fff' }
           });
           addFooter(2);
           doc.addPage();
@@ -903,8 +904,9 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
             head:[['Input','Value']],
             body:Object.entries(latestRun.inputs)
                        .map(([k,v])=>[LABEL_MAP[k]||k,String(v||'—')]),
-            headStyles:{fillColor:ACCENT_CYAN,textColor:'#000'},
-            bodyStyles:{fillColor:'#2a2a2a',textColor:'#fff'},
+            headStyles:    { fillColor: ACCENT_CYAN, textColor:'#000' },
+            bodyStyles:    { fillColor:'#2a2a2a', textColor:'#fff' },
+            alternateRowStyles: { fillColor:'#242424', textColor:'#fff' },
             columnStyles:{0:{cellWidth:colW*0.4}}
           });
           let tableEnd = doc.lastAutoTable.finalY + 12;
@@ -918,8 +920,9 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
               ['Retirement year',  latestRun.outputs.retirementYear],
               ['SFT warning',      latestRun.outputs.sftMessage.replace(/<[^>]+>/g,'')]
             ],
-            headStyles:{fillColor:ACCENT_GREEN,textColor:'#000'},
-            bodyStyles:{fillColor:'#2a2a2a',textColor:'#fff'},
+            headStyles:    { fillColor: ACCENT_CYAN, textColor:'#000' },
+            bodyStyles:    { fillColor:'#2a2a2a', textColor:'#fff' },
+            alternateRowStyles: { fillColor:'#242424', textColor:'#fff' },
             columnStyles:{0:{cellWidth:colW*0.4}}
           });
 
