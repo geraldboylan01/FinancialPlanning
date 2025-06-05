@@ -311,6 +311,8 @@ canvas {
   <div id="cashflow-caption"></div>
 </div>
 
+<button id="downloadPdf" style="margin-top:1rem">Download PDF report</button>
+
         <div class="warning-block">
           ⚠️ <strong>Important Notice</strong><br><br>
           This calculator does not include mandatory pension withdrawals (imputed distributions), required annually by Revenue rules from age 61:<br><br>
@@ -379,6 +381,7 @@ canvas {
           });
 
           document.getElementById('fyf-form').addEventListener('submit', calc);
+          document.getElementById('downloadPdf').addEventListener('click', generatePDF);
         });
 
         function calc(e) {
@@ -726,5 +729,8 @@ setHTML(
 
     </div>
   </div>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@^2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@^3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@^1"></script>
 </body>
 </html>
