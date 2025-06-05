@@ -884,28 +884,51 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           doc.addPage();
 
           /* — Projection summary — */
-          let y3 = sectionHeader('Projection summary', 50);
+          // PAGE 3  – inputs, outputs, charts
+          pageBG();
+          let y3 = 60;
+          doc.setFontSize(18).setTextColor(ACCENT_CYAN).setFont(undefined,'bold');
+          doc.text('Inputs & results', 50, y3);
+          y3 += 22;
 
-          doc.setFillColor('#2a2a2a');
-          doc.roundedRect(40, y3, pageW - 80, 120, 8, 8, 'F');
+          const columnGap = 20;
+          const colW      = (pageW - 40*2 - columnGap)/2;  // 40pt margins
 
-          const lineH = 14;
-          doc.setFontSize(10).setTextColor('#FFF');
-          Object.entries(latestRun.inputs).forEach(([k, v], i) => {
-            const text = `${LABEL_MAP[k] || k}: ${String(v || '—')}`;
-            const col = i < 6 ? 0 : 1;
-            const row = i < 6 ? i : i - 6;
-            doc.text(text, 50 + col * (pageW / 2 - 60), y3 + 16 + row * lineH);
+          // LEFT COLUMN  ─────────────────────────────────────────────
+          doc.autoTable({
+            startY: y3,
+            margin: {left:40, right:40+colW+columnGap},
+            head:[['Input','Value']],
+            body:Object.entries(latestRun.inputs)
+                       .map(([k,v])=>[LABEL_MAP[k]||k,String(v||'—')]),
+            headStyles:{fillColor:ACCENT_CYAN,textColor:'#000'},
+            bodyStyles:{fillColor:'#2a2a2a',textColor:'#fff'},
+            columnStyles:{0:{cellWidth:colW*0.4}}
           });
-          y3 += 140;
+          let tableEnd = doc.lastAutoTable.finalY + 12;
 
-          const chartW = pageW * 0.8;
-          const chartX = (pageW - chartW) / 2;
+          doc.autoTable({
+            startY: tableEnd,
+            margin: {left:40, right:40+colW+columnGap},
+            head:[['Metric','Value']],
+            body:[
+              ['Required pot (€)', '€'+latestRun.outputs.requiredPot.toLocaleString()],
+              ['Retirement year',  latestRun.outputs.retirementYear],
+              ['SFT warning',      latestRun.outputs.sftMessage.replace(/<[^>]+>/g,'')]
+            ],
+            headStyles:{fillColor:ACCENT_GREEN,textColor:'#000'},
+            bodyStyles:{fillColor:'#2a2a2a',textColor:'#fff'},
+            columnStyles:{0:{cellWidth:colW*0.4}}
+          });
 
-          doc.addImage(latestRun.chartImgs.balance, 'PNG', chartX, y3, chartW, 0, '', 'FAST');
-          y3 += chartW * 0.6 + 20;
+          // RIGHT COLUMN  ────────────────────────────────────────────
+          const chartX = 40 + colW + columnGap;
+          let chartY   = y3;
+          const chartW = colW;
+          doc.addImage(latestRun.chartImgs.balance,'PNG',chartX,chartY,chartW,0,'','FAST');
+          chartY += chartW*0.6 + 12;
+          doc.addImage(latestRun.chartImgs.cashflow,'PNG',chartX,chartY,chartW,0,'','FAST');
 
-          doc.addImage(latestRun.chartImgs.cashflow, 'PNG', chartX, y3, chartW, 0, '', 'FAST');
           addFooter(3);
 
           doc.save('peoples_planner_report.pdf');
