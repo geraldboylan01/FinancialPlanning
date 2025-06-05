@@ -182,6 +182,13 @@ canvas {
   max-width: 100%;
 }
 
+    .assumptions-table { width: 100%; border-collapse: collapse; margin-top: .8rem }
+    .assumptions-table th,
+    .assumptions-table td { padding: .5rem .6rem; text-align: left }
+    .assumptions-table thead { background: #444 }
+    .assumptions-table tbody tr:nth-child(even) { background: #3a3a3a }
+    .assumptions-table th { font-weight: 600 }
+
   </style>
 
 </head>
@@ -328,6 +335,16 @@ canvas {
 
       <div id="console" class="error"></div>
 
+      <details id="assumptions" style="margin-top:1rem">
+        <summary>Assumptions &amp; T&amp;Cs</summary>
+        <table class="assumptions-table" id="assumptions-table">
+          <thead>
+            <tr><th>Assumption</th><th>Value</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </details>
+
       <!-- SFT warning modal -->
       <div id="sftModal" class="modal" style="display:none">
         <div class="modal-content">
@@ -352,11 +369,12 @@ canvas {
         let balanceChart = null;
         let cashflowChart = null;
         let latestRun = null;
-        const ASSUMPTIONS_TABLE_CONSTANT = {
-          inflationRate: CPI,
-          statePension: STATE_PENSION,
-          statePensionStartAge: SP_START
-        };
+        const ASSUMPTIONS_TABLE_CONSTANT = [
+          ['Inflation (CPI)', '2.3 % per year, fixed'],
+          ['Portfolio growth', '4 %–7 % depending on risk profile'],
+          ['State pension', `€${STATE_PENSION.toLocaleString()} per year`],
+          ['State pension start age', SP_START]
+        ];
 
         // ─────────── Modal close handlers ───────────
         document.getElementById('sftClose').onclick = () =>
@@ -385,6 +403,19 @@ canvas {
           document.getElementById('hasDb').addEventListener('change', e => {
             document.getElementById('db-group').style.display = e.target.checked ? 'block' : 'none';
           });
+
+          const tbody = document.querySelector('#assumptions-table tbody');
+          if (tbody) {
+            ASSUMPTIONS_TABLE_CONSTANT.forEach(row => {
+              const tr = document.createElement('tr');
+              row.forEach(cell => {
+                const td = document.createElement('td');
+                td.textContent = cell;
+                tr.appendChild(td);
+              });
+              tbody.appendChild(tr);
+            });
+          }
 
           document.getElementById('fyf-form').addEventListener('submit', calc);
           document.getElementById('downloadPdf').addEventListener('click', generatePDF);
@@ -776,7 +807,7 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           // Assumptions page
           doc.autoTable({
             head: [['Assumption', 'Value']],
-            body: Object.entries(latestRun.assumptions).map(([k, v]) => [k, String(v)])
+            body: latestRun.assumptions
           });
           doc.setFontSize(10).setTextColor(150);
           doc.text('For guidance only – not personalised advice.', 50, doc.lastAutoTable.finalY + 24);
