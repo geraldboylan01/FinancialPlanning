@@ -660,6 +660,7 @@ balanceChart = new Chart(document.getElementById('balanceChart'), {
     }]
   },
   options: {
+    animation: false,
     responsive: true,
     maintainAspectRatio: false,    // ← ADDED: let .chart-wrapper dictate height
     plugins: {
@@ -734,6 +735,7 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
     ]
   },
   options: {
+    animation: false,
     responsive: true,
     maintainAspectRatio: false,    // ← ADDED
     plugins: {
@@ -791,20 +793,14 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
 
             latestRun = gatherData(reqCap, retirementYear);
 
-            function canvasToOpaquePng(canvas){
-              const ctx = canvas.getContext('2d');
-              ctx.save();
-              ctx.globalCompositeOperation = 'destination-over';
-              ctx.fillStyle = '#ffffff';
-              ctx.fillRect(0,0,canvas.width,canvas.height);
-              ctx.restore();
-              return canvas.toDataURL('image/png',1.0);
+            function captureCharts(){
+              latestRun.chartImgs = {
+                balance : balanceChart.canvas.toDataURL('image/png',1.0),
+                cashflow: cashflowChart.canvas.toDataURL('image/png',1.0)
+              };
             }
 
-            latestRun.chartImgs = {
-              balance : canvasToOpaquePng(document.getElementById('balanceChart')),
-              cashflow: canvasToOpaquePng(document.getElementById('cashflowChart'))
-            };
+            captureCharts();
 
             document.getElementById('console').textContent = '';
           } catch (err) {
