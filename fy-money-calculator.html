@@ -455,9 +455,13 @@ canvas {
           document.getElementById('downloadPdf').addEventListener('click', generatePDF);
         });
 
-        function calc(e) {
-          e.preventDefault();
-          try {
+       function calc(e) {
+         e.preventDefault();
+         try {
+            // FIX: reset any previous SFT state
+            document.getElementById('sftMessage').innerHTML = '';
+            document.getElementById('sftModal').style.display = 'none';
+            let sftWarningHTML = '';
             const gross = +document.getElementById('grossIncome').value || 0;
             const pctNeed = (+document.getElementById('incomePercent').value || 0) / 100;
             const includeSP = document.getElementById('statePension').checked;
@@ -527,9 +531,16 @@ canvas {
                 ? `The amount you and your partner require (€${reqCap.toLocaleString()}) is above the combined Standard Fund Threshold for ${retirementYear} (2 × €${sftLimitSingle.toLocaleString()} = €${sftLimitCombined.toLocaleString()}).<br><br>Note: the maximum that can be held in a single pension tax-efficiently in ${retirementYear} is €${sftLimitSingle.toLocaleString()}.`
                 : `The amount you require (€${reqCap.toLocaleString()}) is above the Standard Fund Threshold for ${retirementYear} (€${sftLimitSingle.toLocaleString()}).<br><br>This is the maximum that can be held in one pension tax-efficiently for that year.`;
 
+
+              sftWarningHTML = msg;
               setHTML('sftMessage', msg);
               document.getElementById('sftModal').style.display = 'flex';
             }
+
+            // FIX: save the warning for the PDF now
+            const sftWarningStripped = sftWarningHTML
+                .replace(/<br\s*\/?>/gi, ' ')
+                .replace(/<\/?[^>]+>/g, '');
 
             // ─── Results copy (plural-aware) ─────────────────────────
             let resultHTML = '';
@@ -791,7 +802,7 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
   'The bars show how your annual income needs are met from different sources after retirement.<br>Green = pension withdrawals; Blue = State-pension / rent / DB; White line = total income need.'
   );
 
-            latestRun = gatherData(reqCap, retirementYear);
+            latestRun = gatherData(reqCap, retirementYear, sftWarningStripped);
 
             function captureCharts(){
               latestRun.chartImgs = {
@@ -811,7 +822,7 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           }
           }
 
-        function gatherData(requiredPot, retirementYear) {
+        function gatherData(requiredPot, retirementYear, sftText) {
           const grossIncome = +document.getElementById('grossIncome').value || 0;
           const rentalIncome = +document.getElementById('rentalIncome').value || 0;
           const dbPension = +document.getElementById('dbPension').value || 0;
@@ -833,7 +844,7 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           const outputs = {
             requiredPot: requiredPot,
             retirementYear: retirementYear,
-            sftMessage: document.getElementById('sftMessage').innerHTML
+            sftMessage: sftText
           };
 
           return { inputs, outputs, assumptions: ASSUMPTIONS_TABLE_CONSTANT };
@@ -918,15 +929,18 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           });
           let tableEnd = doc.lastAutoTable.finalY + 12;
 
+          const metrics = [
+            ['Required pot (€)', '€'+latestRun.outputs.requiredPot.toLocaleString()],
+            ['Retirement year',  latestRun.outputs.retirementYear]
+          ];
+          if (latestRun.outputs.sftMessage)
+              metrics.push(['SFT warning', latestRun.outputs.sftMessage]);
+
           doc.autoTable({
             startY: tableEnd,
             margin: {left:40, right:40+colW+columnGap},
             head:[['Metric','Value']],
-            body:[
-              ['Required pot (€)', '€'+latestRun.outputs.requiredPot.toLocaleString()],
-              ['Retirement year',  latestRun.outputs.retirementYear],
-              ['SFT warning',      latestRun.outputs.sftMessage.replace(/<[^>]+>/g,'')]
-            ],
+            body: metrics,
             headStyles:    { fillColor: ACCENT_CYAN, textColor:'#000' },
             bodyStyles:    { fillColor:'#2a2a2a', textColor:'#fff' },
             alternateRowStyles: { fillColor:'#242424', textColor:'#fff' },
