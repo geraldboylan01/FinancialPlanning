@@ -866,32 +866,19 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           addFooter(1);
           doc.addPage();
 
-          /* — Inputs & Outputs — */
-          let y = sectionHeader('Your inputs', 50);
-
+          // ASSUMPTIONS PAGE
+          pageBG();
+          let y = 60;
+          doc.setFontSize(18).setTextColor(ACCENT_CYAN).setFont(undefined,'bold');
+          doc.text('Assumptions', 50, y);
+          y += 14;
           doc.autoTable({
             startY: y,
-            margin: { left: 40, right: 40 },
-            headStyles: { fillColor: ACCENT_GREEN, textColor: '#000' },
-            bodyStyles: { textColor: '#FFF', fillColor: '#2a2a2a' },
-            columnStyles: { 0: { cellWidth: 120 } },
-            body: Object.entries(latestRun.inputs)
-                       .map(([k, v]) => [LABEL_MAP[k] || k, String(v || '—')])
-          });
-          y = doc.lastAutoTable.finalY + 20;
-
-          y = sectionHeader('Outputs', y);
-          doc.autoTable({
-            startY: y,
-            margin: { left: 40, right: 40 },
-            head: [['Metric', 'Value']],
-            body: [
-              ['Required pot (€)', '€' + latestRun.outputs.requiredPot.toLocaleString()],
-              ['Retirement year', latestRun.outputs.retirementYear],
-              ['SFT warning', latestRun.outputs.sftMessage.replace(/<[^>]+>/g, '')]
-            ],
-            headStyles: { fillColor: ACCENT_CYAN, textColor: '#000' },
-            bodyStyles: { textColor: '#FFF', fillColor: '#2a2a2a' }
+            margin: {left:40, right:40},
+            head: [['Assumption','Value']],
+            body: latestRun.assumptions,
+            headStyles: {fillColor:ACCENT_CYAN,textColor:'#000'},
+            bodyStyles: {fillColor:'#2a2a2a',textColor:'#fff'}
           });
           addFooter(2);
           doc.addPage();
