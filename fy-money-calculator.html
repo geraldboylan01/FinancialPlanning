@@ -281,10 +281,15 @@ canvas {
             <label for="hasDb">I will receive a Defined Benefit (DB) pension</label>
           </div>
         </div>
-        <div id="db-group" class="form-group" style="display:none;">
-          <label for="dbPension">DB pension annual amount at retirement (€)</label>
-          <input type="number" id="dbPension" placeholder="e.g. 20000" />
-        </div>
+       <div id="db-group" class="form-group" style="display:none;">
+         <label for="dbPension">DB pension annual amount at retirement (€)</label>
+         <input type="number" id="dbPension" placeholder="e.g. 20000" />
+          <!-- When DB pension box is ticked we need to know when it kicks in -->
+          <label for="dbStartAge" style="margin-top:.8rem;">DB pension starts at age</label>
+          <input type="number" id="dbStartAge"
+                 min="50" max="100"
+                 placeholder="e.g. 67" />
+       </div>
 
         <button type="submit">Calculate</button>
       </form>
@@ -391,12 +396,17 @@ canvas {
             // ← Read the selected growth-rate card
             const gRate = +document.querySelector('input[name="growthRate"]:checked').value;
 
-            const rentalToday = +document.getElementById('rentalIncome').value || 0;
-            const hasDb = document.getElementById('hasDb').checked;
-            const dbAnnual = hasDb ? (+document.getElementById('dbPension').value || 0) : 0;
+           const rentalToday = +document.getElementById('rentalIncome').value || 0;
+           const hasDb = document.getElementById('hasDb').checked;
+           const dbAnnual = hasDb ? (+document.getElementById('dbPension').value || 0) : 0;
+           const dbStartAge = hasDb
+             ? (+document.getElementById('dbStartAge').value || retireAge)
+             : Infinity;
 
             if (!gross || !pctNeed || !dob || !retireAge)
               throw new Error('Fill all required numeric fields.');
+            if (hasDb && (!dbAnnual || !document.getElementById('dbStartAge').value))
+              throw new Error('Enter both the DB pension amount and the age it begins.');
             if (includePartnerSP && partnerDobStr === "")
               throw new Error('Enter partner DOB');
 
@@ -420,7 +430,7 @@ canvas {
               const infl = Math.pow(1 + CPI, t);
               const spend = spendAtRet * infl;
               const rent = rentAtRet * infl;
-              const db = hasDb ? dbAnnual * infl : 0;
+              const db = (hasDb && age >= dbStartAge) ? dbAnnual * infl : 0;
               let sp = 0;
               if (includeSP && age >= SP_START) sp += STATE_PENSION;
               if (includePartnerSP && partnerAge && partnerAge >= SP_START) sp += STATE_PENSION;
@@ -531,7 +541,7 @@ canvas {
 
               const spend = spendAtRet * infl;
               const rent  = rentAtRet  * infl;
-              const db    = hasDb ? dbAnnual * infl : 0;
+              const db    = (hasDb && age >= dbStartAge) ? dbAnnual * infl : 0;
 
               let sp = 0;
               if (includeSP && age >= SP_START) sp += STATE_PENSION;
