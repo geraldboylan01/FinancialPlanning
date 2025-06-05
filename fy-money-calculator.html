@@ -759,6 +759,61 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
 
           return { inputs, outputs, assumptions: ASSUMPTIONS_TABLE_CONSTANT };
         }
+
+        function generatePDF() {
+          if (!latestRun) return;
+          const doc = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+
+          // Cover page
+          doc.setFontSize(36).text("People's Planner", 50, 80);
+          doc.addImage('./favicon.png', 'PNG', 100, 130, 400, 400, '', 'FAST');
+          doc.addPage();
+
+          // Assumptions page
+          doc.autoTable({
+            head: [['Assumption', 'Value']],
+            body: Object.entries(latestRun.assumptions).map(([k, v]) => [k, String(v)])
+          });
+          doc.setFontSize(10).setTextColor(150);
+          doc.text('For guidance only – not personalised advice.', 50, doc.lastAutoTable.finalY + 24);
+          doc.addPage();
+
+          // Inputs & outputs page
+          const leftX = 50;
+          const midX = doc.internal.pageSize.getWidth() / 2 + 10;
+          let y = 50;
+          const lh = 16;
+          doc.setFontSize(12).setTextColor(0);
+
+          const inEntries = Object.entries(latestRun.inputs);
+          const halfIn = Math.ceil(inEntries.length / 2);
+          inEntries.forEach(([k, v], i) => {
+            const x = i < halfIn ? leftX : midX;
+            const yPos = y + lh * (i < halfIn ? i : i - halfIn);
+            doc.text(`${k}: ${v}`, x, yPos);
+          });
+
+          y += lh * Math.max(halfIn, inEntries.length - halfIn) + lh;
+          const outEntries = Object.entries(latestRun.outputs).filter(([k]) => k !== 'chartImgs');
+          const halfOut = Math.ceil(outEntries.length / 2);
+          outEntries.forEach(([k, v], i) => {
+            const x = i < halfOut ? leftX : midX;
+            const yPos = y + lh * (i < halfOut ? i : i - halfOut);
+            doc.text(`${k}: ${v}`, x, yPos);
+          });
+
+          let curY = y + lh * Math.max(halfOut, outEntries.length - halfOut) + 20;
+          if (latestRun.outputs.chartImgs) {
+            const pageW = doc.internal.pageSize.getWidth();
+            const imgW = pageW * 0.6;
+            latestRun.outputs.chartImgs.forEach(img => {
+              doc.addImage(img, 'PNG', (pageW - imgW) / 2, curY, imgW, 0, '', 'FAST');
+              curY += imgW * 0.6 + 10;
+            });
+          }
+
+          doc.save('peoples_planner_report.pdf');
+        }
         </script>
 
     </div>
