@@ -883,122 +883,148 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
         const fmtBool = b => b ? 'Yes' : 'No';
         const fmtEuro = n => '€' + n.toLocaleString();
 
-        function generatePDF() {
-          if (!latestRun) return;
-          const BG_DARK      = '#1a1a1a';
-          const ACCENT_GREEN = '#00ff88';
-          const ACCENT_CYAN  = '#0099ff';
-          const doc = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
-          const pageW = doc.internal.pageSize.getWidth();
-          doc.setFont('helvetica', 'normal');
+function generatePDF() {
+  if (!latestRun) return;
 
-          function pageBG() {
-            doc.setFillColor(BG_DARK);
-            doc.rect(0, 0, doc.internal.pageSize.getWidth(),
-                     doc.internal.pageSize.getHeight(), 'F');
-          }
+  // ── Colour & size constants ──────────────────────────────
+  const BG_DARK      = '#1a1a1a';
+  const ACCENT_GREEN = '#00ff88';
+  const ACCENT_CYAN  = '#0099ff';
+  const COVER_GOLD   = '#BBA26F';
 
-          function sectionHeader(txt, y) {
-            doc.setFontSize(18).setTextColor(ACCENT_CYAN).setFont(undefined, 'bold');
-            doc.text(txt, 50, y);
-            doc.setFontSize(12).setTextColor('#FFFFFF').setFont(undefined, 'normal');
-            return y + 24;
-          }
+  const doc   = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
 
-          /* — Cover — */
-          // COVER (dark background first)
-          const COVER_TITLE_COLOR = '#BBA26F';   // harp gold (favicon)
-          pageBG();
-          doc.setFontSize(48).setFont(undefined,'bold').setTextColor(COVER_TITLE_COLOR);
-          doc.text('People\'s Planner', pageW/2, 90, {align:'center'});
-          const logoW = 220;
-          doc.addImage('./favicon.png','PNG',(pageW-logoW)/2,130,logoW,0,'','FAST');
-          addFooter(1);
-          doc.addPage();
+  /* helpers */
+  const pageBG = () => {
+    doc.setFillColor(BG_DARK);
+    doc.rect(0, 0, pageW, pageH, 'F');
+  };
+  const addFooter = n => {
+    doc.setFontSize(9).setTextColor(120);
+    const t = `Page ${n}`;
+    doc.text(t, pageW - doc.getTextWidth(t) - 40, pageH - 30);
+  };
 
-          // ASSUMPTIONS PAGE
-          pageBG();
-          let y = 60;
-          doc.setFontSize(18).setTextColor(ACCENT_CYAN).setFont(undefined,'bold');
-          doc.text('Assumptions', 50, y);
-          y += 14;
-          doc.autoTable({
-            startY: y,
-            margin: {left:40, right:40},
-            head: [['Assumption','Value']],
-            body: latestRun.assumptions,
-            headStyles:    { fillColor: ACCENT_CYAN, textColor:'#000' },
-            bodyStyles:    { fillColor:'#2a2a2a', textColor:'#fff' },
-            alternateRowStyles: { fillColor:'#242424', textColor:'#fff' }
-          });
-          addFooter(2);
-          doc.addPage();
+  /* ───────────────── COVER ───────────────── */
+  pageBG();
+  doc.setFontSize(48).setFont(undefined, 'bold').setTextColor(COVER_GOLD);
+  doc.text("People's Planner", pageW / 2, 90, { align: 'center' });
 
-          /* — Projection summary — */
-          // PAGE 3  – inputs, outputs, charts
-          pageBG();
-          let y3 = 60;
-          doc.setFontSize(18).setTextColor(ACCENT_CYAN).setFont(undefined,'bold');
-          doc.text('Inputs & results', 50, y3);
-          y3 += 22;
+  const logoW = 220;
+  const logoY = 130;
+  doc.addImage('./favicon.png', 'PNG',
+               (pageW - logoW) / 2, logoY, logoW, 0, '', 'FAST');
 
-          const columnGap = 20;
-          const colW      = (pageW - 40*2 - columnGap)/2;  // 40pt margins
+  /* subtitle */
+  const subY = logoY + logoW + 40;   // 40 pt gap under favicon
+  doc.setFontSize(32).setFont(undefined, 'bold').setTextColor(COVER_GOLD);
+  doc.text('F*ck You Money Calculator', pageW / 2, subY, { align: 'center' });
 
-          // LEFT COLUMN  ─────────────────────────────────────────────
-          doc.autoTable({
-            startY: y3,
-            margin: {left:40, right:40+colW+columnGap},
-            head:[['Input','Value']],
-            body:Object.entries(latestRun.inputs)
-                       .map(([k,v])=>[LABEL_MAP[k]||k,String(v||'—')]),
-            headStyles:    { fillColor: ACCENT_CYAN, textColor:'#000' },
-            bodyStyles:    { fillColor:'#2a2a2a', textColor:'#fff' },
-            alternateRowStyles: { fillColor:'#242424', textColor:'#fff' },
-            columnStyles:{0:{cellWidth:colW*0.4}}
-          });
-          let tableEnd = doc.lastAutoTable.finalY + 12;
+  addFooter(1);
+  doc.addPage();
 
-          const metrics = [
-            ['Required pot (€)', '€'+latestRun.outputs.requiredPot.toLocaleString()],
-            ['Retirement year',  latestRun.outputs.retirementYear]
-          ];
-          if (latestRun.outputs.sftMessage)
-              metrics.push(['SFT warning', latestRun.outputs.sftMessage]);
+  /* ───────────── ASSUMPTIONS PAGE ─────────── */
+  pageBG();
+  let y = 60;
+  doc.setFontSize(18).setFont(undefined, 'bold').setTextColor(ACCENT_CYAN);
+  doc.text('Assumptions', 50, y);
+  y += 14;
 
-          doc.autoTable({
-            startY: tableEnd,
-            margin: {left:40, right:40+colW+columnGap},
-            head:[['Metric','Value']],
-            body: metrics,
-            headStyles:    { fillColor: ACCENT_CYAN, textColor:'#000' },
-            bodyStyles:    { fillColor:'#2a2a2a', textColor:'#fff' },
-            alternateRowStyles: { fillColor:'#242424', textColor:'#fff' },
-            columnStyles:{0:{cellWidth:colW*0.4}}
-          });
+  doc.autoTable({
+    startY: y,
+    margin: { left: 40, right: 40 },
+    head: [['Assumption', 'Value']],
+    body: latestRun.assumptions,
+    headStyles:    { fillColor: ACCENT_CYAN, textColor: '#000' },
+    bodyStyles:    { fillColor: '#2a2a2a', textColor: '#fff' },
+    alternateRowStyles: { fillColor: '#242424', textColor: '#fff' }
+  });
 
-          // RIGHT COLUMN  ────────────────────────────────────────────
-          const chartX = 40 + colW + columnGap;
-          let chartY   = y3;
-          const chartW = colW;
-          doc.addImage(latestRun.chartImgs.balance,'PNG',chartX,chartY,chartW,0,'','FAST');
-          chartY += chartW*0.6 + 12;
-          doc.addImage(latestRun.chartImgs.cashflow,'PNG',chartX,chartY,chartW,0,'','FAST');
+  /* info-box */
+  const boxX = 40;
+  const boxW = pageW - 80;                 // 40 pt margins
+  const boxY = doc.lastAutoTable.finalY + 30;
 
-          addFooter(3);
+  const blurb =
+    "What does this calculator actually do?  •  It starts with the income you enjoy today and the share of that income you’d like to keep when you stop working.  •  It then projects how big your pension pot must be so the money can fund that lifestyle all the way to age 100.  The maths takes account of the investment growth rate you’re comfortable with and any other income you’ll have in retirement – such as State Pension, rental income or a defined-benefit plan.";
 
-          doc.save('peoples_planner_report.pdf');
+  const lines      = doc.splitTextToSize(blurb, boxW - 40); // 20 pt pad
+  const lineHeight = 16;
+  const boxH       = lines.length * lineHeight + 40;
 
-          /* Helper */
-          function addFooter(pageNo) {
-            doc.setFontSize(9).setTextColor(120);
-            const txt = `Page ${pageNo}`;
-            doc.text(txt, pageW - doc.getTextWidth(txt) - 40,
-                     doc.internal.pageSize.getHeight() - 30);
-          }
-        }
-        </script>
+  doc.setFillColor('#2a2a2a')
+     .setDrawColor(ACCENT_CYAN)
+     .setLineWidth(1.4)
+     .roundedRect(boxX, boxY, boxW, boxH, 12, 12, 'FD');
 
+  doc.setFontSize(14).setFont(undefined, 'normal').setTextColor('#ffffff');
+  doc.text(lines, boxX + 20, boxY + 26);
+
+  addFooter(2);
+  doc.addPage();
+
+  /* ───────────── PAGE 3 + (unchanged) ───────── */
+  /*  keep the existing logic that builds inputs/results tables,
+      embeds balance & cash-flow charts,
+      shows SFT warning, then calls doc.save()           */
+
+  /* Left column: inputs */
+  let y3 = 60;
+  doc.setFontSize(18).setFont(undefined, 'bold').setTextColor(ACCENT_CYAN);
+  doc.text('Inputs & results', 50, y3);
+  y3 += 22;
+
+  const columnGap = 20;
+  const colW      = (pageW - 40 * 2 - columnGap) / 2;
+
+  doc.autoTable({
+    startY: y3,
+    margin: { left: 40, right: 40 + colW + columnGap },
+    head: [['Input', 'Value']],
+    body: Object.entries(latestRun.inputs)
+      .map(([k, v]) => [LABEL_MAP[k] ?? k, String(v || '—')]),
+    headStyles: { fillColor: ACCENT_CYAN, textColor: '#000' },
+    bodyStyles: { fillColor: '#2a2a2a', textColor: '#fff' },
+    alternateRowStyles: { fillColor: '#242424', textColor: '#fff' },
+    columnStyles: { 0: { cellWidth: colW * 0.4 } }
+  });
+
+  let tableEnd = doc.lastAutoTable.finalY + 12;
+  const metrics = [
+    ['Required pot (€)', '€' + latestRun.outputs.requiredPot.toLocaleString()],
+    ['Retirement year', latestRun.outputs.retirementYear]
+  ];
+  if (latestRun.outputs.sftMessage)
+    metrics.push(['SFT warning', latestRun.outputs.sftMessage]);
+
+  doc.autoTable({
+    startY: tableEnd,
+    margin: { left: 40, right: 40 + colW + columnGap },
+    head: [['Metric', 'Value']],
+    body: metrics,
+    headStyles: { fillColor: ACCENT_CYAN, textColor: '#000' },
+    bodyStyles: { fillColor: '#2a2a2a', textColor: '#fff' },
+    alternateRowStyles: { fillColor: '#242424', textColor: '#fff' },
+    columnStyles: { 0: { cellWidth: colW * 0.4 } }
+  });
+
+  /* charts – right column */
+  const chartX  = 40 + colW + columnGap;
+  let   chartY  = y3;
+  const chartW  = colW;
+
+  doc.addImage(latestRun.chartImgs.balance,  'PNG', chartX, chartY, chartW, 0, '', 'FAST');
+  chartY += chartW * 0.6 + 12;
+  doc.addImage(latestRun.chartImgs.cashflow, 'PNG', chartX, chartY, chartW, 0, '', 'FAST');
+
+  addFooter(3);
+
+  doc.save('peoples_planner_report.pdf');
+}
+
+</script>
     </div>
   </div>
 </body>
