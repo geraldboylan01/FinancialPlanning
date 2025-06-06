@@ -841,6 +841,15 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
 
             captureCharts();
 
+            /* ─── NEW: collect all on-screen warnings for the PDF ─── */
+            latestRun.warningBlocks = Array.from(
+              document.querySelectorAll('#results .warning-block, #postCalcContent .warning-block')
+            ).map(el => ({
+              text   : el.innerText.trim(),          // plain text (no tags)
+              danger : el.classList.contains('danger')
+            }));
+            /* ─────────────────────────────────────────────────────── */
+
             document.getElementById('postCalcContent').style.display = 'block';
 
             document.getElementById('console').textContent = '';
@@ -1033,7 +1042,7 @@ function generatePDF() {
     columnStyles: { 0: { cellWidth: colW * 0.4 } }
   });
 
-  /* charts – right column */
+  /* charts – right column (UNCHANGED) */
   const chartX  = 40 + colW + columnGap;
   let   chartY  = y3;
   const chartW  = colW;
@@ -1042,6 +1051,32 @@ function generatePDF() {
   chartY += chartW * 0.6 + 12;
   doc.addImage(latestRun.chartImgs.cashflow, 'PNG', chartX, chartY, chartW, 0, '', 'FAST');
 
+  /* ─── NEW: draw all warning blocks under the charts ─── */
+  const warnLeft   = 40;                     // same page margin
+  const warnWidth  = pageW - 80;             // 40-pt margins both sides
+  const afterCharts= chartY + chartW * 0.6;  // bottom of 2nd chart
+  let   warnY      = Math.max(doc.lastAutoTable.finalY, afterCharts) + 28;
+
+  (latestRun.warningBlocks || []).forEach(w => {
+    /* text wrap & height */
+    const bodyLines  = doc.splitTextToSize(w.text, warnWidth - 30);
+    const lineHeight = 15;
+    const blockH     = bodyLines.length * lineHeight + 24;
+
+    /* box */
+    doc.setFillColor('#444')
+       .rect(warnLeft, warnY, warnWidth, blockH, 'F');
+    doc.setFillColor(w.danger ? '#ff5c5c' : '#ffa500')
+       .rect(warnLeft, warnY, 6, blockH, 'F');   // left accent bar
+
+    /* copy */
+    doc.setFontSize(12).setFont(undefined,'normal').setTextColor('#ffffff');
+    doc.text(bodyLines, warnLeft + 14, warnY + 18, { lineHeightFactor: 1.3 });
+
+    warnY += blockH + 14;                       // gap before next block
+  });
+
+  /* footer AFTER warnings */
   addFooter(3);
 
   doc.save('peoples_planner_report.pdf');
