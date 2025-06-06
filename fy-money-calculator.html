@@ -318,9 +318,10 @@ canvas {
   <div id="cashflow-caption"></div>
 </div>
 
-<button id="downloadPdf" style="margin-top:1rem">Download PDF report</button>
+<div id="postCalcContent" style="display:none;">
+  <button id="downloadPdf" style="margin-top:1rem">Download PDF report</button>
 
-        <div class="warning-block">
+  <div class="warning-block">
           ⚠️ <strong>Important Notice</strong><br><br>
           This calculator does not include mandatory pension withdrawals (imputed distributions), required annually by Revenue rules from age 61:<br><br>
           <ul style="margin-top:0; margin-bottom:1rem; padding-left:1.2rem;">
@@ -331,7 +332,8 @@ canvas {
           In practice, a prudent investor would typically reinvest any surplus amounts withdrawn beyond their spending needs—though these reinvestments would occur outside the pension structure, under different tax conditions.<br><br>
           Despite this limitation, the calculator’s projections remain a reasonable reflection of expected retirement outcomes.<br><br>
           <em>For personalised analysis, please consult a qualified financial advisor.</em>
-        </div>
+  </div>
+</div>
 
       <div id="console" class="error"></div>
 
@@ -812,6 +814,8 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
             }
 
             captureCharts();
+
+            document.getElementById('postCalcContent').style.display = 'block';
 
             document.getElementById('console').textContent = '';
           } catch (err) {
