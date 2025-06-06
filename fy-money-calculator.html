@@ -367,6 +367,24 @@ canvas {
       <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
       <!-- ✅ 2. AutoTable plugin (must come right after jsPDF) -->
       <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/dist/jspdf.plugin.autotable.min.js"></script>
+      <!-- Sync minimum permissible retirement age with current age -->
+      <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const dobField = document.getElementById('dob');        // date of birth picker
+        const ageField = document.getElementById('retireAge');  // retirement-age number box
+
+        const syncMinAge = () => {
+          if (!dobField.value) return;
+          const today   = new Date();
+          const dobDate = new Date(dobField.value);
+          const curAge  = Math.floor((today - dobDate) / (365.25 * 24 * 3600 * 1000));
+          ageField.min  = String(curAge + 1);   // force at least NEXT birthday
+        };
+
+        dobField.addEventListener('change', syncMinAge);
+        syncMinAge();   // run once in case DOB pre-exists
+      });
+      </script>
 
       <!-- ──────────────────────────────────────────────────────────
            Everything BELOW this comment can keep using:
@@ -492,6 +510,14 @@ canvas {
 
             const now = new Date();
             const curAge = yrDiff(dob, now);
+            // ─── Validate retirement age ──────────────────────────────
+            if (retireAge <= curAge) {
+              const msg = 'Retirement age must be greater than your current age. ' +
+                          'Please enter a future age.';
+              document.getElementById('console').textContent = msg;  // red error strip
+              setHTML('results', '');          // clear any previous output
+              return;                          // abort the projection early
+            }
             const yrsToRet = retireAge - curAge;
             const yrsRet = 100 - retireAge;
             const partnerCurAge = partnerDob ? yrDiff(partnerDob, now) : null;
