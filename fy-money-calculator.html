@@ -942,28 +942,36 @@ function generatePDF() {
     alternateRowStyles: { fillColor: '#242424', textColor: '#fff' }
   });
 
-  /* info-box */
-  const boxX = 40;
-  const boxW = pageW - 80;                 // 40 pt margins
-  const boxY = doc.lastAutoTable.finalY + 30;
+  /* prettier info-box ------------------------------------------------ */
+  const boxMargin = 30;                       // slimmer margins
+  const boxX      = boxMargin;
+  const boxW      = pageW - boxMargin * 2;
+  const boxY      = doc.lastAutoTable.finalY + 35;
 
-  const blurb =
-    "What does this calculator actually do?  •  It starts with the income you enjoy today and the share of that income you’d like to keep when you stop working.  •  It then projects how big your pension pot must be so the money can fund that lifestyle all the way to age 100.  The maths takes account of the investment growth rate you’re comfortable with and any other income you’ll have in retirement – such as State Pension, rental income or a defined-benefit plan.";
-
-  const lines      = doc.splitTextToSize(blurb, boxW - 40); // 20 pt pad
-  const lineHeight = 16;
-  const boxH       = lines.length * lineHeight + 40;
-
-  doc.setFillColor('#2a2a2a')
+  /* draw shell */
+  doc.setFillColor('#222222')                 // richer charcoal
      .setDrawColor(ACCENT_CYAN)
-     .setLineWidth(1.4)
-     .roundedRect(boxX, boxY, boxW, boxH, 12, 12, 'FD');
+     .setLineWidth(2)
+     .roundedRect(boxX, boxY, boxW, 180, 14, 14, 'FD');
 
-  doc.setFontSize(14).setFont(undefined, 'normal').setTextColor('#ffffff');
-  doc.text(lines, boxX + 20, boxY + 26);
+  /* headline */
+  doc.setFontSize(16).setFont(undefined,'bold').setTextColor(ACCENT_CYAN);
+  const hdr = 'What does this calculator actually do?';
+  doc.text(hdr, boxX + 24, boxY + 32);
+
+  /* body text */
+  const body =
+    "•  It starts with the income you enjoy today and the share of that income you’d like to keep when you stop working.\n\n" +
+    "•  It then works out how big your pension pot must be to fund that lifestyle all the way to age 100.\n\n" +
+    "•  The maths reflects the investment growth rate you’re comfortable with and any other retirement income – such as State Pension, rental income or a defined-benefit plan.";
+
+  doc.setFontSize(14).setFont(undefined,'normal').setTextColor('#ffffff');
+  const wrapped = doc.splitTextToSize(body, boxW - 48);   // 24 pt padding each side
+  doc.text(wrapped, boxX + 24, boxY + 60, { lineHeightFactor: 1.35 });
 
   addFooter(2);
   doc.addPage();
+  pageBG();                 // <— new line: keeps dark background
 
   /* ───────────── PAGE 3 + (unchanged) ───────── */
   /*  keep the existing logic that builds inputs/results tables,
