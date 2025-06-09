@@ -840,11 +840,17 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
                 balance : balCan.toDataURL('image/png',1.0),
                 cashflow: cflCan.toDataURL('image/png',1.0)
               };
-              /* store native dims so the PDF can keep aspect-ratio */
-              latestRun.chartDims = {
-                balance : { w: balCan.width  , h: balCan.height  },
-                cashflow: { w: cflCan.width , h: cflCan.height }
-              };
+                /* record real CSS pixel-size so PDF layout knows heights */
+                latestRun.chartDims = {
+                  balance : {
+                    w: balCan.clientWidth,
+                    h: balCan.clientHeight
+                  },
+                  cashflow: {
+                    w: cflCan.clientWidth,
+                    h: cflCan.clientHeight
+                  }
+                };
             }
 
             captureCharts();
@@ -921,12 +927,12 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           const pad   = 12,
                 inner = panelW - pad*2;
 
-          const plain = warning.body
-              .replace(/<br\s*\/?>/gi, '\n')
-              .replace(/•/g, '\n• ')
-              .replace(/<[^>]+>/g,' ')
-              .replace(/[ \t]{2,}/g,' ')
-              .trim();
+            const plain = warning.body
+                .replace(/<br\s*\/?>/gi, '\n')   // real line break
+                .replace(/•/g, '\n• ')           // bullet on its own line
+                .replace(/<[^>]+>/g,' ')         // strip any other tag
+                .replace(/[ \t]{2,}/g,' ')       // collapse spaces (&nbsp; too)
+                .trim();
 
           const lines = doc.splitTextToSize(plain, inner);
           return 18 /*title*/ + 12 + lines.length * 11 + 14;
@@ -966,12 +972,16 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
 
           // body
           doc.setFontSize(8).setFont(undefined,'normal');
-          doc.text(
-            bodyLines,
-            x + padX,
-            y + 14 + gapTop,
-            { lineHeightFactor: 1.25 }
-          );
+              doc.text(
+              bodyLines,
+              x + padX,
+              y + 14 + gapTop,
+              {
+                lineHeightFactor: 1.3,
+                maxWidth        : innerW,   // << no horizontal scaling
+                align           : 'left'
+              }
+            );
 
           return h;        // caller moves cursor by h (+ desired gap)
         }
@@ -1142,29 +1152,31 @@ function generatePDF() {
   /* charts – right column */
   const chartX  = 40 + colW + columnGap;
   let   chartY  = y3;
-  const chartW   = colW;
-  const balR     = latestRun.chartDims.balance.h / latestRun.chartDims.balance.w;
-  const cflR     = latestRun.chartDims.cashflow.h / latestRun.chartDims.cashflow.w;
+    const chartW   = colW;                                    // fixed width
+    const balR     = latestRun.chartDims.balance .h /
+                     latestRun.chartDims.balance .w;
+    const cflR     = latestRun.chartDims.cashflow.h /
+                     latestRun.chartDims.cashflow.w;
 
   doc.addImage(
       latestRun.chartImgs.balance,
       'PNG', chartX, chartY,
       chartW, chartW * balR, '', 'FAST');
-  chartY += chartW * balR + 12;
+    chartY += chartW * balR + 12;               // ← real height!
 
   doc.addImage(
       latestRun.chartImgs.cashflow,
       'PNG', chartX, chartY,
       chartW, chartW * cflR, '', 'FAST');
-  chartY += chartW * cflR + 12;
+    chartY += chartW * cflR + 12;               // ← real height!
 
   let rightY  = chartY + 12;          // starts under both charts
   let pageNo  = 3;                    // we’re still on page 3
   const footerY = pageH - 40;         // bottom margin for footer
 
-  latestRun.otherWarns.forEach((w, idx) => {
-    const h = bannerHeight(doc, w, chartW);
-    if (rightY + h > footerY) {
+    latestRun.otherWarns.forEach((w, idx) => {
+      const h = bannerHeight(doc, w, chartW);  // exact measured height
+      if (rightY + h > footerY) {
       addFooter(pageNo++); doc.addPage(); pageBG();
       rightY = 60;
     }
