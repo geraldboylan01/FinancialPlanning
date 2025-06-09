@@ -904,14 +904,22 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
         const fmtBool = b => b ? 'Yes' : 'No';
         const fmtEuro = n => '€' + n.toLocaleString();
 
-        function bannerHeight(doc, warning, panelW) {
-          const pad   = 12;
-          const inner = panelW - pad * 2;
-          const body  = warning.body.replace(/\s*\n+\s*/g, ' ')
-                                   .replace(/\s{2,}/g, ' ');
-          const lines = doc.splitTextToSize(body, inner);
-          return 18 /*title*/ + 12 /*gap*/ +
-                 lines.length * 11 /*8 pt font + lh*/ + 14;
+        /** Return banner height in pt for given width.
+         *  • Strips ALL html (&nbsp;, <br>, <li>) so jsPDF won’t “justify”
+         *    by inserting huge spaces.
+         *  • Uses the same pad / font sizes as drawBanner() so caller can
+         *    rely on the result. */
+        function bannerHeight(doc, warning, panelW){
+          const pad   = 12,
+                inner = panelW - pad*2;
+
+          const plain = warning.body
+              .replace(/<[^>]+>/g, ' ')        // kill any stray html
+              .replace(/\s+/g, ' ')            // collapse white-space
+              .trim();
+
+          const lines = doc.splitTextToSize(plain, inner);
+          return 18 /*title*/ + 12 + lines.length * 11 + 14;
         }
 
         function drawBanner(doc, warning, x, y, w) {
@@ -922,11 +930,11 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           const padX    = 12;        // left/right inner padding
           const innerW  = w - padX * 2;
 
-          /*  Strip hard line-breaks and double-spaces that come from the
-              original HTML <br> tags.  Bullet (•) characters are kept.  */
+          // exact same clean-up as bannerHeight()
           const cleanBody = warning.body
-            .replace(/\s*\n+\s*/g, ' ')
-            .replace(/\s{2,}/g, ' ');
+                .replace(/<[^>]+>/g,' ')
+                .replace(/\s+/g,' ')
+                .trim();
 
           // text lines
           const bodyLines = doc.splitTextToSize(cleanBody, innerW);
@@ -1119,19 +1127,25 @@ function generatePDF() {
                         colW) + 18;
   }
 
-  /* charts – right column (UNCHANGED) */
+  /* charts – right column */
   const chartX  = 40 + colW + columnGap;
   let   chartY  = y3;
   const chartW  = colW;
 
-  doc.addImage(latestRun.chartImgs.balance,  'PNG', chartX, chartY, chartW, 0, '', 'FAST');
-  chartY += chartW * 0.6 + 12;
-  doc.addImage(latestRun.chartImgs.cashflow, 'PNG', chartX, chartY, chartW, 0, '', 'FAST');
-  chartY += chartW * 0.6 + 12;
+  /* put charts and record the REAL height jsPDF used */
+  doc.addImage(latestRun.chartImgs.balance,'PNG', chartX, chartY, chartW, 0,'','FAST');
+  const chartH1 = doc.lastAutoTable === undefined    // cheap way to know Y
+      ? (chartW*0.6) /*fallback*/ : doc.previousAutoTable.finalY - chartY;
+  chartY += chartH1 + 12;
+
+  doc.addImage(latestRun.chartImgs.cashflow,'PNG', chartX, chartY, chartW, 0,'','FAST');
+  const chartH2 = doc.previousAutoTable === undefined
+      ? (chartW*0.6) : doc.lastAutoTable.finalY - chartY;
+  chartY += chartH2 + 12;
 
   let rightY  = chartY + 12;          // starts under both charts
   let pageNo  = 3;                    // we’re still on page 3
-  const footerY = pageH - 40;         // keep space for footer
+  const footerY = pageH - 40;         // bottom margin for footer
 
   latestRun.otherWarns.forEach((w, idx) => {
     const h = bannerHeight(doc, w, chartW);
