@@ -910,7 +910,7 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
           const accent  = warning.danger ? '#ff4b4b' : '#ffa500';
           const gapTop  = 12;        // space between title & body
           const padX    = 12;        // left/right inner padding
-          const bodyMax = w - padX * 2;
+          const innerW  = w - padX * 2;
 
           /*  Strip hard line-breaks and double-spaces that come from the
               original HTML <br> tags.  Bullet (•) characters are kept.  */
@@ -919,7 +919,7 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
             .replace(/\s{2,}/g, ' ');
 
           // text lines
-          const bodyLines = doc.splitTextToSize(cleanBody, bodyMax);
+          const bodyLines = doc.splitTextToSize(cleanBody, innerW);
           const bodyH     = bodyLines.length * 11;   // 11 pt line step
 
           // total height: title (10 pt) + gap + body + bottom padding
@@ -940,7 +940,7 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
             bodyLines,
             x + padX,
             y + 14 + gapTop,
-            { maxWidth: bodyMax, lineHeightFactor: 1.32 }
+            { lineHeightFactor: 1.25 }
           );
 
           return h;        // caller moves cursor by h (+ desired gap)
