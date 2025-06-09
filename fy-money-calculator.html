@@ -926,8 +926,8 @@ function generatePDF() {
   pageBG();
 
   // One-time graphics state (18 % opacity drop-shadow)
-  // correct: GState is a factory that already returns the PDF object
-  const shadowGsObj = doc.GState({ opacity: 0.18, blendMode: 'Multiply' });
+  // GState is a constructor, so instantiate it with `new`
+  const shadowGsObj = new doc.GState({ opacity: 0.18, blendMode: 'Multiply' });
   const shadowGsId  = doc.addGState(shadowGsObj);
   doc.setFontSize(48).setFont(undefined, 'bold').setTextColor(COVER_GOLD);
   doc.text("People's Planner", pageW / 2, 90, { align: 'center' });
