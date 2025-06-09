@@ -841,14 +841,20 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
 
             captureCharts();
 
-            /* ─── NEW: collect all on-screen warnings for the PDF ─── */
-            latestRun.warningBlocks = Array.from(
-              document.querySelectorAll('#results .warning-block, #postCalcContent .warning-block')
-            ).map(el => ({
-              text   : el.innerText.trim(),          // plain text (no tags)
-              danger : el.classList.contains('danger')
-            }));
-            /* ─────────────────────────────────────────────────────── */
+            /* ─── capture warnings for PDF ─── */
+            latestRun.warningBlocks = [...document.querySelectorAll(
+              '#results .warning-block, #postCalcContent .warning-block'
+            )].map(el => {
+              /* first sentence up to <br> (or colon) is the “title” */
+              const raw   = el.innerText.replace(/\u2022/g, '•').trim();
+              const [head, ...rest] = raw.split('\n');
+              return {
+                title  : head.replace(/^\s*⚠️|⛔\s*/,'').trim(),
+                body   : rest.join('\n').trim(),
+                danger : el.classList.contains('danger')
+              };
+            });
+            /* ──────────────────────────────── */
 
             document.getElementById('postCalcContent').style.display = 'block';
 
@@ -1051,32 +1057,49 @@ function generatePDF() {
   chartY += chartW * 0.6 + 12;
   doc.addImage(latestRun.chartImgs.cashflow, 'PNG', chartX, chartY, chartW, 0, '', 'FAST');
 
-  /* ─── NEW: draw all warning blocks under the charts ─── */
-  const warnLeft   = 40;                     // same page margin
-  const warnWidth  = pageW - 80;             // 40-pt margins both sides
-  const afterCharts= chartY + chartW * 0.6;  // bottom of 2nd chart
-  let   warnY      = Math.max(doc.lastAutoTable.finalY, afterCharts) + 28;
+  /* ─── warnings under charts (right column) ─── */
+  const warnX      = chartX;      // align with charts
+  const warnWidth  = chartW;      // same width
+  let   warnY      = chartY + 12; // 12-pt gap after last chart
 
   (latestRun.warningBlocks || []).forEach(w => {
-    /* text wrap & height */
-    const bodyLines  = doc.splitTextToSize(w.text, warnWidth - 30);
-    const lineHeight = 15;
-    const blockH     = bodyLines.length * lineHeight + 24;
 
-    /* box */
-    doc.setFillColor('#444')
-       .rect(warnLeft, warnY, warnWidth, blockH, 'F');
-    doc.setFillColor(w.danger ? '#ff5c5c' : '#ffa500')
-       .rect(warnLeft, warnY, 6, blockH, 'F');   // left accent bar
+    /* Ⓐ  measure body */
+    doc.setFontSize(9).setFont(undefined,'normal');
+    const wrapped = doc.splitTextToSize(w.body, warnWidth - 26); // 13-pt padding both sides
+    const lineH   = 12;
+    const blockH  = 18             // title line
+                  + wrapped.length * lineH
+                  + 16;            // vertical padding
 
-    /* copy */
-    doc.setFontSize(12).setFont(undefined,'normal').setTextColor('#ffffff');
-    doc.text(bodyLines, warnLeft + 14, warnY + 18, { lineHeightFactor: 1.3 });
+    /* Ⓑ  outer shell */
+    doc.setFillColor('#3a3a3a')
+       .roundedRect(warnX, warnY, warnWidth, blockH, 8, 8, 'F')
+       .setDrawColor(0,0,0,0);     // no border
 
-    warnY += blockH + 14;                       // gap before next block
+    /* Ⓒ  accent stripe */
+    const stripe = w.danger ? '#ff4b4b' : '#ffb400';
+    doc.setFillColor(stripe)
+       .roundedRect(warnX, warnY, 6, blockH, 8, 0, 'F');
+
+    /* Ⓓ  tiny shadow (subtle) */
+    doc.setGState(new doc.GState({opacity:0.18, blendMode:'Multiply'}));
+    doc.setFillColor(0);           // black
+    doc.roundedRect(warnX+1, warnY+2, warnWidth, blockH, 8, 8, 'F');
+    doc.setGState();               // reset opacity
+
+    /* Ⓔ  title */
+    doc.setFontSize(11).setFont(undefined,'bold').setTextColor('#ffffff');
+    doc.text(w.title, warnX + 12, warnY + 14);
+
+    /* Ⓕ  body copy */
+    doc.setFontSize(9).setFont(undefined,'normal');
+    doc.text(wrapped, warnX + 12, warnY + 28, { lineHeightFactor: 1.25 });
+
+    warnY += blockH + 10;          // 10-pt gap before next block
   });
 
-  /* footer AFTER warnings */
+  /* footer AFTER warnings (unchanged) */
   addFooter(3);
 
   doc.save('peoples_planner_report.pdf');
