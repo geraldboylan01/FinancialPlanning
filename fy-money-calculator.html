@@ -911,9 +911,6 @@ function generatePDF() {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
 
-  // create and register a single shadow GState
-  const shadowState = doc.GState({ opacity: 0.18 });
-  const shadowId   = doc.addGState(shadowState); // returns numeric ID
 
   /* helpers */
   const pageBG = () => {
@@ -929,7 +926,6 @@ function generatePDF() {
   /* ───────────────── COVER ───────────────── */
   pageBG();
 
-  // One-time graphics state defined above
   doc.setFontSize(48).setFont(undefined, 'bold').setTextColor(COVER_GOLD);
   doc.text("People's Planner", pageW / 2, 90, { align: 'center' });
 
@@ -1078,25 +1074,23 @@ function generatePDF() {
                   + wrapped.length * lineH
                   + 16;            // vertical padding
 
-    /* Ⓑ  outer shell */
-    doc.setFillColor('#3a3a3a')
-       .roundedRect(warnX, warnY, warnWidth, blockH, 8, 8, 'F')
-       .setDrawColor(0,0,0,0);     // no border
-
-    /* Ⓒ  accent stripe */
-    const stripe = w.danger ? '#ff4b4b' : '#ffb400';
-    doc.setFillColor(stripe)
-       .roundedRect(warnX, warnY, 6, blockH, 8, 0, 'F');
-
-    /* Ⓓ  tiny shadow (subtle) */
-    doc.setGState(shadowId);     // apply shadow state
-    doc.setFillColor(0);           // black
+    // 1️⃣ draw the shadow manually, with RGBA fill
+    doc.setFillColor(0, 0, 0, 0.18);
     doc.roundedRect(
       warnX + 1, warnY + 2,
       warnWidth, blockH,
-      8, 8, 'F'
+      8, 8,
+      'F'
     );
-    doc.setGState();               // reset to default
+
+    // 2️⃣ draw the main panel on top
+    doc.setFillColor('#3a3a3a');
+    doc.roundedRect(warnX, warnY, warnWidth, blockH, 8, 8, 'F');
+
+    // 3️⃣ draw the colored stripe accent
+    const stripe = w.danger ? '#ff4b4b' : '#ffb400';
+    doc.setFillColor(stripe);
+    doc.roundedRect(warnX, warnY, 6, blockH, 8, 0, 'F');
 
     /* Ⓔ  title */
     doc.setFontSize(11).setFont(undefined,'bold').setTextColor('#ffffff');
