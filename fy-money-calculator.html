@@ -924,6 +924,12 @@ function generatePDF() {
 
   /* ───────────────── COVER ───────────────── */
   pageBG();
+
+  // One-time graphics state (18 % opacity, Multiply blend)
+  const shadowGsId = doc.context.addGState({
+    opacity: 0.18,
+    BM: 'Multiply'
+  });
   doc.setFontSize(48).setFont(undefined, 'bold').setTextColor(COVER_GOLD);
   doc.text("People's Planner", pageW / 2, 90, { align: 'center' });
 
@@ -1083,10 +1089,14 @@ function generatePDF() {
        .roundedRect(warnX, warnY, 6, blockH, 8, 0, 'F');
 
     /* Ⓓ  tiny shadow (subtle) */
-    doc.setGState(new doc.GState({opacity:0.18, blendMode:'Multiply'}));
+    doc.setGState(shadowGsId);     // apply shadow state
     doc.setFillColor(0);           // black
-    doc.roundedRect(warnX+1, warnY+2, warnWidth, blockH, 8, 8, 'F');
-    doc.setGState();               // reset opacity
+    doc.roundedRect(
+      warnX + 1, warnY + 2,
+      warnWidth, blockH,
+      8, 8, 'F'
+    );
+    doc.setGState();               // reset to default
 
     /* Ⓔ  title */
     doc.setFontSize(11).setFont(undefined,'bold').setTextColor('#ffffff');
