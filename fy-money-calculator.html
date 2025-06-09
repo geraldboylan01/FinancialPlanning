@@ -402,6 +402,8 @@ canvas {
         let balanceChart = null;
         let cashflowChart = null;
         let latestRun = null;
+        let mandatoryWarn = null;
+        let otherWarns = [];
         const ASSUMPTIONS_TABLE_CONSTANT = [
           ['Inflation (CPI)', '2.3 % per year, fixed'],
           ['Portfolio growth', '4 %–7 % depending on chosen risk profile'],
@@ -854,6 +856,8 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
                 danger : el.classList.contains('danger')
               };
             });
+            mandatoryWarn = latestRun.warningBlocks.find(w => w.title === 'Important Notice') || null;
+            otherWarns    = latestRun.warningBlocks.filter(w => w.title !== 'Important Notice');
             /* ──────────────────────────────── */
 
             document.getElementById('postCalcContent').style.display = 'block';
@@ -926,6 +930,33 @@ function generatePDF() {
     doc.setFontSize(9).setTextColor(120);
     const t = `Page ${n}`;
     doc.text(t, pageW - doc.getTextWidth(t) - 40, pageH - 30);
+  };
+
+  const drawBanner = ({ title, body, danger }, x, y, w) => {
+    doc.setFontSize(WARN_FONT_MAIN);
+    const lines = doc.splitTextToSize(body, w - 26);
+    const h = WARN_VPAD * 2 + WARN_FONT_HEAD + 4 + lines.length * WARN_LINE_H;
+
+    doc.setFillColor(0, 0, 0, 0.18);
+    doc.roundedRect(x + 1, y + 2, w, h, 8, 8, 'F');
+
+    doc.setFillColor('#3a3a3a');
+    doc.roundedRect(x, y, w, h, 8, 8, 'F');
+
+    doc.setFillColor(danger ? '#ff4b4b' : '#ffb400');
+    doc.roundedRect(x, y, 4, h, 8, 0, 'F');
+
+    doc.setFontSize(WARN_FONT_HEAD)
+       .setFont(undefined, 'bold')
+       .setTextColor('#fff');
+    doc.text(title, x + 10, y + WARN_VPAD - 2);
+
+    doc.setFontSize(WARN_FONT_MAIN).setFont(undefined, 'normal');
+    doc.text(lines, x + 10, y + WARN_VPAD + WARN_FONT_HEAD + 2, {
+      lineHeightFactor: WARN_LINE_H / WARN_FONT_MAIN,
+    });
+
+    return h;
   };
 
   /* ───────────────── COVER ───────────────── */
@@ -1055,6 +1086,12 @@ function generatePDF() {
     columnStyles: { 0: { cellWidth: colW * 0.4 } }
   });
 
+  let leftY = doc.lastAutoTable.finalY + 14;
+  if (mandatoryWarn) {
+    const h = drawBanner(mandatoryWarn, 40, leftY, colW);
+    leftY += h + 14;
+  }
+
   /* charts – right column (UNCHANGED) */
   const chartX  = 40 + colW + columnGap;
   let   chartY  = y3;
@@ -1064,59 +1101,24 @@ function generatePDF() {
   chartY += chartW * 0.6 + 12;
   doc.addImage(latestRun.chartImgs.cashflow, 'PNG', chartX, chartY, chartW, 0, '', 'FAST');
 
-  /* ─── warnings under charts (right column) ─── */
-  const warnX      = chartX;      // align with charts
-  const warnWidth  = chartW;      // same width
-  let   warnY      = chartY + 12; // 12-pt gap after last chart
-  let   pageNum    = 3;
-  let   rowHeight  = 0;
-
-  (latestRun.warningBlocks || []).forEach((w, idx) => {
-
-    /* compute grid position */
-    const col         = idx % 2;                         // 0 or 1
-    if (col === 0 && idx !== 0) {                        // new row?
-      warnY += rowHeight + WARN_COL_GAP;                 // move down
-    }
-    const boxX      = warnX + col * (warnWidth + WARN_COL_GAP);
-    const boxW      = (warnWidth - WARN_COL_GAP) / 2;
-
-    /* measure wrapped body with new font / line-height */
-    doc.setFontSize(WARN_FONT_MAIN);
-    const bodyLines   = doc.splitTextToSize(w.body, boxW - 26);
-    rowHeight   = WARN_VPAD*2 + WARN_FONT_HEAD + 4 + bodyLines.length * WARN_LINE_H;
-
-    // shadow
-    doc.setFillColor(0,0,0,0.18);
-    doc.roundedRect(boxX+1, warnY+2, boxW, rowHeight, 8, 8, 'F');
-
-    // panel
-    doc.setFillColor('#3a3a3a');
-    doc.roundedRect(boxX, warnY, boxW, rowHeight, 8, 8, 'F');
-
-    // stripe
-    doc.setFillColor(w.danger ? '#ff4b4b' : '#ffb400');
-    doc.roundedRect(boxX, warnY, 4, rowHeight, 8, 0, 'F');
-
-    // title
-    doc.setFontSize(WARN_FONT_HEAD).setFont(undefined,'bold').setTextColor('#fff');
-    doc.text(w.title, boxX + 10, warnY + WARN_VPAD - 2);
-
-    // body
-    doc.setFontSize(WARN_FONT_MAIN).setFont(undefined,'normal');
-    doc.text(bodyLines, boxX + 10, warnY + WARN_VPAD + WARN_FONT_HEAD + 2, { lineHeightFactor: WARN_LINE_H / WARN_FONT_MAIN });
-
-    // If the next box won’t fit, start new page
-    if (warnY + rowHeight + rowHeight + 40 > pageH) {
-      addFooter( ++pageNum );
-      doc.addPage();
-      pageBG();
-      warnY = 60;                   // reset Y for new page
-    }
+  let rightY = chartY + 12;
+  let pageNo = 3;
+  const botMargin = pageH - 40;
+  otherWarns.forEach(w => {
+      const estH = 90 + w.body.length * 0.38;
+      if (rightY + estH > botMargin) {
+          addFooter(pageNo++);
+          doc.addPage(); pageBG();
+          rightY = 60;
+          const h = drawBanner(w, 40, rightY, colW);
+          rightY += h + 14;
+          return;
+      }
+      const h = drawBanner(w, chartX, rightY, chartW);
+      rightY += h + 14;
   });
 
-  /* footer AFTER warnings (unchanged) */
-  addFooter(pageNum);
+  addFooter(pageNo);
 
   doc.save('peoples_planner_report.pdf');
 }
