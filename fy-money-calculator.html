@@ -832,10 +832,18 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
 
             latestRun = gatherData(reqCap, retirementYear, sftWarningStripped);
 
-            function captureCharts(){
+            function captureCharts () {
+              const balCan = balanceChart.canvas,
+                    cflCan = cashflowChart.canvas;
+
               latestRun.chartImgs = {
-                balance : balanceChart.canvas.toDataURL('image/png',1.0),
-                cashflow: cashflowChart.canvas.toDataURL('image/png',1.0)
+                balance : balCan.toDataURL('image/png',1.0),
+                cashflow: cflCan.toDataURL('image/png',1.0)
+              };
+              /* store native dims so the PDF can keep aspect-ratio */
+              latestRun.chartDims = {
+                balance : { w: balCan.width  , h: balCan.height  },
+                cashflow: { w: cflCan.width , h: cflCan.height }
               };
             }
 
@@ -914,8 +922,10 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
                 inner = panelW - pad*2;
 
           const plain = warning.body
-              .replace(/<[^>]+>/g, ' ')        // kill any stray html
-              .replace(/\s+/g, ' ')            // collapse white-space
+              .replace(/<br\s*\/?>/gi, '\n')
+              .replace(/•/g, '\n• ')
+              .replace(/<[^>]+>/g,' ')
+              .replace(/[ \t]{2,}/g,' ')
               .trim();
 
           const lines = doc.splitTextToSize(plain, inner);
@@ -932,8 +942,10 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
 
           // exact same clean-up as bannerHeight()
           const cleanBody = warning.body
-                .replace(/<[^>]+>/g,' ')
-                .replace(/\s+/g,' ')
+                .replace(/<br\s*\/?>/gi, '\n')   /* real line break  */
+                .replace(/•/g, '\n• ')           /* keep bullets     */
+                .replace(/<[^>]+>/g, ' ')        /* strip tags       */
+                .replace(/[ \t]{2,}/g, ' ')      /* collapse spaces  */
                 .trim();
 
           // text lines
@@ -1130,18 +1142,21 @@ function generatePDF() {
   /* charts – right column */
   const chartX  = 40 + colW + columnGap;
   let   chartY  = y3;
-  const chartW  = colW;
+  const chartW   = colW;
+  const balR     = latestRun.chartDims.balance.h / latestRun.chartDims.balance.w;
+  const cflR     = latestRun.chartDims.cashflow.h / latestRun.chartDims.cashflow.w;
 
-  /* put charts and record the REAL height jsPDF used */
-  doc.addImage(latestRun.chartImgs.balance,'PNG', chartX, chartY, chartW, 0,'','FAST');
-  const chartH1 = doc.lastAutoTable === undefined    // cheap way to know Y
-      ? (chartW*0.6) /*fallback*/ : doc.previousAutoTable.finalY - chartY;
-  chartY += chartH1 + 12;
+  doc.addImage(
+      latestRun.chartImgs.balance,
+      'PNG', chartX, chartY,
+      chartW, chartW * balR, '', 'FAST');
+  chartY += chartW * balR + 12;
 
-  doc.addImage(latestRun.chartImgs.cashflow,'PNG', chartX, chartY, chartW, 0,'','FAST');
-  const chartH2 = doc.previousAutoTable === undefined
-      ? (chartW*0.6) : doc.lastAutoTable.finalY - chartY;
-  chartY += chartH2 + 12;
+  doc.addImage(
+      latestRun.chartImgs.cashflow,
+      'PNG', chartX, chartY,
+      chartW, chartW * cflR, '', 'FAST');
+  chartY += chartW * cflR + 12;
 
   let rightY  = chartY + 12;          // starts under both charts
   let pageNo  = 3;                    // we’re still on page 3
