@@ -906,6 +906,11 @@ function generatePDF() {
   const ACCENT_GREEN = '#00ff88';
   const ACCENT_CYAN  = '#0099ff';
   const COVER_GOLD   = '#BBA26F';
+  const WARN_COL_GAP   = 12;                  // gap between columns / rows
+  const WARN_FONT_MAIN = 8;                   // body font size
+  const WARN_FONT_HEAD = 10;                  // title font size
+  const WARN_LINE_H    = 14;                  // body line height
+  const WARN_VPAD      = 16;                  // top / bottom padding inside box
 
   const doc   = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
@@ -1063,48 +1068,55 @@ function generatePDF() {
   const warnX      = chartX;      // align with charts
   const warnWidth  = chartW;      // same width
   let   warnY      = chartY + 12; // 12-pt gap after last chart
+  let   pageNum    = 3;
+  let   rowHeight  = 0;
 
-  (latestRun.warningBlocks || []).forEach(w => {
+  (latestRun.warningBlocks || []).forEach((w, idx) => {
 
-    /* Ⓐ  measure body */
-    doc.setFontSize(9).setFont(undefined,'normal');
-    const wrapped = doc.splitTextToSize(w.body, warnWidth - 26); // 13-pt padding both sides
-    const lineH   = 12;
-    const blockH  = 18             // title line
-                  + wrapped.length * lineH
-                  + 16;            // vertical padding
+    /* compute grid position */
+    const col         = idx % 2;                         // 0 or 1
+    if (col === 0 && idx !== 0) {                        // new row?
+      warnY += rowHeight + WARN_COL_GAP;                 // move down
+    }
+    const boxX      = warnX + col * (warnWidth + WARN_COL_GAP);
+    const boxW      = (warnWidth - WARN_COL_GAP) / 2;
 
-    // 1️⃣ draw the shadow manually, with RGBA fill
-    doc.setFillColor(0, 0, 0, 0.18);
-    doc.roundedRect(
-      warnX + 1, warnY + 2,
-      warnWidth, blockH,
-      8, 8,
-      'F'
-    );
+    /* measure wrapped body with new font / line-height */
+    doc.setFontSize(WARN_FONT_MAIN);
+    const bodyLines   = doc.splitTextToSize(w.body, boxW - 26);
+    rowHeight   = WARN_VPAD*2 + WARN_FONT_HEAD + 4 + bodyLines.length * WARN_LINE_H;
 
-    // 2️⃣ draw the main panel on top
+    // shadow
+    doc.setFillColor(0,0,0,0.18);
+    doc.roundedRect(boxX+1, warnY+2, boxW, rowHeight, 8, 8, 'F');
+
+    // panel
     doc.setFillColor('#3a3a3a');
-    doc.roundedRect(warnX, warnY, warnWidth, blockH, 8, 8, 'F');
+    doc.roundedRect(boxX, warnY, boxW, rowHeight, 8, 8, 'F');
 
-    // 3️⃣ draw the colored stripe accent
-    const stripe = w.danger ? '#ff4b4b' : '#ffb400';
-    doc.setFillColor(stripe);
-    doc.roundedRect(warnX, warnY, 6, blockH, 8, 0, 'F');
+    // stripe
+    doc.setFillColor(w.danger ? '#ff4b4b' : '#ffb400');
+    doc.roundedRect(boxX, warnY, 4, rowHeight, 8, 0, 'F');
 
-    /* Ⓔ  title */
-    doc.setFontSize(11).setFont(undefined,'bold').setTextColor('#ffffff');
-    doc.text(w.title, warnX + 12, warnY + 14);
+    // title
+    doc.setFontSize(WARN_FONT_HEAD).setFont(undefined,'bold').setTextColor('#fff');
+    doc.text(w.title, boxX + 10, warnY + WARN_VPAD - 2);
 
-    /* Ⓕ  body copy */
-    doc.setFontSize(9).setFont(undefined,'normal');
-    doc.text(wrapped, warnX + 12, warnY + 28, { lineHeightFactor: 1.25 });
+    // body
+    doc.setFontSize(WARN_FONT_MAIN).setFont(undefined,'normal');
+    doc.text(bodyLines, boxX + 10, warnY + WARN_VPAD + WARN_FONT_HEAD + 2, { lineHeightFactor: WARN_LINE_H / WARN_FONT_MAIN });
 
-    warnY += blockH + 10;          // 10-pt gap before next block
+    // If the next box won’t fit, start new page
+    if (warnY + rowHeight + rowHeight + 40 > pageH) {
+      addFooter( ++pageNum );
+      doc.addPage();
+      pageBG();
+      warnY = 60;                   // reset Y for new page
+    }
   });
 
   /* footer AFTER warnings (unchanged) */
-  addFooter(3);
+  addFooter(pageNum);
 
   doc.save('peoples_planner_report.pdf');
 }
