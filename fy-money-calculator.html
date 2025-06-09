@@ -911,6 +911,10 @@ function generatePDF() {
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
 
+  // create and register a single shadow GState
+  const shadowGState = doc.GState({ opacity: 0.18 });
+  doc.addGState(shadowGState);
+
   /* helpers */
   const pageBG = () => {
     doc.setFillColor(BG_DARK);
@@ -925,11 +929,7 @@ function generatePDF() {
   /* ───────────────── COVER ───────────────── */
   pageBG();
 
-  // One-time graphics state (18 % opacity; jsPDF ignores blendMode)
-  const shadowGsObj = doc.GState({
-    opacity: 0.18
-  });
-  const shadowGsId  = doc.addGState('shadow', shadowGsObj);
+  // One-time graphics state defined above
   doc.setFontSize(48).setFont(undefined, 'bold').setTextColor(COVER_GOLD);
   doc.text("People's Planner", pageW / 2, 90, { align: 'center' });
 
@@ -1089,7 +1089,7 @@ function generatePDF() {
        .roundedRect(warnX, warnY, 6, blockH, 8, 0, 'F');
 
     /* Ⓓ  tiny shadow (subtle) */
-    doc.setGState(shadowGsId);     // apply shadow state
+    doc.setGState(shadowGState);     // apply shadow state
     doc.setFillColor(0);           // black
     doc.roundedRect(
       warnX + 1, warnY + 2,
