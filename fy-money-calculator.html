@@ -936,10 +936,12 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
 
           // body
           doc.setFontSize(8).setFont(undefined,'normal');
-          doc.text(bodyLines,
-                   x + padX,
-                   y + 14 + gapTop,
-                   { maxWidth: bodyMax, lineHeightFactor: 1.3, align: 'justify' });
+          doc.text(
+            bodyLines,
+            x + padX,
+            y + 14 + gapTop,
+            { maxWidth: bodyMax, lineHeightFactor: 1.32 }
+          );
 
           return h;        // caller moves cursor by h (+ desired gap)
         }
