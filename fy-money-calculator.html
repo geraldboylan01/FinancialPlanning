@@ -913,7 +913,7 @@ function generatePDF() {
 
   // create and register a single shadow GState
   const shadowState = doc.GState({ opacity: 0.18 });
-  const shadowId = doc.addGState(shadowState);
+  const shadowId   = doc.addGState(shadowState); // returns numeric ID
 
   /* helpers */
   const pageBG = () => {
