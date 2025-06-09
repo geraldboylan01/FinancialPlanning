@@ -926,9 +926,8 @@ function generatePDF() {
   pageBG();
 
   // One-time graphics state (18 % opacity drop-shadow)
-  const shadowGsId = doc.addGState({
-    opacity : 0.18          // 18 % opacity for the drop-shadow
-  });
+  const shadowGsObj = new doc.GState({ opacity: 0.18 });
+  const shadowGsId  = doc.addGState(shadowGsObj);
   doc.setFontSize(48).setFont(undefined, 'bold').setTextColor(COVER_GOLD);
   doc.text("People's Planner", pageW / 2, 90, { align: 'center' });
 
