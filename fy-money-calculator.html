@@ -402,8 +402,6 @@ canvas {
         let balanceChart = null;
         let cashflowChart = null;
         let latestRun = null;
-        let mandatoryWarn = null;
-        let otherWarns = [];
         const ASSUMPTIONS_TABLE_CONSTANT = [
           ['Inflation (CPI)', '2.3 % per year, fixed'],
           ['Portfolio growth', '4 %–7 % depending on chosen risk profile'],
@@ -856,10 +854,12 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
                 danger : el.classList.contains('danger')
               };
             });
-            mandatoryWarn = latestRun.warningBlocks.find(
+            const mandatoryWarn = latestRun.warningBlocks.find(
               w => w.title.startsWith('Important Notice')
-            ) || null;
-            otherWarns = latestRun.warningBlocks.filter(w => w !== mandatoryWarn);
+            );
+            const otherWarns = latestRun.warningBlocks.filter(w => w !== mandatoryWarn);
+            latestRun.mandatoryWarn = mandatoryWarn;
+            latestRun.otherWarns    = otherWarns;
             /* ──────────────────────────────── */
 
             document.getElementById('postCalcContent').style.display = 'block';
@@ -905,29 +905,34 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
         const fmtEuro = n => '€' + n.toLocaleString();
 
         function drawBanner(doc, warning, x, y, w) {
-          // warning = {title, body, danger}
-          const accent = warning.danger ? '#ff4b4b' : '#ffa500';
-          const bodyLines = doc.splitTextToSize(warning.body, w - 26);
-          const h = 16 + 10 + 4 + bodyLines.length * 12 + 16;
+          // warning  = {title, body, danger}
+          // colours  = orange for normal, red for danger
+          const accent  = warning.danger ? '#ff4b4b' : '#ffa500';
+          const gapTop  = 12;             // space above body text
+          const padX    = 12;             // inner left/right padding
+          const bodyMax = w - padX * 2;
 
-          // panel
-          doc.setDrawColor(accent).setLineWidth(1);
-          doc.setFillColor('#2a2a2a');
-          doc.roundedRect(x, y, w, h, 6, 6, 'FD');
+          // text lines
+          const bodyLines = doc.splitTextToSize(warning.body, bodyMax);
+          const bodyH     = bodyLines.length * 11;   // 11 pt line step
 
-          // accent bar
-          doc.setFillColor(accent);
-          doc.rect(x, y, 4, h, 'F');
+          // total height: title (10 pt) + gap + body + bottom padding
+          const h = 18 + gapTop + bodyH + 14;
+
+          // panel fill & border (rounded like the blue call-out on p 2)
+          doc.setFillColor('#1a1a1a');          // match page background
+          doc.setDrawColor(accent).setLineWidth(2);
+          doc.roundedRect(x, y, w, h, 6, 6, 'FD');  // F = fill, D = draw
 
           // title
-          doc.setFontSize(10).setFont(undefined, 'bold').setTextColor('#ffffff');
-          doc.text(warning.title, x + 10, y + 12);
+          doc.setFontSize(10).setFont(undefined,'bold').setTextColor('#ffffff');
+          doc.text(warning.title, x + padX, y + 14);
 
           // body
-          doc.setFontSize(8).setFont(undefined, 'normal');
-          doc.text(bodyLines, x + 10, y + 26, { lineHeightFactor: 1.3 });
+          doc.setFontSize(8).setFont(undefined,'normal');
+          doc.text(bodyLines, x + padX, y + 14 + gapTop, { lineHeightFactor: 1.3 });
 
-          return h;  // caller moves the cursor
+          return h;        // caller moves cursor by h (+ desired gap)
         }
 
 function generatePDF() {
@@ -1083,9 +1088,14 @@ function generatePDF() {
     columnStyles: { 0: { cellWidth: colW * 0.4 } }
   });
 
-  let leftCursorY = doc.lastAutoTable.finalY + 14;
-  if (mandatoryWarn) {
-    leftCursorY += drawBanner(doc, mandatoryWarn, 40, leftCursorY, colW) + 14;
+  let leftY = doc.lastAutoTable.finalY + 16;
+
+  if (latestRun.mandatoryWarn) {
+    leftY += drawBanner(doc,
+                        latestRun.mandatoryWarn,
+                        40,
+                        leftY,
+                        colW) + 18;
   }
 
   /* charts – right column (UNCHANGED) */
@@ -1096,31 +1106,27 @@ function generatePDF() {
   doc.addImage(latestRun.chartImgs.balance,  'PNG', chartX, chartY, chartW, 0, '', 'FAST');
   chartY += chartW * 0.6 + 12;
   doc.addImage(latestRun.chartImgs.cashflow, 'PNG', chartX, chartY, chartW, 0, '', 'FAST');
+  chartY += chartW * 0.6 + 12;
 
-  let rightCursorY = chartY + 12;
-  let rightX = chartX;
-  let rightW = chartW;
-  const footerLimit = pageH - 40;   // reserve footer space
-  let pageNo = 3;                   // footers for p1 & p2 done
+  let rightY  = chartY + 12;          // starts under both charts
+  let pageNo  = 3;                    // we’re still on page 3
+  const footerY = pageH - 40;         // keep space for footer
 
-  otherWarns.forEach(w => {
-    const estH = 40 + w.body.length * 0.38;  // quick height guess
-    if (rightCursorY + estH > footerLimit) {
+  latestRun.otherWarns.forEach((w, idx) => {
+    // if this banner doesn’t fit, start a new page
+    const estH = 60 + w.body.length * 0.35;   // generous guess
+    if (rightY + estH > footerY) {
       addFooter(pageNo++);
       doc.addPage(); pageBG();
-      rightCursorY = 60;            // top margin
-
-      // fill NEW page's left column first
-      rightX = 40;
-      rightW = colW;
+      // fill LEFT column first on new page
+      rightY = 60;
+      drawBanner(doc, w, 40, rightY, colW);
+      rightY += estH + 18;
+      return;
     }
-
-    rightCursorY += drawBanner(doc, w, rightX, rightCursorY, rightW) + 14;
-
-    // after first banner on new page, swap to right column for next spill
-    if (rightX === 40 && rightCursorY > footerLimit * 0.4) {
-      rightX = chartX; rightW = chartW; rightCursorY = 60;
-    }
+    // draw in right column (full width of that column)
+    drawBanner(doc, w, chartX, rightY, chartW);
+    rightY += estH + 18;
   });
 
   addFooter(pageNo);
