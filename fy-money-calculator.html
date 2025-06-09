@@ -912,8 +912,8 @@ function generatePDF() {
   const pageH = doc.internal.pageSize.getHeight();
 
   // create and register a single shadow GState
-  const shadowState = new doc.GState({ opacity: 0.18 });
-  doc.addGState('SHADOW', shadowState);
+  const shadowState = doc.GState({ opacity: 0.18 });
+  const shadowId = doc.addGState(shadowState);
 
   /* helpers */
   const pageBG = () => {
@@ -1089,7 +1089,7 @@ function generatePDF() {
        .roundedRect(warnX, warnY, 6, blockH, 8, 0, 'F');
 
     /* Ⓓ  tiny shadow (subtle) */
-    doc.setGState('SHADOW');     // apply shadow state
+    doc.setGState(shadowId);     // apply shadow state
     doc.setFillColor(0);           // black
     doc.roundedRect(
       warnX + 1, warnY + 2,
