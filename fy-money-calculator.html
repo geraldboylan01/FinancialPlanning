@@ -904,6 +904,16 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
         const fmtBool = b => b ? 'Yes' : 'No';
         const fmtEuro = n => '€' + n.toLocaleString();
 
+        function bannerHeight(doc, warning, panelW) {
+          const pad   = 12;
+          const inner = panelW - pad * 2;
+          const body  = warning.body.replace(/\s*\n+\s*/g, ' ')
+                                   .replace(/\s{2,}/g, ' ');
+          const lines = doc.splitTextToSize(body, inner);
+          return 18 /*title*/ + 12 /*gap*/ +
+                 lines.length * 11 /*8 pt font + lh*/ + 14;
+        }
+
         function drawBanner(doc, warning, x, y, w) {
           // warning  = {title, body, danger}
           // colours  = orange for normal, red for danger
@@ -1124,20 +1134,13 @@ function generatePDF() {
   const footerY = pageH - 40;         // keep space for footer
 
   latestRun.otherWarns.forEach((w, idx) => {
-    // if this banner doesn’t fit, start a new page
-    const estH = 60 + w.body.length * 0.35;   // generous guess
-    if (rightY + estH > footerY) {
-      addFooter(pageNo++);
-      doc.addPage(); pageBG();
-      // fill LEFT column first on new page
+    const h = bannerHeight(doc, w, chartW);
+    if (rightY + h > footerY) {
+      addFooter(pageNo++); doc.addPage(); pageBG();
       rightY = 60;
-      drawBanner(doc, w, 40, rightY, colW);
-      rightY += estH + 18;
-      return;
     }
-    // draw in right column (full width of that column)
     drawBanner(doc, w, chartX, rightY, chartW);
-    rightY += estH + 18;
+    rightY += h + 18;
   });
 
   addFooter(pageNo);
