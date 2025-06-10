@@ -24,9 +24,20 @@ const THEME = {
 function htmlToPlain(html) {
   const { bullet } = THEME;
   return html
-    .replace(/<\/?li[^>]*>/gi, m => (m.startsWith('</') ? '' : '\n' + bullet))
+    // 1. Opening <li> ⇒ newline + dash  |  closing </li> ⇒ nothing
+    .replace(/<\/?li[^>]*>/gi,
+             m => (m.startsWith('</') ? '' : '\n' + bullet))
+
+    // 2. <br> tags ⇒ newline
     .replace(/<br\s*\/?>(\s*)/gi, '\n')
+
+    // 3. Unicode bullet produced by element.innerText() ⇒ newline + dash
+    .replace(/(?:^|\n)\s*[•\u2022]\s*/g, '\n' + bullet)
+
+    // 4. Any other tag ⇒ single space (keeps words apart)
     .replace(/<[^>]+>/g, ' ')
+
+    // 5. Collapse multiple spaces / NBSP
     .replace(/[\u00A0\s]{2,}/g, ' ')
     .trim();
 }
