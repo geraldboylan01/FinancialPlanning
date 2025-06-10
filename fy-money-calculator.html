@@ -863,11 +863,14 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
               '#results .warning-block, #postCalcContent .warning-block'
             )].map(el => {
               /* first sentence up to <br> (or colon) is the “title” */
-              const raw   = el.innerText.replace(/\u2022/g, '•').trim();
-              const [head, ...rest] = raw.split('\n');
+              // Keep original HTML so the PDF helper can see <li> tags or bullets.
+              const rawHTML = el.innerHTML.trim();
+              const head = el.querySelector('strong')
+                           ? el.querySelector('strong').innerText.trim()
+                           : el.innerText.split('\n')[0].trim();
               return {
                 title  : head.replace(/^\s*⚠️|⛔\s*/,'').trim(),
-                body   : rest.join('\n').trim(),
+                body   : rawHTML,
                 danger : el.classList.contains('danger')
               };
             });
