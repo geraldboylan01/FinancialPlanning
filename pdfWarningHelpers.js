@@ -9,7 +9,7 @@ const THEME = {
   padding: { top: 14, bottom: 14, side: 12, gap: 10 },
   radius: 8,
   borderWidth: 2,
-  lineHeight: 1.15,   // slightly tighter line spacing
+  lineHeight: 1.3,
 
   // Use a safe ASCII dash for list bullets to guarantee PDF-reader support.
   bullet: '- '
@@ -46,12 +46,14 @@ function htmlToPlain(html) {
     .trim();
 }
 
-// Split text on hard new-lines first, then ask jsPDF to wrap each sub-line.
-// Guarantees that every "\n" becomes a real line break in the final banner.
+// Split text on hard new-lines first, drop empty lines, then wrap.
+// Ensures every "\n" becomes a real break but never an extra blank line.
 function wrapLines(doc, text, maxWidth) {
   return text
     .split('\n')
-    .flatMap(t => doc.splitTextToSize(t.trim(), maxWidth));
+    .map(t => t.trim())          // remove leading/trailing spaces
+    .filter(t => t.length)       // skip empty lines
+    .flatMap(t => doc.splitTextToSize(t, maxWidth));
 }
 
 /* ---------- size helper --------------------------------------------------- */
