@@ -367,6 +367,8 @@ canvas {
       <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
       <!-- ✅ 2. AutoTable plugin (must come right after jsPDF) -->
       <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/dist/jspdf.plugin.autotable.min.js"></script>
+      <!-- helper for PDF warning banners -->
+      <script type="module" src="pdfWarningHelpers.js"></script>
       <!-- Sync minimum permissible retirement age with current age -->
       <script>
       document.addEventListener('DOMContentLoaded', () => {
@@ -394,7 +396,8 @@ canvas {
            because the UMD bundle has synchronously created
            window.jspdf.jsPDF by the time our code runs.
          ────────────────────────────────────────────────────────── -->
-      <script>
+      <script type="module">
+        import { drawBanner, getBannerHeight } from './pdfWarningHelpers.js';
         const setHTML = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
         const CPI = 0.023;
         const STATE_PENSION = 15044;
@@ -918,73 +921,6 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
         const fmtBool = b => b ? 'Yes' : 'No';
         const fmtEuro = n => '€' + n.toLocaleString();
 
-        /** Return banner height in pt for given width.
-         *  • Strips ALL html (&nbsp;, <br>, <li>) so jsPDF won’t “justify”
-         *    by inserting huge spaces.
-         *  • Uses the same pad / font sizes as drawBanner() so caller can
-         *    rely on the result. */
-        function bannerHeight(doc, warning, panelW){
-          const pad   = 12,
-                inner = panelW - pad*2;
-
-            const plain = warning.body
-                .replace(/<br\s*\/?>/gi, '\n')   // real line break
-                .replace(/•/g, '\n• ')           // bullet on its own line
-                .replace(/<[^>]+>/g,' ')         // strip any other tag
-                .replace(/[ \t]{2,}/g,' ')       // collapse spaces (&nbsp; too)
-                .trim();
-
-          const lines = doc.splitTextToSize(plain, inner);
-          return 18 /*title*/ + 12 + lines.length * 11 + 14;
-        }
-
-        function drawBanner(doc, warning, x, y, w) {
-          // warning  = {title, body, danger}
-          // colours  = orange for normal, red for danger
-          const accent  = warning.danger ? '#ff4b4b' : '#ffa500';
-          const gapTop  = 12;        // space between title & body
-          const padX    = 12;        // left/right inner padding
-          const innerW  = w - padX * 2;
-
-          // exact same clean-up as bannerHeight()
-          const cleanBody = warning.body
-                .replace(/<br\s*\/?>/gi, '\n')   /* real line break  */
-                .replace(/•/g, '\n• ')           /* keep bullets     */
-                .replace(/<[^>]+>/g, ' ')        /* strip tags       */
-                .replace(/[ \t]{2,}/g, ' ')      /* collapse spaces  */
-                .trim();
-
-          // text lines
-          const bodyLines = doc.splitTextToSize(cleanBody, innerW);
-          const bodyH     = bodyLines.length * 11;   // 11 pt line step
-
-          // total height: title (10 pt) + gap + body + bottom padding
-          const h = 18 + gapTop + bodyH + 14;
-
-          // panel fill & border (rounded like the blue call-out on p 2)
-          doc.setFillColor('#1a1a1a');          // match page background
-          doc.setDrawColor(accent).setLineWidth(2);
-          doc.roundedRect(x, y, w, h, 6, 6, 'FD');  // F = fill, D = draw
-
-          // title
-          doc.setFontSize(10).setFont(undefined,'bold').setTextColor('#ffffff');
-          doc.text(warning.title, x + padX, y + 14);
-
-          // body
-          doc.setFontSize(8).setFont(undefined,'normal');
-              doc.text(
-              bodyLines,
-              x + padX,
-              y + 14 + gapTop,
-              {
-                lineHeightFactor: 1.3,
-                maxWidth        : innerW,   // << no horizontal scaling
-                align           : 'left'
-              }
-            );
-
-          return h;        // caller moves cursor by h (+ desired gap)
-        }
 
 function generatePDF() {
   if (!latestRun) return;
@@ -1175,7 +1111,7 @@ function generatePDF() {
   const footerY = pageH - 40;         // bottom margin for footer
 
     latestRun.otherWarns.forEach((w, idx) => {
-      const h = bannerHeight(doc, w, chartW);  // exact measured height
+      const h = getBannerHeight(doc, w, chartW);  // exact measured height
       if (rightY + h > footerY) {
       addFooter(pageNo++); doc.addPage(); pageBG();
       rightY = 60;
