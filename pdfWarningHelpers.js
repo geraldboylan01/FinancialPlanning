@@ -24,8 +24,8 @@ const THEME = {
 function htmlToPlain(html) {
   const { bullet } = THEME;
   return html
-    .replace(/<\\/?li[^>]*>/gi, m => (m.startsWith('</') ? '' : `\\n${bullet}`))
-    .replace(/<br\\s*\\/?>(\\s*)/gi, '\\n')
+    .replace(/<\/?li[^>]*>/gi, m => (m.startsWith('</') ? '' : `\n${bullet}`))
+    .replace(/<br\s*\/?>(\s*)/gi, '\n')
     .replace(/<[^>]+>/g, ' ')
     .replace(/[\\u00A0\\s]{2,}/g, ' ')
     .trim();
