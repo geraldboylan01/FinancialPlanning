@@ -9,7 +9,7 @@ const THEME = {
   padding: { top: 14, bottom: 14, side: 12, gap: 10 },
   radius: 8,
   borderWidth: 2,
-  lineHeight: 1.3,
+  lineHeight: 1.15,   // slightly tighter line spacing
 
   // Use a safe ASCII dash for list bullets to guarantee PDF-reader support.
   bullet: '- '
@@ -33,6 +33,9 @@ function htmlToPlain(html) {
 
     // 3. Unicode bullet produced by element.innerText() ⇒ newline + dash
     .replace(/(?:^|\n)\s*[•\u2022]\s*/g, '\n' + bullet)
+
+    // 3-bis. Collapse multiple blank lines caused by <br><br> before <ul>
+    .replace(/\n{2,}/g, '\n')
 
     // 4. Any other tag ⇒ single space (keeps words apart)
     .replace(/<[^>]+>/g, ' ')
