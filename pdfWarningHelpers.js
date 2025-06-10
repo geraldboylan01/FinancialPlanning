@@ -43,16 +43,24 @@ function htmlToPlain(html) {
     .trim();
 }
 
+// Split text on hard new-lines first, then ask jsPDF to wrap each sub-line.
+// Guarantees that every "\n" becomes a real line break in the final banner.
+function wrapLines(doc, text, maxWidth) {
+  return text
+    .split('\n')
+    .flatMap(t => doc.splitTextToSize(t.trim(), maxWidth));
+}
+
 /* ---------- size helper --------------------------------------------------- */
 export function getBannerHeight(doc, warning, width) {
   const { fonts, padding, lineHeight } = THEME;
   const innerW = width - padding.side * 2;
 
   doc.setFont(undefined, fonts.title.weight).setFontSize(fonts.title.size);
-  const titleLines = doc.splitTextToSize(warning.title, innerW);
+  const titleLines = wrapLines(doc, warning.title, innerW);
 
   doc.setFont(undefined, fonts.body.weight).setFontSize(fonts.body.size);
-  const bodyLines  = doc.splitTextToSize(htmlToPlain(warning.body), innerW);
+  const bodyLines  = wrapLines(doc, htmlToPlain(warning.body), innerW);
 
   return (
     padding.top +
@@ -75,10 +83,10 @@ export function drawBanner(doc, warning, x, y, width) {
 
   // Prepare wrapped lines
   doc.setFont(undefined, fonts.title.weight).setFontSize(fonts.title.size);
-  const titleLines = doc.splitTextToSize(warning.title, innerW);
+  const titleLines = wrapLines(doc, warning.title, innerW);
 
   doc.setFont(undefined, fonts.body.weight).setFontSize(fonts.body.size);
-  const bodyLines  = doc.splitTextToSize(htmlToPlain(warning.body), innerW);
+  const bodyLines  = wrapLines(doc, htmlToPlain(warning.body), innerW);
 
   // Geometry
   const titleH = titleLines.length * fonts.title.size;
