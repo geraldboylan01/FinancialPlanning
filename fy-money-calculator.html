@@ -862,15 +862,24 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
             latestRun.warningBlocks = [...document.querySelectorAll(
               '#results .warning-block, #postCalcContent .warning-block'
             )].map(el => {
-              /* first sentence up to <br> (or colon) is the “title” */
-              // Keep original HTML so the PDF helper can see <li> tags or bullets.
-              const rawHTML = el.innerHTML.trim();
-              const head = el.querySelector('strong')
-                           ? el.querySelector('strong').innerText.trim()
-                           : el.innerText.split('\n')[0].trim();
+              // --- extract title -----------------------------------------------------
+              const strong = el.querySelector('strong');
+              const headText = strong
+                  ? strong.innerText.trim()
+                  : el.innerText.split('\n')[0].trim();
+
+              // --- clone element so we can delete the <strong> headline --------------
+              const clone = el.cloneNode(true);
+              if (strong) clone.removeChild(clone.querySelector('strong'));
+
+              // remove the leading emoji + any whitespace that might precede content
+              const bodyHTML = clone.innerHTML
+                  .replace(/^[\s\uFEFF\u200B]*(⚠️|⛔)/, '') // emoji at very start
+                  .trim();
+
               return {
-                title  : head.replace(/^\s*⚠️|⛔\s*/,'').trim(),
-                body   : rawHTML,
+                title  : headText.replace(/^\s*⚠️|⛔\s*/, '').trim(),
+                body   : bodyHTML,                // headline-free HTML with <li> intact
                 danger : el.classList.contains('danger')
               };
             });
