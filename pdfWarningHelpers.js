@@ -37,8 +37,9 @@ function htmlToPlain(html) {
     // 4. Any other tag ⇒ single space (keeps words apart)
     .replace(/<[^>]+>/g, ' ')
 
-    // 5. Collapse multiple spaces / NBSP
-    .replace(/[\u00A0\s]{2,}/g, ' ')
+    // 5. Collapse multiple ordinary or non-breaking spaces
+    //    (leave new-lines intact so each bullet starts on its own line)
+    .replace(/[ \u00A0]{2,}/g, ' ')
     .trim();
 }
 
