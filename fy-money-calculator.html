@@ -137,6 +137,13 @@
       background: rgba(0, 0, 0, .7); display: flex;
       align-items: center; justify-content: center; z-index: 9999;
     }
+    .modal.hidden{ display:none }
+    .wizard-card{ max-width:420px; border-radius:16px; padding:2rem; background:#2a2a2a }
+    .wizard-controls{ display:flex; justify-content:space-between; margin-top:1rem }
+    .edit{cursor:pointer;margin-left:.4rem}
+    #wizDots{ text-align:center; margin-top:1rem }
+    #wizDots .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin:0 3px}
+    #wizDots .dot.active{background:#00ff88}
     .modal-content {
       background: #2a2a2a; border-radius: 16px;
       padding: 2rem 2.5rem; max-width: 420px; width: 90%;
@@ -197,6 +204,7 @@ canvas {
     <div class="card">
       <h1>F*ck You Money Calculator</h1>
 
+      <div id="legacyForm" style="display:none">
       <form id="fyf-form" autocomplete="off">
         <div class="form-group">
           <label for="grossIncome">Gross annual income (€)</label>
@@ -300,6 +308,7 @@ canvas {
 
         <button type="submit">Calculate</button>
       </form>
+      </div>
 
        <div id="results"></div>
     <div id="chart-container">
@@ -398,7 +407,6 @@ canvas {
          ────────────────────────────────────────────────────────── -->
       <script type="module">
         import { drawBanner, getBannerHeight } from './pdfWarningHelpers.js';
-        import cormorantBase64 from "./CormorantGaramond-Bold-normal.js";
         const setHTML = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
         const CPI = 0.023;
         const STATE_PENSION = 15044;
@@ -640,7 +648,17 @@ canvas {
                 </div>`;
             }
 
-            setHTML('results', resultHTML + earlyWarning);
+            latestRun = gatherData(reqCap, retirementYear, sftWarningStripped);
+            const rows = Object.entries(latestRun.inputs)
+              .map(([k,v])=>{
+                const label = LABEL_MAP[k] ?? k;
+                let val = v;
+                if (typeof v === 'boolean') val = fmtBool(v);
+                else if (k.toLowerCase().includes('income') || k==='dbPension') val = fmtEuro(+v||0);
+                return `<tr><td>${label}</td><td>${val}</td><td><span class="edit" onclick="wizard.open('${k}')">✏️</span></td></tr>`;
+              }).join('');
+            const tableHTML = `<table class="assumptions-table"><tbody>${rows}</tbody></table>`;
+            setHTML('results', resultHTML + earlyWarning + tableHTML);
 
 
             // ─── Build cash-flow & balance arrays ───────────────────────────────
@@ -833,8 +851,6 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
    'cashflow-caption',
   'The bars show how your annual income needs are met from different sources after retirement.<br>Green = pension withdrawals; Blue = State-pension / rent / DB; White line = total income need.'
   );
-
-            latestRun = gatherData(reqCap, retirementYear, sftWarningStripped);
 
             function captureCharts () {
               const balCan = balanceChart.canvas,
@@ -1156,10 +1172,26 @@ function generatePDF() {
   addFooter(pageNo);
 
   doc.save('planéir_report.pdf');
+  const pdfUrl = doc.output('bloburl');
+  import('./consentModal.js').then(m=>m.showConsent(pdfUrl));
 }
 
 </script>
     </div>
+    <!-- Wizard overlay -->
+    <div id="wizardModal" class="modal hidden">
+      <div class="wizard-card">
+        <div id="wizardStepContainer"></div>
+        <div class="wizard-controls">
+          <button id="wizBack">Back</button>
+          <button id="wizNext">Next</button>
+        </div>
+        <div id="wizDots"></div>
+      </div>
+    </div>
   </div>
+  <script type="module" src="./profile.js"></script>
+  <script type="module" src="./wizard.js"></script>
+  <script type="module" src="./consentModal.js"></script>
 </body>
 </html>
