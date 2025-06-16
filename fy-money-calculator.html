@@ -398,6 +398,7 @@ canvas {
          ────────────────────────────────────────────────────────── -->
       <script type="module">
         import { drawBanner, getBannerHeight } from './pdfWarningHelpers.js';
+        import cormorantBase64 from "./CormorantGaramond-Bold-normal.js";
         const setHTML = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
         const CPI = 0.023;
         const STATE_PENSION = 15044;
@@ -942,6 +943,8 @@ function generatePDF() {
   const ACCENT_GREEN = '#00ff88';
   const ACCENT_CYAN  = '#0099ff';
   const COVER_GOLD   = '#BBA26F';
+  doc.addFileToVFS("CormorantGaramond-Bold-normal.ttf", cormorantBase64);
+  doc.addFont("CormorantGaramond-Bold-normal.ttf", "CormorantGaramond", "normal");
 
   const doc   = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
   const pageW = doc.internal.pageSize.getWidth();
@@ -963,8 +966,8 @@ function generatePDF() {
   /* ───────────────── COVER ───────────────── */
   pageBG();
 
-  doc.setFontSize(48).setFont(undefined, 'bold').setTextColor(COVER_GOLD);
-  doc.text("People's Planner", pageW / 2, 90, { align: 'center' });
+    doc.setFont("CormorantGaramond", "normal").setFontSize(48).setTextColor(COVER_GOLD);
+    doc.text('Planéir', pageW / 2, 90, { align: 'center' });
 
   const logoW = 220;
   const logoY = 130;
@@ -1134,7 +1137,7 @@ function generatePDF() {
 
   addFooter(pageNo);
 
-  doc.save('peoples_planner_report.pdf');
+  doc.save('planéir_report.pdf');
 }
 
 </script>
