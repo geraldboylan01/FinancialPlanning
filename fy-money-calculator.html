@@ -934,7 +934,6 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
         const fmtBool = b => b ? 'Yes' : 'No';
         const fmtEuro = n => '€' + n.toLocaleString();
 
-
 function generatePDF() {
   if (!latestRun) return;
 
@@ -963,6 +962,32 @@ function generatePDF() {
     const t = `Page ${n}`;
     doc.text(t, pageW - doc.getTextWidth(t) - 40, pageH - 30);
   };
+
+  // ─── Generic banner placement helper ──────────────────────────
+  function placeBanner (doc, warn) {
+    const hLeft  = getBannerHeight(doc, warn, colW);
+    const hRight = hLeft;           // width is identical (colW)
+    const footerY = pageH - 40;
+
+    // 1️⃣  Try the left column
+    if (leftY + hLeft <= footerY) {
+      drawBanner(doc, warn, 40, leftY, colW);
+      leftY += hLeft + 18;
+      return;
+    }
+    // 2️⃣  Try the right column
+    if (rightY + hRight <= footerY) {
+      drawBanner(doc, warn, chartX, rightY, colW);
+      rightY += hRight + 18;
+      return;
+    }
+    // 3️⃣  Need a fresh page
+    addFooter(pageNo++);
+    doc.addPage();  pageBG();
+    leftY = rightY = 60;          // reset top margins
+    drawBanner(doc, warn, 40, leftY, colW);
+    leftY += hLeft + 18;
+  }
 
 
   /* ───────────────── COVER ───────────────── */
@@ -1097,14 +1122,6 @@ function generatePDF() {
 
   let leftY = doc.lastAutoTable.finalY + 16;
 
-  if (latestRun.mandatoryWarn) {
-    leftY += drawBanner(doc,
-                        latestRun.mandatoryWarn,
-                        40,
-                        leftY,
-                        colW) + 18;
-  }
-
   /* charts – right column */
   const chartX  = 40 + colW + columnGap;
   let   chartY  = y3;
@@ -1128,17 +1145,13 @@ function generatePDF() {
 
   let rightY  = chartY + 12;          // starts under both charts
   let pageNo  = 3;                    // we’re still on page 3
-  const footerY = pageH - 40;         // bottom margin for footer
 
-    latestRun.otherWarns.forEach((w, idx) => {
-      const h = getBannerHeight(doc, w, chartW);  // exact measured height
-      if (rightY + h > footerY) {
-      addFooter(pageNo++); doc.addPage(); pageBG();
-      rightY = 60;
-    }
-    drawBanner(doc, w, chartX, rightY, chartW);
-    rightY += h + 18;
-  });
+  // Build a single array in display order (mandatory first if present)
+  const allWarns = [];
+  if (latestRun.mandatoryWarn) allWarns.push(latestRun.mandatoryWarn);
+  allWarns.push(...latestRun.otherWarns);
+
+  allWarns.forEach(w => placeBanner(doc, w));
 
   addFooter(pageNo);
 
