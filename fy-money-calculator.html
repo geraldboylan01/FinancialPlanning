@@ -139,6 +139,7 @@
     }
     .modal.hidden{ display:none }
     .wizard-card{ max-width:420px; border-radius:16px; padding:2rem; background:#2a2a2a }
+    #wizardModal h3 { font-weight:600; font-size:1.1rem; color:#fff; }
     .wizard-controls{ display:flex; justify-content:space-between; margin-top:1rem }
     .edit{cursor:pointer;margin-left:.4rem}
     #wizDots{ text-align:center; margin-top:1rem }
@@ -1181,6 +1182,7 @@ function generatePDF() {
     <!-- Wizard overlay -->
     <div id="wizardModal" class="modal hidden">
       <div class="wizard-card">
+        <h3 id="wizProgress" style="margin:0 0 1rem 0;text-align:center"></h3>
         <div id="wizardStepContainer"></div>
         <div class="wizard-controls">
           <button id="wizBack">Back</button>
