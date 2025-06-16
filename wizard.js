@@ -66,12 +66,13 @@ function buildInput(step){
         card.classList.add('selected');
         profile.growthRate=o.val;
         saveProfile();
-        next();
+        btnNext.disabled=false;
       };
       if(profile.growthRate===o.val) card.classList.add('selected');
       wrap.appendChild(card);
     });
-    btnNext.style.visibility='hidden';
+    btnNext.style.visibility='visible';
+    btnNext.disabled=!profile.growthRate;
     input=wrap;
   }else{
     btnNext.style.visibility='visible';
