@@ -207,6 +207,7 @@ canvas {
 
       <div id="legacyForm" style="display:none">
       <form id="fyf-form" autocomplete="off">
+        <input type="hidden" id="partnerExists" name="partnerExists" />
         <div class="form-group">
           <label for="grossIncome">Gross annual income (€)</label>
           <input type="number" id="grossIncome" required />
@@ -433,6 +434,7 @@ canvas {
           incomePercent: '% of income needed',
           statePension: 'User gets State Pension',
           partnerStatePension: 'Partner gets State Pension',
+          partnerExists: 'Partner / spouse?',
           dob: 'Your date of birth',
           partnerDob: 'Partner DOB',
           retireAge: 'Retirement age',
@@ -929,6 +931,7 @@ cashflowChart = new Chart(document.getElementById('cashflowChart'), {
             incomePercent: +document.getElementById('incomePercent').value || 0,
             statePension: document.getElementById('statePension').checked,
             partnerStatePension: document.getElementById('partnerStatePension').checked,
+            partnerExists: document.getElementById('partnerExists').value === 'true',
             dob: document.getElementById('dob').value,
             partnerDob: document.getElementById('partnerDob').value,
             retireAge: +document.getElementById('retireAge').value || 0,
