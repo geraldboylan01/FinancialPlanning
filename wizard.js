@@ -12,12 +12,8 @@ const steps = [
   {id:"hasDb", q:"Will you receive a Defined-Benefit (DB) pension?", type:"boolean"},
   {id:"dbPension", q:"DB pension annual amount at retirement (€)", type:"number", min:0, visIf:p=>p.hasDb},
   {id:"dbStartAge", q:"DB pension starts at age", type:"number", min:50, max:100, visIf:p=>p.hasDb},
-  {id:"growthRate", q:"Choose a growth profile", type:"choice", choices:[
-    {label:"Low risk (≈4 %)", value:0.04},
-    {label:"Balanced (≈5 %)", value:0.05},
-    {label:"High risk (≈6 %)", value:0.06},
-    {label:"Very-high (≈7 %)", value:0.07}
-  ]}
+  // growth profile rendered with custom cards in the wizard
+  {id:"growthRate", q:"Choose a growth profile", type:"riskCard"}
 ];
 
 const modal=document.getElementById('wizardModal');
@@ -51,6 +47,32 @@ function buildInput(step){
     ctr.append(yes,no);
     btnNext.style.visibility='hidden';
     input=ctr;
+  }else if(step.type==='riskCard'){
+    const opts = [
+      {val:0.04, title:'Low risk',    desc:'≈ 30 % stocks / 70 % bonds<br>≈ 4 % p.a.'},
+      {val:0.05, title:'Balanced',    desc:'≈ 50 % stocks / 50 % bonds<br>≈ 5 % p.a.'},
+      {val:0.06, title:'High risk',   desc:'≈ 70 % stocks / 30 % bonds<br>≈ 6 % p.a.'},
+      {val:0.07, title:'Very-high',   desc:'100 % stocks<br>≈ 7 % p.a.'}
+    ];
+    const wrap=document.createElement('div');
+    wrap.className='risk-options';
+    opts.forEach(o=>{
+      const card=document.createElement('div');
+      card.className='risk-card';
+      card.innerHTML=`<span class="risk-title">${o.title}</span>`+
+                     `<span class="risk-desc">${o.desc}</span>`;
+      card.onclick=()=>{
+        wrap.querySelectorAll('.risk-card.selected').forEach(c=>c.classList.remove('selected'));
+        card.classList.add('selected');
+        profile.growthRate=o.val;
+        saveProfile();
+        next();
+      };
+      if(profile.growthRate===o.val) card.classList.add('selected');
+      wrap.appendChild(card);
+    });
+    btnNext.style.visibility='hidden';
+    input=wrap;
   }else{
     btnNext.style.visibility='visible';
     if(step.type==='number'||step.type==='date'){
