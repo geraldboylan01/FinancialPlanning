@@ -1,0 +1,133 @@
+import { profile, saveProfile } from "./profile.js";
+const steps = [
+  {id:"dob", q:"What’s your date of birth?", type:"date"},
+  {id:"partnerStatePension", q:"Will a partner be entitled to State Pension?", type:"boolean"},
+  {id:"partnerDob", q:"Partner’s date of birth?", type:"date", visIf:p=>p.partnerStatePension},
+  {id:"grossIncome", q:"Gross annual income (€)", type:"number", min:0},
+  {id:"incomePercent", q:"% of income you’d like in retirement", type:"number", min:0, max:100, step:0.1},
+  {id:"retireAge", q:"Desired retirement age", type:"number", min:18, max:100},
+  {id:"statePension", q:"Do YOU expect to get the Irish State Pension?", type:"boolean"},
+  {id:"rentalIncome", q:"Annual rental income today (€) — leave blank if none", type:"number", min:0, optional:true},
+  {id:"hasDb", q:"Will you receive a Defined-Benefit (DB) pension?", type:"boolean"},
+  {id:"dbPension", q:"DB pension annual amount at retirement (€)", type:"number", min:0, visIf:p=>p.hasDb},
+  {id:"dbStartAge", q:"DB pension starts at age", type:"number", min:50, max:100, visIf:p=>p.hasDb},
+  {id:"growthRate", q:"Choose a growth profile", type:"choice", choices:[
+    {label:"Low risk (≈4 %)", value:0.04},
+    {label:"Balanced (≈5 %)", value:0.05},
+    {label:"High risk (≈6 %)", value:0.06},
+    {label:"Very-high (≈7 %)", value:0.07}
+  ]}
+];
+
+const modal=document.getElementById('wizardModal');
+const stepContainer=document.getElementById('wizardStepContainer');
+const btnBack=document.getElementById('wizBack');
+const btnNext=document.getElementById('wizNext');
+const dots=document.getElementById('wizDots');
+let visibleSteps=[];
+let cur=0;
+
+function refresh(){
+  visibleSteps=steps.filter(s=>!s.visIf||s.visIf(profile));
+}
+
+function buildInput(step){
+  let input;
+  if(step.type==='number'||step.type==='date'){
+    input=document.createElement('input');
+    input.type=step.type;
+    if(step.min!=null) input.min=step.min;
+    if(step.max!=null) input.max=step.max;
+    if(step.step!=null) input.step=step.step;
+    input.value=profile[step.id]??'';
+  }else if(step.type==='boolean'){
+    input=document.createElement('div');
+    const yes=document.createElement('button');
+    const no=document.createElement('button');
+    yes.textContent='Yes';
+    no.textContent='No';
+    yes.onclick=()=>{input.dataset.val='true';yes.classList.add('sel');no.classList.remove('sel');};
+    no.onclick=()=>{input.dataset.val='false';no.classList.add('sel');yes.classList.remove('sel');};
+    if(profile[step.id]===true){input.dataset.val='true';yes.classList.add('sel');}
+    if(profile[step.id]===false){input.dataset.val='false';no.classList.add('sel');}
+    input.appendChild(yes);input.appendChild(no);
+  }else if(step.type==='choice'){
+    input=document.createElement('select');
+    step.choices.forEach(c=>{
+      const opt=document.createElement('option');
+      opt.value=c.value;opt.textContent=c.label;input.appendChild(opt);
+    });
+    input.value=profile[step.id]??step.choices[0].value;
+  }
+  input.id='wizInput';
+  return input;
+}
+
+function render(){
+  refresh();
+  if(cur<0) cur=0;
+  if(cur>=visibleSteps.length){ finalize(); return; }
+  const step=visibleSteps[cur];
+  stepContainer.innerHTML='';
+  const q=document.createElement('p');
+  q.textContent=step.q;
+  stepContainer.appendChild(q);
+  stepContainer.appendChild(buildInput(step));
+  btnBack.style.display=cur===0?'none':'';
+  btnNext.textContent=cur===visibleSteps.length-1?'Submit':'Next';
+  dots.innerHTML=visibleSteps.map((_,i)=>`<span class="dot${i===cur?' active':''}"></span>`).join('');
+}
+
+function getValue(step){
+  const el=document.getElementById('wizInput');
+  if(step.type==='boolean') return el.parentNode.dataset.val===undefined?null:el.parentNode.dataset.val==='true';
+  if(step.type==='number') return el.value?+el.value:'';
+  return el.value;
+}
+
+function valid(step,val){
+  if(step.optional && (val===null||val==='')) return true;
+  if(step.type==='number'){
+    if(val===''||isNaN(val)) return false;
+    if(step.min!=null && val<step.min) return false;
+    if(step.max!=null && val>step.max) return false;
+  }else if(step.type==='date'){
+    if(!val) return false;
+  }else if(step.type==='boolean'){
+    if(val===null) return false;
+  }
+  return true;
+}
+
+btnNext.onclick=()=>{
+  refresh();
+  const step=visibleSteps[cur];
+  const val=getValue(step);
+  if(!valid(step,val)) return;
+  profile[step.id]=val; saveProfile();
+  cur++;
+  render();
+};
+btnBack.onclick=()=>{cur--;render();};
+
+function copyToForm(){
+  steps.forEach(s=>{
+    const field=document.getElementById(s.id);
+    if(!field) return;
+    const val=profile[s.id];
+    if(field.type==='checkbox') field.checked=!!val;
+    else if(field.type==='radio'){ if(String(field.value)===String(val)) field.checked=true; }
+    else field.value=val??'';
+  });
+}
+
+function finalize(){
+  modal.classList.add('hidden');
+  copyToForm();
+  document.getElementById('fyf-form').requestSubmit();
+}
+
+export const wizard={open(id){refresh();cur=id?visibleSteps.findIndex(s=>s.id===id):0;if(cur<0)cur=0;modal.classList.remove('hidden');render();}};
+window.wizard=wizard;
+
+document.addEventListener('DOMContentLoaded',()=>wizard.open());
