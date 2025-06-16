@@ -24,8 +24,15 @@ const stepContainer=document.getElementById('wizardStepContainer');
 const btnBack=document.getElementById('wizBack');
 const btnNext=document.getElementById('wizNext');
 const dots=document.getElementById('wizDots');
+const progEl=document.getElementById('wizProgress');
 let visibleSteps=[];
 let cur=0;
+
+function btn(txt){
+  const b=document.createElement('button');
+  b.textContent=txt;
+  return b;
+}
 
 function refresh(){
   visibleSteps=steps.filter(s=>!s.visIf||s.visIf(profile));
@@ -33,31 +40,32 @@ function refresh(){
 
 function buildInput(step){
   let input;
-  if(step.type==='number'||step.type==='date'){
-    input=document.createElement('input');
-    input.type=step.type;
-    if(step.min!=null) input.min=step.min;
-    if(step.max!=null) input.max=step.max;
-    if(step.step!=null) input.step=step.step;
-    input.value=profile[step.id]??'';
-  }else if(step.type==='boolean'){
-    input=document.createElement('div');
-    const yes=document.createElement('button');
-    const no=document.createElement('button');
-    yes.textContent='Yes';
-    no.textContent='No';
-    yes.onclick=()=>{input.dataset.val='true';yes.classList.add('sel');no.classList.remove('sel');};
-    no.onclick=()=>{input.dataset.val='false';no.classList.add('sel');yes.classList.remove('sel');};
-    if(profile[step.id]===true){input.dataset.val='true';yes.classList.add('sel');}
-    if(profile[step.id]===false){input.dataset.val='false';no.classList.add('sel');}
-    input.appendChild(yes);input.appendChild(no);
-  }else if(step.type==='choice'){
-    input=document.createElement('select');
-    step.choices.forEach(c=>{
-      const opt=document.createElement('option');
-      opt.value=c.value;opt.textContent=c.label;input.appendChild(opt);
-    });
-    input.value=profile[step.id]??step.choices[0].value;
+  if(step.type==='boolean'){
+    const ctr=document.createElement('div');
+    const id=step.id;
+    const yes=btn('Yes'), no=btn('No');
+    yes.onclick=()=>{ profile[id]=true;  saveProfile(); next(); };
+    no.onclick =()=>{ profile[id]=false; saveProfile(); next(); };
+    ctr.append(yes,no);
+    btnNext.style.visibility='hidden';
+    input=ctr;
+  }else{
+    btnNext.style.visibility='visible';
+    if(step.type==='number'||step.type==='date'){
+      input=document.createElement('input');
+      input.type=step.type;
+      if(step.min!=null) input.min=step.min;
+      if(step.max!=null) input.max=step.max;
+      if(step.step!=null) input.step=step.step;
+      input.value=profile[step.id]??'';
+    }else if(step.type==='choice'){
+      input=document.createElement('select');
+      step.choices.forEach(c=>{
+        const opt=document.createElement('option');
+        opt.value=c.value;opt.textContent=c.label;input.appendChild(opt);
+      });
+      input.value=profile[step.id]??step.choices[0].value;
+    }
   }
   input.id='wizInput';
   return input;
@@ -68,6 +76,9 @@ function render(){
   if(cur<0) cur=0;
   if(cur>=visibleSteps.length){ finalize(); return; }
   const step=visibleSteps[cur];
+  const totalVisible=visibleSteps.length;
+  const visibleIndex=cur;
+  progEl.textContent=`Step ${visibleIndex+1} of ${totalVisible}`;
   stepContainer.innerHTML='';
   const q=document.createElement('p');
   q.textContent=step.q;
@@ -80,7 +91,7 @@ function render(){
 
 function getValue(step){
   const el=document.getElementById('wizInput');
-  if(step.type==='boolean') return el.parentNode.dataset.val===undefined?null:el.parentNode.dataset.val==='true';
+  if(step.type==='boolean') return profile[step.id]??null;
   if(step.type==='number') return el.value?+el.value:'';
   return el.value;
 }
@@ -99,16 +110,23 @@ function valid(step,val){
   return true;
 }
 
-btnNext.onclick=()=>{
+function next(){
   refresh();
   const step=visibleSteps[cur];
-  const val=getValue(step);
+  const val = step.type==='boolean' ? profile[step.id] : getValue(step);
   if(!valid(step,val)) return;
   profile[step.id]=val; saveProfile();
   cur++;
   render();
-};
-btnBack.onclick=()=>{cur--;render();};
+}
+
+function back(){
+  cur--;
+  render();
+}
+
+btnNext.onclick=next;
+btnBack.onclick=back;
 
 function copyToForm(){
   steps.forEach(s=>{
