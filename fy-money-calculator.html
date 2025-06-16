@@ -947,9 +947,7 @@ function generatePDF() {
   // 1️⃣  Create the jsPDF instance *first*
   const doc = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
 
-  // 2️⃣  Embed Cormorant Garamond into this instance
-  doc.addFileToVFS("CormorantGaramond-Bold-normal.ttf", cormorantBase64);
-  doc.addFont     ("CormorantGaramond-Bold-normal.ttf", "CormorantGaramond", "normal");
+  // 2️⃣  Use built-in fonts – no custom embedding needed
 
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -970,8 +968,10 @@ function generatePDF() {
   /* ───────────────── COVER ───────────────── */
   pageBG();
 
-    doc.setFont("CormorantGaramond", "normal").setFontSize(48).setTextColor(COVER_GOLD);
-    doc.text('Planéir', pageW / 2, 90, { align: 'center' });
+    doc.setFont("times", "bold")
+       .setFontSize(48)
+       .setTextColor(COVER_GOLD)
+       .text('Planéir', pageW / 2, 90, { align: 'center' });
 
   const logoW = 220;
   const logoY = 130;
@@ -982,6 +982,7 @@ function generatePDF() {
   const subY = logoY + logoW + 40;   // 40 pt gap under favicon
   doc.setFontSize(32).setFont(undefined, 'bold').setTextColor(COVER_GOLD);
   doc.text('F*ck You Money Calculator', pageW / 2, subY, { align: 'center' });
+  doc.setFont('times', 'normal');   // switch back to regular weight
 
   addFooter(1);
   doc.addPage();
