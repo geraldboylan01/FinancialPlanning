@@ -1,12 +1,13 @@
 import { profile, saveProfile } from "./profile.js";
 const steps = [
   {id:"dob", q:"What’s your date of birth?", type:"date"},
-  {id:"partnerStatePension", q:"Will a partner be entitled to State Pension?", type:"boolean"},
-  {id:"partnerDob", q:"Partner’s date of birth?", type:"date", visIf:p=>p.partnerStatePension},
-  {id:"grossIncome", q:"Gross annual income (€)", type:"number", min:0},
-  {id:"incomePercent", q:"% of income you’d like in retirement", type:"number", min:0, max:100, step:0.1},
-  {id:"retireAge", q:"Desired retirement age", type:"number", min:18, max:100},
-  {id:"statePension", q:"Do YOU expect to get the Irish State Pension?", type:"boolean"},
+  {id:"partnerExists", q:"Are you married, in a civil partnership, or sharing finances with a long-term partner?", type:"boolean"},
+  {id:"grossIncome", q:"What’s your gross annual income (€)?", type:"number", min:0},
+  {id:"incomePercent", q:"Roughly what % of that income would you like in retirement?", type:"number", min:0, max:100, step:0.1},
+  {id:"retireAge", q:"At what age would you like to retire?", type:"number", min:18, max:100},
+  {id:"statePension", q:"Do you expect to receive the Irish State Pension?", type:"boolean"},
+  {id:"partnerStatePension", q:"Will your partner be entitled to the Irish State Pension?", type:"boolean", visIf:p=>p.partnerExists},
+  {id:"partnerDob", q:"Partner’s date of birth?", type:"date", visIf:p=>p.partnerStatePension===true},
   {id:"rentalIncome", q:"Annual rental income today (€) — leave blank if none", type:"number", min:0, optional:true},
   {id:"hasDb", q:"Will you receive a Defined-Benefit (DB) pension?", type:"boolean"},
   {id:"dbPension", q:"DB pension annual amount at retirement (€)", type:"number", min:0, visIf:p=>p.hasDb},
@@ -36,6 +37,7 @@ function btn(txt){
 
 function refresh(){
   visibleSteps=steps.filter(s=>!s.visIf||s.visIf(profile));
+  steps.forEach(s=>{ if(s.visIf && !s.visIf(profile)) delete profile[s.id]; });
 }
 
 function buildInput(step){
