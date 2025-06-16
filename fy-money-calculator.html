@@ -943,10 +943,14 @@ function generatePDF() {
   const ACCENT_GREEN = '#00ff88';
   const ACCENT_CYAN  = '#0099ff';
   const COVER_GOLD   = '#BBA26F';
-  doc.addFileToVFS("CormorantGaramond-Bold-normal.ttf", cormorantBase64);
-  doc.addFont("CormorantGaramond-Bold-normal.ttf", "CormorantGaramond", "normal");
 
-  const doc   = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+  // 1️⃣  Create the jsPDF instance *first*
+  const doc = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+
+  // 2️⃣  Embed Cormorant Garamond into this instance
+  doc.addFileToVFS("CormorantGaramond-Bold-normal.ttf", cormorantBase64);
+  doc.addFont     ("CormorantGaramond-Bold-normal.ttf", "CormorantGaramond", "normal");
+
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
 
