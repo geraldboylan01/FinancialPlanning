@@ -45,7 +45,7 @@ const ASSUMPTIONS_TABLE = [
 const LABEL_MAP = {
   salary: 'Gross salary (€)',
   currentValue: 'Current pension value (€)',
-  personalContrib: 'Personal contribution (€)',
+  personalContrib: 'Your annual pension contribution (€)',
   personalPct: 'Personal contribution (%)',
   employerContrib: 'Employer contribution (€)',
   employerPct: 'Employer contribution (%)',
