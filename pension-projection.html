@@ -64,6 +64,13 @@
   position:absolute;right:1.2rem;top:0.8rem;font-size:1.8rem;cursor:pointer;color:#fff;
 }
 .modal h2 {margin-top:0;color:#ff5c5c}
+/* wizard specific */
+.wizard-card{ max-width:420px; border-radius:16px; padding:2rem; background:#2a2a2a }
+#wizardModal h3 { font-weight:600; font-size:1.1rem; color:#fff; }
+.wizard-controls{ display:flex; justify-content:space-between; margin-top:1rem }
+#wizDots{ text-align:center; margin-top:1rem }
+#wizDots .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin:0 3px}
+#wizDots .dot.active{background:#00ff88}
 /* ─── Growth-profile cards ─────────────────────────── */
 .risk-options{
   display:grid;
@@ -223,7 +230,35 @@
           <canvas id="contribChart"></canvas>
         </div>
       </div>
+
+      <div id="postCalcContent" style="display:none;">
+        <button id="downloadPdf" style="margin-top:1rem">Download PDF report</button>
+
+        <div class="warning-block">
+          ⚠️ <strong>Important Notice</strong><br><br>
+          This calculator does not include mandatory pension withdrawals (imputed distributions), required annually by Revenue rules from age 61:<br><br>
+          <ul style="margin-top:0; margin-bottom:1rem; padding-left:1.2rem;">
+            <li>Age 61–70: 4% per year</li>
+            <li>Age 71+: 5% per year</li>
+            <li>Age 61+ (if pension exceeds €2 million): 6% per year</li>
+          </ul>
+          In practice, a prudent investor would typically reinvest any surplus amounts withdrawn beyond their spending needs—though these reinvestments would occur outside the pension structure, under different tax conditions.<br><br>
+          Despite this limitation, the calculator’s projections remain a reasonable reflection of expected retirement outcomes.<br><br>
+          <em>For personalised analysis, please consult a qualified financial adviser.</em>
+        </div>
+      </div>
+
       <div id="console" class="error"></div>
+
+      <details id="assumptions" style="margin-top:1rem">
+        <summary>Assumptions</summary>
+        <table class="assumptions-table" id="assumptions-table">
+          <thead>
+            <tr><th>Assumption</th><th>Value</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </details>
     </div>
   </div>
 <!-- This is the modal box that appears if the pension exceeds the SFT -->
@@ -241,9 +276,26 @@
   </div>
 </div>
   
-<script src="./pensionProjection.js"></script>
-
-
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/dist/jspdf.plugin.autotable.min.js"></script>
+  <script type="module" src="pdfWarningHelpers.js"></script>
+  <script src="./syncMinAge.js"></script>
+  <script type="module" src="./pensionProjection.js"></script>
+  <!-- Wizard overlay -->
+  <div id="wizardModal" class="modal hidden">
+    <div class="wizard-card">
+      <h3 id="wizProgress" style="margin:0 0 1rem 0;text-align:center"></h3>
+      <div id="wizardStepContainer"></div>
+      <div class="wizard-controls">
+        <button id="wizBack">Back</button>
+        <button id="wizNext">Next</button>
+      </div>
+      <div id="wizDots"></div>
+    </div>
+  </div>
+  <script type="module" src="./profile.js"></script>
+  <script type="module" src="./pensionWizard.js"></script>
+  <script type="module" src="./consentModal.js"></script>
 </body>
 </html>
 
