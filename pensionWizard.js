@@ -147,6 +147,11 @@ function getValue(step) {
 
 function valid(step, val) {
   if (step.type === 'pair') {
+    const filled = step.fields.filter(f => {
+      const v = val[f.id];
+      return v !== '' && v !== null;
+    });
+    if (filled.length > 1) return false;
     return step.fields.every(f => {
       const v = val[f.id];
       if (f.optional && (v === '' || v === null)) return true;
