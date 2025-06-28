@@ -70,6 +70,7 @@
 .wizard-card{ max-width:420px; border-radius:16px; padding:2rem; background:#2a2a2a }
 #wizardModal h3 { font-weight:600; font-size:1.1rem; color:#fff; }
 .wizard-controls{ display:flex; justify-content:space-between; margin-top:1rem }
+.edit{cursor:pointer;margin-left:.4rem}
 #wizDots{ text-align:center; margin-top:1rem }
 #wizDots .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin:0 3px}
 #wizDots .dot.active{background:#00ff88}
@@ -144,6 +145,7 @@
     <div class="card">
       <h1>Pension Projection Tool</h1>
 
+      <div id="legacyForm" style="display:none">
       <form id="proj-form" autocomplete="off">
         <div class="form-group">
           <label for="salary">Gross salary (€) <small>(max €115 000 is used in calculations)</small></label>
@@ -218,6 +220,7 @@
 
         <button type="submit">Project value</button>
       </form>
+      </div>
 
       <div id="results"></div>
       <div id="chart-container">
