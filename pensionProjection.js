@@ -63,6 +63,37 @@ document.addEventListener('DOMContentLoaded', () => {
       tbody.appendChild(tr);
     });
   }
+
+  function exclusify(euroId, pctId) {
+    const euro = document.getElementById(euroId);
+    const pct  = document.getElementById(pctId);
+
+    const handleEuro = () => {
+      if (euro.value !== '') {
+        pct.value = '';
+        pct.disabled = true;
+      } else {
+        pct.disabled = false;
+      }
+    };
+
+    const handlePct = () => {
+      if (pct.value !== '') {
+        euro.value = '';
+        euro.disabled = true;
+      } else {
+        euro.disabled = false;
+      }
+    };
+
+    euro.addEventListener('input', handleEuro);
+    pct.addEventListener('input', handlePct);
+    handleEuro();
+    handlePct();
+  }
+
+  exclusify('personalContrib', 'personalPct');
+  exclusify('employerContrib', 'employerPct');
 });
 
 
