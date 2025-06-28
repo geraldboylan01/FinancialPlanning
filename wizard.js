@@ -117,6 +117,7 @@ function render(){
 function getValue(step){
   const el=document.getElementById('wizInput');
   if(step.type==='boolean') return profile[step.id]??null;
+  if(step.type==='riskCard') return profile[step.id];
   if(step.type==='number') return el.value?+el.value:'';
   return el.value;
 }
@@ -140,7 +141,12 @@ function next(){
   const step=visibleSteps[cur];
   const val = step.type==='boolean' ? profile[step.id] : getValue(step);
   if(!valid(step,val)) return;
-  profile[step.id]=val; saveProfile();
+  if(step.type==='pair'){
+    step.fields.forEach(f=>{ profile[f.id]=val[f.id]; });
+    saveProfile();
+  }else if(step.type!=='riskCard'){
+    profile[step.id]=val; saveProfile();
+  }
   cur++;
   render();
 }
@@ -155,6 +161,13 @@ btnBack.onclick=back;
 
 function copyToForm(){
   steps.forEach(s=>{
+    if(s.type==='riskCard'){
+      const val=profile[s.id];
+      if(val==null) return;
+      const field=document.querySelector(`input[name="${s.id}"][value="${val}"]`);
+      if(field) field.checked=true;
+      return;
+    }
     const field=document.getElementById(s.id);
     if(!field) return;
     const val=profile[s.id];

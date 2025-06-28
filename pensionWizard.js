@@ -141,6 +141,7 @@ function getValue(step) {
   }
   const el = document.getElementById('wizInput');
   if (step.type === 'boolean') return profile[step.id] ?? null;
+  if (step.type === 'riskCard') return profile[step.id];
   if (step.type === 'number') return el.value ? +el.value : '';
   return el.value;
 }
@@ -181,9 +182,10 @@ function next() {
   if (step.type === 'pair') {
     step.fields.forEach(f => { profile[f.id] = val[f.id]; });
     saveProfile();
-  } else {
+  } else if (step.type !== 'riskCard') {
     profile[step.id] = val; saveProfile();
   }
+  // riskCard value already stored on selection
   cur++; render();
 }
 
@@ -201,6 +203,11 @@ function copyToForm() {
         const val = profile[f.id];
         field.value = val ?? '';
       });
+    } else if (s.type === 'riskCard') {
+      const val = profile[s.id];
+      if (val == null) return;
+      const field = document.querySelector(`input[name="${s.id}"][value="${val}"]`);
+      if (field) field.checked = true;
     } else {
       const field = document.getElementById(s.id);
       if (!field) return;
