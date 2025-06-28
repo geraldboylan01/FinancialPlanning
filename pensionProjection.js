@@ -524,6 +524,21 @@ if (projValue > sftLimit) {
       .replace(/<\/?[^>]+>/g, '');
     latestRun = gatherData(projValue, retirementYear, sftPlain);
 
+    const rows = Object.entries(latestRun.inputs)
+      .map(([k,v])=>{
+        const label = LABEL_MAP[k] ?? k;
+        let val = v;
+        if (k === 'salary' || k === 'currentValue' ||
+            k === 'personalContrib' || k === 'employerContrib')
+          val = fmtEuro(+v || 0);
+        else if (k.endsWith('Pct') || k === 'growth')
+          val = (+(v)*100).toFixed(0) + ' %';
+        return `<tr><td>${label}</td><td>${val}</td>`+
+               `<td><span class="edit" onclick="wizard.open('${k}')">✏️</span></td></tr>`;
+      }).join('');
+    const tableHTML = `<table class="assumptions-table"><tbody>${rows}</tbody></table>`;
+    document.getElementById('results').innerHTML += tableHTML;
+
     latestRun.warningBlocks = [...document.querySelectorAll('#results .warning-block, #postCalcContent .warning-block')].map(el => {
       const strong = el.querySelector('strong');
       const headText = strong ? strong.innerText.trim() : el.innerText.split('\n')[0].trim();
