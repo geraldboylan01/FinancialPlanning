@@ -518,11 +518,11 @@ if (projValue > sftLimit) {
       return { inputs, outputs, assumptions: ASSUMPTIONS_TABLE };
     }
 
-    captureCharts();
     const sftPlain = sftWarningHTML
       .replace(/<br\s*\/?>/gi, ' ')
       .replace(/<\/?[^>]+>/g, '');
     latestRun = gatherData(projValue, retirementYear, sftPlain);
+    captureCharts();
 
     const rows = Object.entries(latestRun.inputs)
       .map(([k,v])=>{
