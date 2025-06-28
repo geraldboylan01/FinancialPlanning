@@ -524,6 +524,13 @@ if (projValue > sftLimit) {
     latestRun = gatherData(projValue, retirementYear, sftPlain);
     captureCharts();
 
+    const stepMap = {
+      personalContrib: 'personalPair',
+      personalPct: 'personalPair',
+      employerContrib: 'employerPair',
+      employerPct: 'employerPair'
+    };
+
     const rows = Object.entries(latestRun.inputs)
       .map(([k,v])=>{
         const label = LABEL_MAP[k] ?? k;
@@ -533,8 +540,9 @@ if (projValue > sftLimit) {
           val = fmtEuro(+v || 0);
         else if (k.endsWith('Pct') || k === 'growth')
           val = (+(v)*100).toFixed(0) + ' %';
+        const step = stepMap[k] ?? k;
         return `<tr><td>${label}</td><td>${val}</td>`+
-               `<td><span class="edit" onclick="wizard.open('${k}')">✏️</span></td></tr>`;
+               `<td><span class="edit" onclick="wizard.open('${step}')">✏️</span></td></tr>`;
       }).join('');
     const tableHTML = `<table class="assumptions-table"><tbody>${rows}</tbody></table>`;
     document.getElementById('results').innerHTML += tableHTML;
