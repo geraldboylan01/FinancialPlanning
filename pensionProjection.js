@@ -471,8 +471,6 @@ const resultsHTML = `
   </h2>
 ` + ageWarning;
 
-document.getElementById('results').innerHTML = resultsHTML;
-
 let sftWarningHTML = '';
 if (projValue > sftLimit) {
   sftWarningHTML = `Your projected pension value is <strong>€${projValue.toLocaleString()}</strong>, which exceeds the Standard Fund Threshold for ${retirementYear} (<strong>€${sftLimit.toLocaleString()}</strong>).`;
@@ -547,8 +545,8 @@ if (projValue > sftLimit) {
         return `<tr><td>${label}</td><td>${val}</td>`+
                `<td><span class="edit" onclick="wizard.open('${step}')">✏️</span></td></tr>`;
       }).join('');
-    const tableHTML = `<table class="assumptions-table"><tbody>${rows}</tbody></table>`;
-    document.getElementById('results').innerHTML += tableHTML;
+    const tableHTML = `<h3>Inputs</h3><table class="assumptions-table"><tbody>${rows}</tbody></table>`;
+    document.getElementById('results').innerHTML = tableHTML + resultsHTML;
 
     latestRun.warningBlocks = [...document.querySelectorAll('#results .warning-block, #postCalcContent .warning-block')].map(el => {
       const strong = el.querySelector('strong');
