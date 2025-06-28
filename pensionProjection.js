@@ -437,22 +437,45 @@ const sftLimit       = sftForYear(retirementYear);
 sftLimitGlobal = sftLimit;
 
 let ageWarning = '';
-if (retireAge >= 75) {
+if (retireAge < 50) {
   ageWarning = `
     <div class="warning-block danger">
-      ⛔ Retirement Age 75 and Over<br>
-      Under Irish Revenue rules, all pensions — including PRSAs — must be accessed by age 75.<br>
-      If benefits are not drawn down by this age, the pension is automatically deemed to vest, and the full value may be treated as taxable income.<br>
+      ⛔ <strong>Retiring Before Age 50</strong><br><br>
+      Under Irish Revenue rules, pensions cannot be accessed before age 50, except in rare cases such as ill-health retirement.<br>
       These projections are illustrative only — professional guidance is strongly recommended.
     </div>`;
-} else if (retireAge >= 70) {
+} else if (retireAge < 60) {
   ageWarning = `
     <div class="warning-block">
-      ⚠️ Retirement Age Over 70 (Occupational Pensions &amp; PRBs)<br>
+      ⚠️ <strong>Retiring Between Age 50–59</strong><br><br>
+      Access to pension benefits before the usual retirement age is only possible in limited cases.<br><br>
+      Typical Normal Retirement Ages (NRAs) are:<br>
+      60–70 for most occupational pensions<br>
+      60–75 for PRSAs and Personal Retirement Bonds (PRBs)<br><br>
+      Early access (from age 50) may be possible only if certain Revenue conditions are met — e.g.:<br>
+      You’ve left employment linked to the pension<br>
+      You’re a proprietary director who fully severs ties with the sponsoring company<br><br>
+      Please seek professional advice before relying on projections assuming early access.
+    </div>`;
+} else if (retireAge < 70) {
+  // Ages 60–69: no warning block needed
+  ageWarning = '';
+} else if (retireAge < 75) {
+  ageWarning = `
+    <div class="warning-block">
+      ⚠️ <strong>Retirement Age Over 70 (Occupational Pensions &amp; PRBs)</strong><br><br>
       Most occupational pensions and Personal Retirement Bonds (PRBs) must be drawn down by age 70 under Irish Revenue rules.<br>
       If your selected retirement age is over 70, please be aware this may not be allowed for those pension types.<br><br>
       Note: The exception to this is PRSAs, which can remain unretired until age 75.<br><br>
       Please seek professional advice to ensure your retirement plan complies with pension access rules.
+    </div>`;
+} else {
+  ageWarning = `
+    <div class="warning-block danger">
+      ⛔ <strong>Retirement Age 75 and Over</strong><br><br>
+      Under Irish Revenue rules, all pensions — including PRSAs — must be accessed by age 75.<br>
+      If benefits are not drawn down by this age, the pension is automatically deemed to vest, and the full value may be treated as taxable income.<br>
+      These projections are illustrative only — professional guidance is strongly recommended.
     </div>`;
 }
 
