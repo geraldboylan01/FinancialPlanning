@@ -229,6 +229,7 @@ function drawChart() {
     type: 'line',
     data: { labels, datasets },
     options: {
+      animation: false,
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
@@ -340,6 +341,7 @@ function drawContribChart(showMax) {
       ]
     },
     options: {
+      animation: false,
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
