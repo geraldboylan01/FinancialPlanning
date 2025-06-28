@@ -83,6 +83,7 @@ function buildInput(step) {
     input = wrap;
   } else if (step.type === 'pair') {
     const wrap = document.createElement('div');
+    const inputs = [];
     step.fields.forEach(f => {
       const label = document.createElement('label');
       label.textContent = f.label;
@@ -96,8 +97,26 @@ function buildInput(step) {
       inp.value = profile[f.id] ?? '';
       wrap.appendChild(label);
       wrap.appendChild(inp);
+      inputs.push(inp);
     });
+    const error = document.createElement('div');
+    error.className = 'error';
+    error.style.display = 'none';
+    wrap.appendChild(error);
     btnNext.style.visibility = 'visible';
+    const update = () => {
+      const filled = inputs.filter(i => i.value !== '');
+      if (filled.length > 1) {
+        error.textContent = 'Please fill in only one of these fields.';
+        error.style.display = 'block';
+        btnNext.disabled = true;
+      } else {
+        error.style.display = 'none';
+        btnNext.disabled = false;
+      }
+    };
+    inputs.forEach(inp => inp.addEventListener('input', update));
+    update();
     input = wrap;
   } else {
     btnNext.style.visibility = 'visible';
