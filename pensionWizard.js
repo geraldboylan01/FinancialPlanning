@@ -5,10 +5,24 @@ const steps = [
   { id: 'dob', q: "What's your date of birth?", type: 'date' },
   { id: 'salary', q: 'Gross annual salary (€)?', type: 'number', min: 0 },
   { id: 'currentValue', q: 'Current pension value (€)?', type: 'number', min: 0 },
-  { id: 'personalContrib', q: 'Your annual contribution (€)', type: 'number', min: 0, optional: true },
-  { id: 'personalPct', q: 'or % of salary if no € amount', type: 'number', min: 0, max: 100, step: 0.1, optional: true },
-  { id: 'employerContrib', q: 'Employer annual contribution (€)', type: 'number', min: 0, optional: true },
-  { id: 'employerPct', q: 'or % of salary if no € amount', type: 'number', min: 0, max: 100, step: 0.1, optional: true },
+  {
+    id: 'personalPair',
+    q: 'Your annual contribution (€) or % of salary if no € amount',
+    type: 'pair',
+    fields: [
+      { id: 'personalContrib', label: 'Your annual contribution (€)', type: 'number', min: 0, optional: true },
+      { id: 'personalPct', label: 'or % of salary if no € amount', type: 'number', min: 0, max: 100, step: 0.1, optional: true }
+    ]
+  },
+  {
+    id: 'employerPair',
+    q: 'Employer annual contribution (€) or % of salary if no € amount',
+    type: 'pair',
+    fields: [
+      { id: 'employerContrib', label: 'Employer annual contribution (€)', type: 'number', min: 0, optional: true },
+      { id: 'employerPct', label: 'or % of salary if no € amount', type: 'number', min: 0, max: 100, step: 0.1, optional: true }
+    ]
+  },
   { id: 'retireAge', q: 'Desired retirement age?', type: 'number', min: 50, max: 75 },
   { id: 'growth', q: 'Choose a growth profile', type: 'riskCard' }
 ];
@@ -67,6 +81,24 @@ function buildInput(step) {
     btnNext.style.visibility = 'visible';
     btnNext.disabled = !profile.growth;
     input = wrap;
+  } else if (step.type === 'pair') {
+    const wrap = document.createElement('div');
+    step.fields.forEach(f => {
+      const label = document.createElement('label');
+      label.textContent = f.label;
+      label.htmlFor = `wiz-${f.id}`;
+      const inp = document.createElement('input');
+      inp.id = `wiz-${f.id}`;
+      inp.type = f.type || 'number';
+      if (f.min != null) inp.min = f.min;
+      if (f.max != null) inp.max = f.max;
+      if (f.step != null) inp.step = f.step;
+      inp.value = profile[f.id] ?? '';
+      wrap.appendChild(label);
+      wrap.appendChild(inp);
+    });
+    btnNext.style.visibility = 'visible';
+    input = wrap;
   } else {
     btnNext.style.visibility = 'visible';
     if (step.type === 'number' || step.type === 'date') {
@@ -78,7 +110,7 @@ function buildInput(step) {
       input.value = profile[step.id] ?? '';
     }
   }
-  input.id = 'wizInput';
+  if (step.type !== 'pair') input.id = 'wizInput';
   return input;
 }
 
@@ -99,6 +131,14 @@ function render() {
 }
 
 function getValue(step) {
+  if (step.type === 'pair') {
+    const vals = {};
+    step.fields.forEach(f => {
+      const el = document.getElementById(`wiz-${f.id}`);
+      vals[f.id] = el && el.value ? +el.value : '';
+    });
+    return vals;
+  }
   const el = document.getElementById('wizInput');
   if (step.type === 'boolean') return profile[step.id] ?? null;
   if (step.type === 'number') return el.value ? +el.value : '';
@@ -106,6 +146,20 @@ function getValue(step) {
 }
 
 function valid(step, val) {
+  if (step.type === 'pair') {
+    return step.fields.every(f => {
+      const v = val[f.id];
+      if (f.optional && (v === '' || v === null)) return true;
+      if (f.type === 'number') {
+        if (v === '' || isNaN(v)) return false;
+        if (f.min != null && v < f.min) return false;
+        if (f.max != null && v > f.max) return false;
+      } else if (f.type === 'date') {
+        if (!v) return false;
+      }
+      return true;
+    });
+  }
   if (step.optional && (val === null || val === '')) return true;
   if (step.type === 'number') {
     if (val === '' || isNaN(val)) return false;
@@ -124,7 +178,12 @@ function next() {
   const step = visibleSteps[cur];
   const val = step.type === 'boolean' ? profile[step.id] : getValue(step);
   if (!valid(step, val)) return;
-  profile[step.id] = val; saveProfile();
+  if (step.type === 'pair') {
+    step.fields.forEach(f => { profile[f.id] = val[f.id]; });
+    saveProfile();
+  } else {
+    profile[step.id] = val; saveProfile();
+  }
   cur++; render();
 }
 
@@ -135,10 +194,19 @@ btnBack.onclick = back;
 
 function copyToForm() {
   steps.forEach(s => {
-    const field = document.getElementById(s.id);
-    if (!field) return;
-    const val = profile[s.id];
-    field.value = val ?? '';
+    if (s.type === 'pair') {
+      s.fields.forEach(f => {
+        const field = document.getElementById(f.id);
+        if (!field) return;
+        const val = profile[f.id];
+        field.value = val ?? '';
+      });
+    } else {
+      const field = document.getElementById(s.id);
+      if (!field) return;
+      const val = profile[s.id];
+      field.value = val ?? '';
+    }
   });
 }
 
