@@ -536,10 +536,13 @@ if (projValue > sftLimit) {
         const label = LABEL_MAP[k] ?? k;
         let val = v;
         if (k === 'salary' || k === 'currentValue' ||
-            k === 'personalContrib' || k === 'employerContrib')
+            k === 'personalContrib' || k === 'employerContrib') {
           val = fmtEuro(+v || 0);
-        else if (k.endsWith('Pct') || k === 'growth')
-          val = (+(v)*100).toFixed(0) + ' %';
+        } else if (k === 'growth') {
+          val = (+(v) * 100).toFixed(0) + ' %';
+        } else if (k === 'personalPct' || k === 'employerPct') {
+          val = (+v).toFixed(1).replace(/\.0$/, '') + ' %';
+        }
         const step = stepMap[k] ?? k;
         return `<tr><td>${label}</td><td>${val}</td>`+
                `<td><span class="edit" onclick="wizard.open('${step}')">✏️</span></td></tr>`;
