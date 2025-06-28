@@ -209,8 +209,8 @@ These projections are illustrative only — professional guidance is strongly re
 ⚠️ <strong>Retiring Between Age 50–59</strong><br><br>
 Access to pension benefits before the usual retirement age is only possible in limited cases.<br><br>
 Typical Normal Retirement Ages (NRAs) are:<br>
-60–70 for most occupational pensions<br>
-60–75 for PRSAs and Personal Retirement Bonds (PRBs)<br><br>
+60–70 for most occupational pensions and Personal Retirement Bonds (PRBs)<br>
+60–75 for PRSAs<br><br>
 Early access (from age 50) may be possible only if certain Revenue conditions are met — e.g.:<br>
 You’ve left employment linked to the pension<br>
 You’re a proprietary director who fully severs ties with the sponsoring company<br><br>
