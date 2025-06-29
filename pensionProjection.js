@@ -432,6 +432,15 @@ employerCalc      = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
         });
       }
 
+    // Calculate max-contribution projection (for summary/PDF)
+    let maxBal = currentPv;
+    for (let y = 1; y <= yearsToRetInt; y++) {
+      const ageNext     = curAge + y;
+      const personalMax = maxPersonalByAge(ageNext, salaryCapped);
+      maxBal = maxBal * (1 + gRate) + personalMax + employerCalc;
+    }
+    const maxProjValue  = Math.round(maxBal);
+
     // Show base results
     const projValue      = balances.at(-1).value;
 const retirementYear = new Date().getFullYear() + Math.ceil(yearsToRet);
@@ -520,6 +529,13 @@ if (projValue > sftLimit) {
     drawChart();
 
     function captureCharts () {
+      const toggle = document.getElementById('maxToggle');
+      const wasChecked = toggle && toggle.checked;
+      if (wasChecked) {
+        toggle.checked = false;
+        drawChart();
+      }
+
       const gCan = growthChart.canvas,
             cCan = contribChart.canvas;
       latestRun.chartImgs = {
@@ -530,9 +546,14 @@ if (projValue > sftLimit) {
         growth : { w: gCan.clientWidth, h: gCan.clientHeight },
         contrib: { w: cCan.clientWidth, h: cCan.clientHeight }
       };
+
+      if (wasChecked) {
+        toggle.checked = true;
+        drawChart();
+      }
     }
 
-    function gatherData(value, year, sftText) {
+    function gatherData(value, year, sftText, personalAnnual, employerAnnual, maxValue) {
       const inputs = {
         salary: +document.getElementById('salary').value || 0,
         currentValue: +document.getElementById('currentValue').value || 0,
@@ -547,6 +568,9 @@ if (projValue > sftLimit) {
       const outputs = {
         projectedValue: value,
         retirementYear: year,
+        personalAnnual,
+        employerAnnual,
+        maxProjectedValue: maxValue,
         sftMessage: sftText
       };
       return { inputs, outputs, assumptions: ASSUMPTIONS_TABLE };
@@ -555,7 +579,8 @@ if (projValue > sftLimit) {
     const sftPlain = sftWarningHTML
       .replace(/<br\s*\/?>/gi, ' ')
       .replace(/<\/?[^>]+>/g, '');
-    latestRun = gatherData(projValue, retirementYear, sftPlain);
+    latestRun = gatherData(projValue, retirementYear, sftPlain,
+                          personalUsed, employerCalc, maxProjValue);
     captureCharts();
 
     const stepMap = {
@@ -713,9 +738,38 @@ function generatePDF() {
   const gR=latestRun.chartDims.growth.h/latestRun.chartDims.growth.w;
   const cR=latestRun.chartDims.contrib.h/latestRun.chartDims.contrib.w;
   doc.addImage(latestRun.chartImgs.growth,'PNG',chartX,chartY,chartW,chartW*gR,'','FAST'); chartY+=chartW*gR+12;
-  doc.addImage(latestRun.chartImgs.contrib,'PNG',chartX,chartY,chartW,chartW*cR,'','FAST'); chartY+=chartW*cR+12;
+  doc.addImage(latestRun.chartImgs.contrib,'PNG',chartX,chartY,chartW,chartW*cR,'','FAST');
+  chartY += chartW*cR + 12;
 
-  let rightY=chartY+12; let pageNo=3;
+  // Summary under charts
+  let summaryY = chartY;
+  doc.setFontSize(16).setFont(undefined,'bold').setTextColor(ACCENT_CYAN);
+  doc.text('Summary',40,summaryY);
+  summaryY += 18;
+  doc.setFontSize(12).setFont(undefined,'normal').setTextColor('#fff');
+  const sumWidth = pageW - 80;
+  const baseSummary =
+    `Based on your current pension of ${fmtEuro(latestRun.inputs.currentValue)}, `+
+    `personal contributions of ${fmtEuro(latestRun.outputs.personalAnnual)} p.a., `+
+    `employer contributions of ${fmtEuro(latestRun.outputs.employerAnnual)} p.a. `+
+    `and an annualised growth rate of ${(latestRun.inputs.growth*100).toFixed(0)}% p.a., `+
+    `your pension is projected to reach ${fmtEuro(latestRun.outputs.projectedValue)} `+
+    `at age ${latestRun.inputs.retireAge}.`;
+  const maxSummary =
+    `If all else stays the same but you were to make the maximum personal contributions `+
+    `each year prior to retirement based on your salary of ${fmtEuro(latestRun.inputs.salary)}, `+
+    `your pension is projected to reach ${fmtEuro(latestRun.outputs.maxProjectedValue)} `+
+    `by age ${latestRun.inputs.retireAge}.`;
+  let lines = doc.splitTextToSize(baseSummary, sumWidth);
+  doc.text(lines,40,summaryY,{lineHeightFactor:1.4});
+  summaryY += lines.length*14 + 4;
+  lines = doc.splitTextToSize(maxSummary, sumWidth);
+  doc.text(lines,40,summaryY,{lineHeightFactor:1.4});
+  summaryY += lines.length*14;
+
+  let rightY = summaryY + 12;
+  leftY = rightY;
+  let pageNo=3;
   const allWarns=[]; if(latestRun.mandatoryWarn) allWarns.push(latestRun.mandatoryWarn); allWarns.push(...latestRun.otherWarns);
   allWarns.forEach(w=>placeBanner(doc,w));
   addFooter(pageNo);
