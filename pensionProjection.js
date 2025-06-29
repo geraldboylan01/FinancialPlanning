@@ -741,13 +741,13 @@ function generatePDF() {
   doc.addImage(latestRun.chartImgs.contrib,'PNG',chartX,chartY,chartW,chartW*cR,'','FAST');
   chartY += chartW*cR + 12;
 
-  // Summary under charts
+  // Summary under charts (right column)
   let summaryY = chartY;
-  doc.setFontSize(16).setFont(undefined,'bold').setTextColor(ACCENT_CYAN);
-  doc.text('Summary',40,summaryY);
-  summaryY += 18;
+  const boxX = chartX;
+  const boxW = colW;
+  const padTop = 24, padSide = 24, padBottom = 20, gap = 12;
   doc.setFontSize(12).setFont(undefined,'normal').setTextColor('#fff');
-  const sumWidth = pageW - 80;
+  const sumWidth = boxW - padSide * 2;
   const baseSummary =
     `Based on your current pension of ${fmtEuro(latestRun.inputs.currentValue)}, `+
     `personal contributions of ${fmtEuro(latestRun.outputs.personalAnnual)} p.a., `+
@@ -760,12 +760,22 @@ function generatePDF() {
     `each year prior to retirement based on your salary of ${fmtEuro(latestRun.inputs.salary)}, `+
     `your pension is projected to reach ${fmtEuro(latestRun.outputs.maxProjectedValue)} `+
     `by age ${latestRun.inputs.retireAge}.`;
-  let lines = doc.splitTextToSize(baseSummary, sumWidth);
-  doc.text(lines,40,summaryY,{lineHeightFactor:1.4});
-  summaryY += lines.length*14 + 4;
-  lines = doc.splitTextToSize(maxSummary, sumWidth);
-  doc.text(lines,40,summaryY,{lineHeightFactor:1.4});
-  summaryY += lines.length*14;
+  let lines1 = doc.splitTextToSize(baseSummary, sumWidth);
+  let lines2 = doc.splitTextToSize(maxSummary, sumWidth);
+  const headingH = 20; const lineH = 14;
+  const boxH = padTop + headingH + gap +
+               lines1.length*lineH + 4 + lines2.length*lineH + padBottom;
+  doc.setFillColor('#222').setDrawColor(ACCENT_CYAN).setLineWidth(2)
+     .roundedRect(boxX, summaryY, boxW, boxH, 12, 12, 'FD');
+  let cy = summaryY + padTop;
+  doc.setFontSize(16).setFont(undefined,'bold').setTextColor(ACCENT_CYAN);
+  doc.text('Summary', boxX + padSide, cy);
+  cy += headingH + gap;
+  doc.setFontSize(12).setFont(undefined,'normal').setTextColor('#fff');
+  doc.text(lines1, boxX + padSide, cy, {lineHeightFactor:1.4});
+  cy += lines1.length*lineH + 4;
+  doc.text(lines2, boxX + padSide, cy, {lineHeightFactor:1.4});
+  summaryY += boxH;
 
   let rightY = summaryY + 12;
   leftY = rightY;
