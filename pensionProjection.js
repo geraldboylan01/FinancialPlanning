@@ -692,9 +692,10 @@ function generatePDF() {
 
   const boxMargin=30, boxX=boxMargin, boxW=pageW-boxMargin*2, boxY=doc.lastAutoTable.finalY+35;
   const heading='How this projection works';
-  const body="•  Starts with your current pension value and planned contributions."+
-    "\n\n•  Applies your chosen growth rate each year."+
-    "\n\n•  Alerts you if the projected value breaches the Standard Fund Threshold.";
+  const body="•  We start with your current pension value and your planned annual contributions."+
+    "\n\n•  Your selected growth rate is applied each year to project future pension value."+
+    "\n\n•  We calculate how your pension could grow if you made the maximum personal contributions allowed, increasing with age-based limits."+
+    "\n\n•  We flag if your projected pension exceeds the Standard Fund Threshold (SFT), so you can plan accordingly.";
   doc.setFontSize(16).setFont(undefined,'bold'); const headingHeight=22;
   doc.setFontSize(14); const wrapped=doc.splitTextToSize(body, boxW-48);
   const lineHeight=18; const bodyHeight=wrapped.length*lineHeight;
