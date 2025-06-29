@@ -764,10 +764,10 @@ function generatePDF() {
   let lines1 = doc.splitTextToSize(baseSummary, sumWidth);
   let lines2 = doc.splitTextToSize(maxSummary, sumWidth);
   const headingH = 20; const lineH = 14;
-  const boxH = padTop + headingH + gap +
-               lines1.length*lineH + 4 + lines2.length*lineH + padBottom;
+  const summaryBoxH = padTop + headingH + gap +
+                      lines1.length*lineH + 4 + lines2.length*lineH + padBottom;
   doc.setFillColor('#222').setDrawColor(ACCENT_CYAN).setLineWidth(2)
-     .roundedRect(summaryX, summaryY, summaryW, boxH, 12, 12, 'FD');
+     .roundedRect(summaryX, summaryY, summaryW, summaryBoxH, 12, 12, 'FD');
   let cy = summaryY + padTop;
   doc.setFontSize(16).setFont(undefined,'bold').setTextColor(ACCENT_CYAN);
   doc.text('Summary', summaryX + padSide, cy);
@@ -776,7 +776,7 @@ function generatePDF() {
   doc.text(lines1, summaryX + padSide, cy, {lineHeightFactor:1.4});
   cy += lines1.length*lineH + 4;
   doc.text(lines2, summaryX + padSide, cy, {lineHeightFactor:1.4});
-  summaryY += boxH;
+  summaryY += summaryBoxH;
 
   let rightY = summaryY + 12;
   leftY = rightY;
