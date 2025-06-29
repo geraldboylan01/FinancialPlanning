@@ -744,11 +744,11 @@ function generatePDF() {
 
   // Summary under charts (right column)
   let summaryY = chartY;
-  const boxX = chartX;
-  const boxW = colW;
+  const summaryX = chartX;
+  const summaryW = colW;
   const padTop = 24, padSide = 24, padBottom = 20, gap = 12;
   doc.setFontSize(12).setFont(undefined,'normal').setTextColor('#fff');
-  const sumWidth = boxW - padSide * 2;
+  const sumWidth = summaryW - padSide * 2;
   const baseSummary =
     `Based on your current pension of ${fmtEuro(latestRun.inputs.currentValue)}, `+
     `personal contributions of ${fmtEuro(latestRun.outputs.personalAnnual)} p.a., `+
@@ -767,15 +767,15 @@ function generatePDF() {
   const boxH = padTop + headingH + gap +
                lines1.length*lineH + 4 + lines2.length*lineH + padBottom;
   doc.setFillColor('#222').setDrawColor(ACCENT_CYAN).setLineWidth(2)
-     .roundedRect(boxX, summaryY, boxW, boxH, 12, 12, 'FD');
+     .roundedRect(summaryX, summaryY, summaryW, boxH, 12, 12, 'FD');
   let cy = summaryY + padTop;
   doc.setFontSize(16).setFont(undefined,'bold').setTextColor(ACCENT_CYAN);
-  doc.text('Summary', boxX + padSide, cy);
+  doc.text('Summary', summaryX + padSide, cy);
   cy += headingH + gap;
   doc.setFontSize(12).setFont(undefined,'normal').setTextColor('#fff');
-  doc.text(lines1, boxX + padSide, cy, {lineHeightFactor:1.4});
+  doc.text(lines1, summaryX + padSide, cy, {lineHeightFactor:1.4});
   cy += lines1.length*lineH + 4;
-  doc.text(lines2, boxX + padSide, cy, {lineHeightFactor:1.4});
+  doc.text(lines2, summaryX + padSide, cy, {lineHeightFactor:1.4});
   summaryY += boxH;
 
   let rightY = summaryY + 12;
