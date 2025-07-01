@@ -1,4 +1,5 @@
 import { profile, saveProfile } from "./profile.js";
+import { animate, addKeyboardNav, computeLabels } from './wizardCore.js';
 const steps = [
   {id:"dob", q:"What’s your date of birth?", type:"date"},
   {id:"partnerExists", q:"Are you married, in a civil partnership, or sharing finances with a long-term partner?", type:"boolean"},
@@ -22,12 +23,15 @@ const btnBack=document.getElementById('wizBack');
 const btnNext=document.getElementById('wizNext');
 const dots=document.getElementById('wizDots');
 const progEl=document.getElementById('wizProgress');
+const progFill = document.getElementById('wizProgressFill');
 let visibleSteps=[];
 let cur=0;
+const STEP_LABELS = computeLabels(steps);
 
 // utility to jump directly to a step -------------------------------
 function gotoStep(i){
   // optional: validate steps before i here if you want to enforce order
+  animate(stepContainer, i>cur?'next':'back');
   cur=i;
   render();
 }
@@ -111,21 +115,25 @@ function render(){
   const totalVisible=visibleSteps.length;
   const visibleIndex=cur;
   progEl.textContent=`Step ${visibleIndex+1} of ${totalVisible}`;
+  const pc=(cur+1)/visibleSteps.length*100;
+  progFill.style.width=pc+'%';
   stepContainer.innerHTML='';
   const q=document.createElement('p');
   q.textContent=step.q;
   stepContainer.appendChild(q);
   stepContainer.appendChild(buildInput(step));
+  const focusable=stepContainer.querySelector('input,button,select,textarea,[tabindex]:not([tabindex="-1"])');
+  if(focusable) focusable.focus();
   btnBack.style.display=cur===0?'none':'';
   btnNext.textContent=cur===visibleSteps.length-1?'Submit':'Next';
   dots.innerHTML=visibleSteps.map((_, i) =>
     `<button
-      class="dot${i===cur?' active':''}"
+      class="wizDot${i===cur?' active':''}"
       data-idx="${i}"
-      aria-label="Jump to step ${i+1}">
+      title="${STEP_LABELS[visibleSteps[i].id]}">
      </button>`
   ).join('');
-  dots.querySelectorAll('button.dot').forEach(btn=>{
+  dots.querySelectorAll('button.wizDot').forEach(btn=>{
     btn.addEventListener('click',e=>{
       const idx=+e.currentTarget.dataset.idx;
       gotoStep(idx);
@@ -166,17 +174,20 @@ function next(){
   }else if(step.type!=='riskCard'){
     profile[step.id]=val; saveProfile();
   }
+  animate(stepContainer,'next');
   cur++;
   render();
 }
 
 function back(){
+  animate(stepContainer,'back');
   cur--;
   render();
 }
 
 btnNext.onclick=next;
 btnBack.onclick=back;
+addKeyboardNav(modal,{back,next,close:()=>modal.classList.add('hidden'),getCur:()=>cur,getTotal:()=>visibleSteps.length});
 
 function copyToForm(){
   steps.forEach(s=>{

@@ -148,9 +148,15 @@
     #wizardModal h3 { font-weight:600; font-size:1.1rem; color:#fff; }
     .wizard-controls{ display:flex; justify-content:space-between; margin-top:1rem }
     .edit{cursor:pointer;margin-left:.4rem}
+    #wizProgressBar{height:6px;background:#ddd;margin:0 24px 16px;border-radius:3px}
+    #wizProgressFill{height:100%;width:0;background:#00aaff;border-radius:3px;transition:width .25s ease}
     #wizDots{ text-align:center; margin-top:1rem }
-    #wizDots .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#555;margin:0 3px}
-    #wizDots .dot.active{background:#00ff88}
+    button.wizDot{width:14px;height:14px;margin:0 6px;border-radius:50%;border:none;background:#888;cursor:pointer}
+    button.wizDot.active,button.wizDot:focus-visible{background:#00aaff}
+    @keyframes slideInLeft{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
+    @keyframes slideInRight{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+    #wizardStepContainer.anim-left{animation:slideInLeft .25s ease-out both}
+    #wizardStepContainer.anim-right{animation:slideInRight .25s ease-out both}
     .modal-content {
       background: #2a2a2a; border-radius: 16px;
       padding: 2rem 2.5rem; max-width: 420px; width: 90%;
@@ -408,6 +414,7 @@ canvas {
           <button id="wizBack">Back</button>
           <button id="wizNext">Next</button>
         </div>
+        <div id="wizProgressBar"><div id="wizProgressFill"></div></div>
         <div id="wizDots"></div>
       </div>
     </div>
