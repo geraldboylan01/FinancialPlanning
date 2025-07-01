@@ -702,11 +702,11 @@ function generatePDF() {
   const boxH=32+headingHeight+14+bodyHeight+24;
   doc.setFillColor('#222').setDrawColor(ACCENT_CYAN).setLineWidth(2)
      .roundedRect(boxX,boxY,boxW,boxH,14,14,'FD');
-  let cy=boxY+32;
+  let yCur=boxY+32;
   doc.setFontSize(16).setFont(undefined,'bold').setTextColor(ACCENT_CYAN);
-  doc.text(heading, boxX+24, cy); cy+=headingHeight+14;
+  doc.text(heading, boxX+24, yCur); yCur+=headingHeight+14;
   doc.setFontSize(14).setFont(undefined,'normal').setTextColor('#fff');
-  doc.text(wrapped, boxX+24, cy, {lineHeightFactor:1.3});
+  doc.text(wrapped, boxX+24, yCur, {lineHeightFactor:1.3});
   addFooter(2); doc.addPage(); pageBG();
 
   /* PAGE 3 */
