@@ -768,14 +768,14 @@ function generatePDF() {
                       lines1.length*lineH + 4 + lines2.length*lineH + padBottom;
   doc.setFillColor('#222').setDrawColor(ACCENT_CYAN).setLineWidth(2)
      .roundedRect(summaryX, summaryY, summaryW, summaryBoxH, 12, 12, 'FD');
-  let cy = summaryY + padTop;
+  let currY = summaryY + padTop;
   doc.setFontSize(16).setFont(undefined,'bold').setTextColor(ACCENT_CYAN);
-  doc.text('Summary', summaryX + padSide, cy);
-  cy += headingH + gap;
+  doc.text('Summary', summaryX + padSide, currY);
+  currY += headingH + gap;
   doc.setFontSize(12).setFont(undefined,'normal').setTextColor('#fff');
-  doc.text(lines1, summaryX + padSide, cy, {lineHeightFactor:1.4});
-  cy += lines1.length*lineH + 4;
-  doc.text(lines2, summaryX + padSide, cy, {lineHeightFactor:1.4});
+  doc.text(lines1, summaryX + padSide, currY, {lineHeightFactor:1.4});
+  currY += lines1.length*lineH + 4;
+  doc.text(lines2, summaryX + padSide, currY, {lineHeightFactor:1.4});
   summaryY += summaryBoxH;
 
   let rightY = summaryY + 12;
