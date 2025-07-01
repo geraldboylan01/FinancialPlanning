@@ -165,13 +165,13 @@ function render() {
     `<button
       class="wizDot${i === cur ? ' active' : ''}"
       data-idx="${i}"
-      title="${STEP_LABELS[visibleSteps[i].id]}">
-     </button>`
+      title="${STEP_LABELS[visibleSteps[i].id]}"
+      aria-label="Jump to step ${i + 1}">
+    </button>`
   ).join('');
   dots.querySelectorAll('button.wizDot').forEach(btn => {
     btn.addEventListener('click', e => {
-      const idx = +e.currentTarget.dataset.idx;
-      gotoStep(idx);
+      gotoStep(+e.currentTarget.dataset.idx);
     });
   });
 }

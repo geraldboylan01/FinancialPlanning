@@ -74,8 +74,25 @@
 #wizProgressBar{height:6px;background:#ddd;margin:0 24px 16px;border-radius:3px}
 #wizProgressFill{height:100%;width:0;background:#00aaff;border-radius:3px;transition:width .25s ease}
 #wizDots{text-align:center;margin-top:1rem}
-button.wizDot{width:14px;height:14px;margin:0 6px;border-radius:50%;border:none;background:#888;cursor:pointer}
-button.wizDot.active,button.wizDot:focus-visible{background:#00aaff}
+/* #wizDots .dot { … }
+   #wizDots .dot.active { … } */
+/* compact, gradient-free dots */
+#wizDots .wizDot,
+button.wizDot {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  line-height: 0;
+  border: none;
+  border-radius: 50%;
+  background: #888;
+  background-image: none !important;
+  cursor: pointer;
+}
+button.wizDot.active,
+button.wizDot:focus-visible {
+  background: #00aaff;
+}
 @keyframes slideInLeft{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
 @keyframes slideInRight{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
 #wizardStepContainer.anim-left{animation:slideInLeft .25s ease-out both}

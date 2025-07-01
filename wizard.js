@@ -126,17 +126,17 @@ function render(){
   if(focusable) focusable.focus();
   btnBack.style.display=cur===0?'none':'';
   btnNext.textContent=cur===visibleSteps.length-1?'Submit':'Next';
-  dots.innerHTML=visibleSteps.map((_, i) =>
+  dots.innerHTML = visibleSteps.map((_, i) =>
     `<button
-      class="wizDot${i===cur?' active':''}"
+      class="wizDot${i === cur ? ' active' : ''}"
       data-idx="${i}"
-      title="${STEP_LABELS[visibleSteps[i].id]}">
-     </button>`
+      title="${STEP_LABELS[visibleSteps[i].id]}"
+      aria-label="Jump to step ${i + 1}">
+    </button>`
   ).join('');
-  dots.querySelectorAll('button.wizDot').forEach(btn=>{
-    btn.addEventListener('click',e=>{
-      const idx=+e.currentTarget.dataset.idx;
-      gotoStep(idx);
+  dots.querySelectorAll('button.wizDot').forEach(btn => {
+    btn.addEventListener('click', e => {
+      gotoStep(+e.currentTarget.dataset.idx);
     });
   });
 }
