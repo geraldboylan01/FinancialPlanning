@@ -1,20 +1,20 @@
 import { profile, saveProfile } from "./profile.js";
 import { animate, addKeyboardNav, computeLabels } from './wizardCore.js';
 const steps = [
-  {id:"dob", q:"What’s your date of birth?", type:"date"},
-  {id:"partnerExists", q:"Are you married, in a civil partnership, or sharing finances with a long-term partner?", type:"boolean"},
-  {id:"grossIncome", q:"What’s your gross annual income (€)?", type:"number", min:0},
-  {id:"incomePercent", q:"Roughly what % of that income would you like in retirement?", type:"number", min:0, max:100, step:0.1},
-  {id:"retireAge", q:"At what age would you like to retire?", type:"number", min:18, max:100},
-  {id:"statePension", q:"Do you expect to receive the Irish State Pension?", type:"boolean"},
-  {id:"partnerStatePension", q:"Will your partner be entitled to the Irish State Pension?", type:"boolean", visIf:p=>p.partnerExists},
-  {id:"partnerDob", q:"Partner’s date of birth?", type:"date", visIf:p=>p.partnerStatePension===true},
-  {id:"rentalIncome", q:"Annual rental income today (€) — leave blank if none", type:"number", min:0, optional:true},
-  {id:"hasDb", q:"Will you receive a Defined-Benefit (DB) pension?", type:"boolean"},
-  {id:"dbPension", q:"DB pension annual amount at retirement (€)", type:"number", min:0, visIf:p=>p.hasDb},
-  {id:"dbStartAge", q:"DB pension starts at age", type:"number", min:50, max:100, visIf:p=>p.hasDb},
+  {id:"dob", q:"What is your date of birth?", type:"date"},
+  {id:"partnerExists", q:"Do you share your finances with a spouse or long-term partner (married, civil-partnered, or co-habiting)?", type:"boolean"},
+  {id:"grossIncome", q:"What is your personal gross annual income (before tax), in euros?", type:"number", min:0},
+  {id:"incomePercent", q:"Approximately what percentage of your current income would you like to receive each year after you retire?", type:"number", min:0, max:100, step:0.1},
+  {id:"retireAge", q:"At what age do you plan to start drawing your pension?", type:"number", min:18, max:100},
+  {id:"statePension", q:"Do you expect to qualify for the Irish State Pension?", type:"boolean"},
+  {id:"partnerStatePension", q:"Will your partner qualify for the Irish State Pension?", type:"boolean", visIf:p=>p.partnerExists},
+  {id:"partnerDob", q:"What is your partner’s date of birth?", type:"date", visIf:p=>p.partnerStatePension===true},
+  {id:"rentalIncome", q:"How much rental income do you currently collect each year, in euros? (leave blank if none)", type:"number", min:0, optional:true},
+  {id:"hasDb", q:"Do you expect to receive income from a Defined-Benefit (DB) pension scheme?", type:"boolean"},
+  {id:"dbPension", q:"What annual amount do you expect to receive from that DB pension at retirement, in euros?", type:"number", min:0, visIf:p=>p.hasDb},
+  {id:"dbStartAge", q:"At what age will your DB pension payments begin?", type:"number", min:50, max:100, visIf:p=>p.hasDb},
   // growth profile rendered with custom cards in the wizard
-  {id:"growthRate", q:"Choose a growth profile", type:"riskCard"}
+  {id:"growthRate", q:"Select an investment-growth (risk) profile for your pension.", type:"riskCard"}
 ];
 
 const modal=document.getElementById('wizardModal');

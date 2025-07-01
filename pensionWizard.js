@@ -3,29 +3,29 @@ import { profile, saveProfile } from './profile.js';
 import { animate, addKeyboardNav, computeLabels } from './wizardCore.js';
 
 const steps = [
-  { id: 'dob', q: "What's your date of birth?", type: 'date' },
-  { id: 'salary', q: 'Gross annual salary (€)?', type: 'number', min: 0 },
-  { id: 'currentValue', q: 'Current pension value (€)?', type: 'number', min: 0 },
+  { id: 'dob', q: 'What is your date of birth?', type: 'date' },
+  { id: 'salary', q: 'What is your current gross annual salary (before tax), in euros?', type: 'number', min: 0 },
+  { id: 'currentValue', q: 'What is the current total value of your pension pot, in euros?', type: 'number', min: 0 },
   {
     id: 'personalPair',
-    q: 'Your annual contribution (€) or % of salary if no € amount',
+    q: 'How much do you contribute to your pension each year?',
     type: 'pair',
     fields: [
-      { id: 'personalContrib', label: 'Your annual contribution (€)', type: 'number', min: 0, optional: true },
-      { id: 'personalPct', label: 'or % of salary if no € amount', type: 'number', min: 0, max: 100, step: 0.1, optional: true }
+      { id: 'personalContrib', label: 'Personal contribution (euros per year)', type: 'number', min: 0, optional: true },
+      { id: 'personalPct', label: '…or personal contribution (% of salary)', type: 'number', min: 0, max: 100, step: 0.1, optional: true }
     ]
   },
   {
     id: 'employerPair',
-    q: 'Employer annual contribution (€) or % of salary if no € amount',
+    q: 'How much does your employer contribute to your pension each year?',
     type: 'pair',
     fields: [
-      { id: 'employerContrib', label: 'Employer annual contribution (€)', type: 'number', min: 0, optional: true },
-      { id: 'employerPct', label: 'or % of salary if no € amount', type: 'number', min: 0, max: 100, step: 0.1, optional: true }
+      { id: 'employerContrib', label: 'Employer’s contribution (euros per year)', type: 'number', min: 0, optional: true },
+      { id: 'employerPct', label: '…or employer contribution (% of salary)', type: 'number', min: 0, max: 100, step: 0.1, optional: true }
     ]
   },
-  { id: 'retireAge', q: 'Desired retirement age?', type: 'number', min: 50, max: 75 },
-  { id: 'growth', q: 'Choose a growth profile', type: 'riskCard' }
+  { id: 'retireAge', q: 'At what age do you plan to start drawing your pension?', type: 'number', min: 50, max: 75 },
+  { id: 'growth', q: 'Select an investment-growth (risk) profile for your pension.', type: 'riskCard' }
 ];
 
 const modal = document.getElementById('wizardModal');
