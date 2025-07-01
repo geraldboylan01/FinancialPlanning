@@ -775,7 +775,8 @@ function generatePDF() {
   currY += headingH + gap;
   doc.setFontSize(12).setFont(undefined,'normal').setTextColor('#fff');
   doc.text(lines1, summaryX + padSide, currY, {lineHeightFactor:1.4});
-  currY += lines1.length*summaryLineH + 4;
+  const h1 = doc.getTextDimensions(lines1.join('\n')).h;
+  currY += h1 + 4; // 4-pt gap between paragraphs
   doc.text(lines2, summaryX + padSide, currY, {lineHeightFactor:1.4});
   summaryY += summaryBoxH;
 
