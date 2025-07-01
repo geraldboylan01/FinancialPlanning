@@ -103,15 +103,15 @@ export function drawBanner(doc, warning, x, y, width) {
   doc.roundedRect(x, y, width, h, radius, radius, 'FD');
 
   // Text
-  let cy = y + padding.top;
+  let currY = y + padding.top;
   doc.setTextColor(text);
 
   doc.setFont(undefined, fonts.title.weight).setFontSize(fonts.title.size);
-  doc.text(titleLines, x + padding.side, cy);
-  cy += titleH + padding.gap;
+  doc.text(titleLines, x + padding.side, currY);
+  currY += titleH + padding.gap;
 
   doc.setFont(undefined, fonts.body.weight).setFontSize(fonts.body.size);
-  doc.text(bodyLines, x + padding.side, cy, {
+  doc.text(bodyLines, x + padding.side, currY, {
     lineHeightFactor: lineHeight,
     align: 'left'
   });
