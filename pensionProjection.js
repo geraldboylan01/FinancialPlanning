@@ -763,9 +763,10 @@ function generatePDF() {
     `by age ${latestRun.inputs.retireAge}.`;
   let lines1 = doc.splitTextToSize(baseSummary, sumWidth);
   let lines2 = doc.splitTextToSize(maxSummary, sumWidth);
-  const headingH = 20; const lineH = 14;
+  const headingH = 20;
+  const summaryLineH = doc.getFontSize() * 1.4; // match lineHeightFactor used in doc.text
   const summaryBoxH = padTop + headingH + gap +
-                      lines1.length*lineH + 4 + lines2.length*lineH + padBottom;
+                      lines1.length*summaryLineH + 4 + lines2.length*summaryLineH + padBottom;
   doc.setFillColor('#222').setDrawColor(ACCENT_CYAN).setLineWidth(2)
      .roundedRect(summaryX, summaryY, summaryW, summaryBoxH, 12, 12, 'FD');
   let currY = summaryY + padTop;
@@ -774,7 +775,7 @@ function generatePDF() {
   currY += headingH + gap;
   doc.setFontSize(12).setFont(undefined,'normal').setTextColor('#fff');
   doc.text(lines1, summaryX + padSide, currY, {lineHeightFactor:1.4});
-  currY += lines1.length*lineH + 4;
+  currY += lines1.length*summaryLineH + 4;
   doc.text(lines2, summaryX + padSide, currY, {lineHeightFactor:1.4});
   summaryY += summaryBoxH;
 
