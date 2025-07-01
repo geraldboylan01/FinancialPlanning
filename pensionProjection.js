@@ -451,7 +451,7 @@ sftLimitGlobal = sftLimit;
   if (retirementYear >= 2030) {
     sftAssumpWarning = `
       <div class="warning-block">
-        ⚠️ <strong>Important Warning – Standard Fund Threshold (SFT) Assumptions</strong><br><br>
+        ⚠️ <strong>Standard Fund Threshold (SFT) Assumptions</strong><br><br>
         This pension projection tool uses the Standard Fund Threshold (SFT) figures as published by the Irish Government for each year up to and including 2029. These are the most recent years for which official, fixed SFT values have been confirmed.<br><br>
         While the Government has indicated that the SFT will increase in line with wage inflation beyond 2029, no definitive figures or formulae have been published to date. As a result, this tool does not project future increases to the SFT beyond 2029, as doing so would require speculative or unreliable assumptions.<br><br>
         Users should be aware that actual SFT limits post-2029 may differ significantly depending on future policy decisions and economic conditions. We recommend consulting a qualified financial advisor for guidance specific to your circumstances.
