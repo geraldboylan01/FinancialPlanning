@@ -25,6 +25,13 @@ const progEl=document.getElementById('wizProgress');
 let visibleSteps=[];
 let cur=0;
 
+// utility to jump directly to a step -------------------------------
+function gotoStep(i){
+  // optional: validate steps before i here if you want to enforce order
+  cur=i;
+  render();
+}
+
 function btn(txt){
   const b=document.createElement('button');
   b.textContent=txt;
@@ -111,7 +118,19 @@ function render(){
   stepContainer.appendChild(buildInput(step));
   btnBack.style.display=cur===0?'none':'';
   btnNext.textContent=cur===visibleSteps.length-1?'Submit':'Next';
-  dots.innerHTML=visibleSteps.map((_,i)=>`<span class="dot${i===cur?' active':''}"></span>`).join('');
+  dots.innerHTML=visibleSteps.map((_, i) =>
+    `<button
+      class="dot${i===cur?' active':''}"
+      data-idx="${i}"
+      aria-label="Jump to step ${i+1}">
+     </button>`
+  ).join('');
+  dots.querySelectorAll('button.dot').forEach(btn=>{
+    btn.addEventListener('click',e=>{
+      const idx=+e.currentTarget.dataset.idx;
+      gotoStep(idx);
+    });
+  });
 }
 
 function getValue(step){
