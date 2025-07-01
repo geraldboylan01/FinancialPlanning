@@ -144,17 +144,49 @@
       align-items: center; justify-content: center; z-index: 9999;
     }
     .modal.hidden{ display:none }
-    .wizard-card{ max-width:420px; border-radius:16px; padding:2rem; background:#2a2a2a }
+    .wizard-card {
+      display: flex;
+      flex-direction: column;
+      max-width: 420px;
+      border-radius: 16px;
+      padding: 2rem;
+      background: #2a2a2a;
+    }
     #wizardModal h3 { font-weight:600; font-size:1.1rem; color:#fff; }
-    .wizard-controls{ display:flex; justify-content:space-between; margin-top:1rem }
-    .edit{cursor:pointer;margin-left:.4rem}
-    #wizProgressBar{height:6px;background:#ddd;margin:0 24px 16px;border-radius:3px}
-    #wizProgressFill{height:100%;width:0;background:#00aaff;border-radius:3px;transition:width .25s ease}
-    #wizDots{ text-align:center; margin-top:1rem }
-    /* #wizDots .dot { … }
-       #wizDots .dot.active { … } */
-    /* compact, gradient-free dots */
-    #wizDots .wizDot,
+
+    /* HEADER ============================================= */
+    .wiz-header {
+      text-align: center;
+      margin-bottom: 1.2rem;      /* space before inputs */
+    }
+
+    #wizProgress {
+      margin: 0 0 0.8rem 0;       /* tighten above the bar */
+    }
+
+    /* progress bar */
+    #wizProgressBar {
+      height: 6px;
+      background: #ddd;
+      border-radius: 3px;
+      margin: 0 24px 12px;        /* 12 px gap below bar so it never hides */
+    }
+    #wizProgressFill {
+      height: 100%;
+      width: 0;
+      background: #00aaff;
+      border-radius: 3px;
+      transition: width .25s ease;
+    }
+
+    /* dots */
+    #wizDots {
+      display: flex;
+      justify-content: center;
+      gap: 8px;                   /* even spacing */
+    }
+
+    /* one dot / step selector */
     button.wizDot {
       width: 14px;
       height: 14px;
@@ -163,13 +195,21 @@
       border: none;
       border-radius: 50%;
       background: #888;
-      background-image: none !important;
+      background-image: none !important;     /* cancel global gradient */
       cursor: pointer;
     }
     button.wizDot.active,
     button.wizDot:focus-visible {
       background: #00aaff;
     }
+
+    /* FOOTER ============================================= */
+    .wizard-controls {
+      display: flex;
+      justify-content: space-between;
+      margin-top: auto;           /* pushes buttons to bottom of card */
+    }
+    .edit{cursor:pointer;margin-left:.4rem}
     @keyframes slideInLeft{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
     @keyframes slideInRight{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
     #wizardStepContainer.anim-left{animation:slideInLeft .25s ease-out both}
@@ -425,14 +465,23 @@ canvas {
     <!-- Wizard overlay -->
     <div id="wizardModal" class="modal hidden">
       <div class="wizard-card">
-        <h3 id="wizProgress" style="margin:0 0 1rem 0;text-align:center"></h3>
+        <!-- HEADER ------------------------------------------------------- -->
+        <div class="wiz-header">
+          <h3 id="wizProgress"></h3>
+          <div id="wizProgressBar">
+            <div id="wizProgressFill"></div>
+          </div>
+          <div id="wizDots"></div>
+        </div>
+
+        <!-- STEP CONTENT ------------------------------------------------- -->
         <div id="wizardStepContainer"></div>
+
+        <!-- FOOTER (buttons) -------------------------------------------- -->
         <div class="wizard-controls">
           <button id="wizBack">Back</button>
           <button id="wizNext">Next</button>
         </div>
-        <div id="wizProgressBar"><div id="wizProgressFill"></div></div>
-        <div id="wizDots"></div>
       </div>
     </div>
   </div>
