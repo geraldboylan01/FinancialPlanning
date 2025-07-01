@@ -47,6 +47,28 @@ function refresh(){
   steps.forEach(s=>{ if(s.visIf && !s.visIf(profile)) delete profile[s.id]; });
 }
 
+/* builds an <input type=number> wrapped with € or % */
+function unitBox({ id, value = '', min, max, step, unit = '€', side = 'prefix' }) {
+  const wrap = document.createElement('div');
+  wrap.className = `input-wrap ${side}`;
+
+  const inp  = document.createElement('input');
+  inp.type   = 'number';
+  inp.id     = id;
+  if (min  != null) inp.min  = min;
+  if (max  != null) inp.max  = max;
+  if (step != null) inp.step = step;
+  inp.value = value;
+  wrap.appendChild(inp);
+
+  const span = document.createElement('span');
+  span.className   = 'unit';
+  span.textContent = unit;
+  wrap.appendChild(span);
+
+  return wrap;
+}
+
 function buildInput(step){
   let input;
   if(step.type==='boolean'){
@@ -87,7 +109,22 @@ function buildInput(step){
     input=wrap;
   }else{
     btnNext.style.visibility='visible';
-    if(step.type==='number'||step.type==='date'){
+    if(step.id==='incomePercent'){
+      input = unitBox({
+        id:'wizInput',
+        value:profile[step.id]??'',
+        min:step.min, max:step.max, step:step.step,
+        unit:'%', side:'suffix'
+      });
+    }else if(['salary','currentValue','grossIncome','rentalIncome','dbPension',
+              'personalContrib','employerContrib'].includes(step.id)){
+      input = unitBox({
+        id:'wizInput',
+        value:profile[step.id]??'',
+        min:step.min, max:step.max, step:step.step,
+        unit:'€', side:'prefix'
+      });
+    }else if(step.type==='number'||step.type==='date'){
       input=document.createElement('input');
       input.type=step.type;
       if(step.min!=null) input.min=step.min;

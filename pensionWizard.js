@@ -57,6 +57,28 @@ function refresh() {
   visibleSteps = steps; // no conditional visibility
 }
 
+/* builds an <input type=number> wrapped with € or % */
+function unitBox({ id, value = '', min, max, step, unit = '€', side = 'prefix' }) {
+  const wrap = document.createElement('div');
+  wrap.className = `input-wrap ${side}`;
+
+  const inp  = document.createElement('input');
+  inp.type   = 'number';
+  inp.id     = id;
+  if (min  != null) inp.min  = min;
+  if (max  != null) inp.max  = max;
+  if (step != null) inp.step = step;
+  inp.value = value;
+  wrap.appendChild(inp);
+
+  const span = document.createElement('span');
+  span.className   = 'unit';
+  span.textContent = unit;
+  wrap.appendChild(span);
+
+  return wrap;
+}
+
 function buildInput(step) {
   let input;
   if (step.type === 'boolean') {
@@ -95,21 +117,23 @@ function buildInput(step) {
   } else if (step.type === 'pair') {
     const wrap = document.createElement('div');
     const inputs = [];
-    step.fields.forEach(f => {
+    const makeField = f => {
       const label = document.createElement('label');
       label.textContent = f.label;
+      const isPct = f.id.endsWith('Pct');
+      const inp = unitBox({
+        id: `wiz-${f.id}`,
+        value: profile[f.id] ?? '',
+        min: f.min, max: f.max, step: f.step,
+        unit: isPct ? '%' : '€',
+        side: isPct ? 'suffix' : 'prefix'
+      });
       label.htmlFor = `wiz-${f.id}`;
-      const inp = document.createElement('input');
-      inp.id = `wiz-${f.id}`;
-      inp.type = f.type || 'number';
-      if (f.min != null) inp.min = f.min;
-      if (f.max != null) inp.max = f.max;
-      if (f.step != null) inp.step = f.step;
-      inp.value = profile[f.id] ?? '';
       wrap.appendChild(label);
       wrap.appendChild(inp);
-      inputs.push(inp);
-    });
+      inputs.push(inp.querySelector('input'));
+    };
+    step.fields.forEach(makeField);
     const error = document.createElement('div');
     error.className = 'error';
     error.style.display = 'none';
@@ -131,7 +155,22 @@ function buildInput(step) {
     input = wrap;
   } else {
     btnNext.style.visibility = 'visible';
-    if (step.type === 'number' || step.type === 'date') {
+    if (step.id === 'incomePercent') {
+      input = unitBox({
+        id: 'wizInput',
+        value: profile[step.id] ?? '',
+        min: step.min, max: step.max, step: step.step,
+        unit: '%', side: 'suffix'
+      });
+    } else if (['salary','currentValue','grossIncome','rentalIncome','dbPension',
+                'personalContrib','employerContrib'].includes(step.id)) {
+      input = unitBox({
+        id: 'wizInput',
+        value: profile[step.id] ?? '',
+        min: step.min, max: step.max, step: step.step,
+        unit: '€', side: 'prefix'
+      });
+    } else if (step.type === 'number' || step.type === 'date') {
       input = document.createElement('input');
       input.type = step.type;
       if (step.min != null) input.min = step.min;
