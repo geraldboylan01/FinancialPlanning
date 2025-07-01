@@ -26,6 +26,12 @@
     #results{margin-top:2rem;background:#333;border-radius:12px;padding:1rem 1.2rem}
     #chart-container{margin-top:1.5rem}
     .error{color:#ff5c5c;margin-top:.5rem}
+    .input-wrap { position: relative; display: inline-block; }
+    .input-wrap.prefix  input { padding-left: 1.6rem; }
+    .input-wrap.suffix  input { padding-right: 1.6rem; }
+    .input-wrap .unit { position: absolute; top: 50%; transform: translateY(-50%); color: #bbb; font-size: 0.9em; pointer-events: none; }
+    .input-wrap.prefix  .unit { left: 0.5rem; }
+    .input-wrap.suffix  .unit { right: 0.5rem; }
     .warning-block{
       background:#444;
       border-left:4px solid #ffa500;
