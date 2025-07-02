@@ -833,16 +833,28 @@ doc.addImage(
   summaryY += summaryBoxH;
 
   let rightY  = summaryY + 12;          // starts under both charts and summary
-  let pageNo  = 3;                    // we’re still on page 3
+  let pageNo  = 3;                      // we're still on page 3
 
-// Build a single array in display order (mandatory first if present)
-const allWarns = [];
-if (latestRun.mandatoryWarn) allWarns.push(latestRun.mandatoryWarn);
-allWarns.push(...latestRun.otherWarns);
+  // finish page 3 and start warnings on page 4
+  addFooter(pageNo++);
+  doc.addPage();
+  pageBG();
+  leftY = rightY = 60;
+  doc.setFontSize(18)
+     .setFont(undefined, 'bold')
+     .setTextColor(ACCENT_CYAN)
+     .text('Important Assumptions/Warnings', 50, leftY);
+  leftY += 22;
+  rightY = leftY;
 
-allWarns.forEach(w => placeBanner(doc, w));
+  // Build a single array in display order (mandatory first if present)
+  const allWarns = [];
+  if (latestRun.mandatoryWarn) allWarns.push(latestRun.mandatoryWarn);
+  allWarns.push(...latestRun.otherWarns);
 
-addFooter(pageNo);
+  allWarns.forEach(w => placeBanner(doc, w));
+
+  addFooter(pageNo);
 
 doc.save('planéir_report.pdf');
 const pdfUrl = doc.output('bloburl');

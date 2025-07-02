@@ -783,6 +783,19 @@ function generatePDF() {
   let rightY = summaryY + 12;
   leftY = rightY;
   let pageNo=3;
+
+  // finish page 3 and start warnings on page 4
+  addFooter(pageNo++);
+  doc.addPage();
+  pageBG();
+  leftY = rightY = 60;
+  doc.setFontSize(18)
+     .setFont(undefined,'bold')
+     .setTextColor(ACCENT_CYAN);
+  doc.text('Important Assumptions/Warnings',50,leftY);
+  leftY += 22;
+  rightY = leftY;
+
   const allWarns=[]; if(latestRun.mandatoryWarn) allWarns.push(latestRun.mandatoryWarn); allWarns.push(...latestRun.otherWarns);
   allWarns.forEach(w=>placeBanner(doc,w));
   addFooter(pageNo);
