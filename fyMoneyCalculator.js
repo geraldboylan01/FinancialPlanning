@@ -783,13 +783,27 @@ doc.addImage(
                 latestRun.inputs.partnerStatePension) ? ' each' : '';
   const youAndPartner = latestRun.inputs.partnerExists ?
                         ' and your partner' : '';
-  const summaryText =
-    `To provide a gross income of ${fmtEuro(Math.round(reqIncome))} per year, `+
-    `and allowing for the State Pension of €15,044 per year${each}, `+
-    `rental income of ${fmtEuro(latestRun.inputs.rentalIncome)} per year, `+
-    `and a defined-benefit pension of ${fmtEuro(latestRun.inputs.dbPension)} `+
-    `per year starting at age ${latestRun.inputs.dbStartAge}, `+
-    `you${youAndPartner} will need to build a pension fund of about `+
+  const incomeSegments = [];
+  if (latestRun.inputs.statePension || latestRun.inputs.partnerStatePension) {
+    incomeSegments.push(`the State Pension of €15,044 per year${each}`);
+  }
+  if (latestRun.inputs.rentalIncome > 0) {
+    incomeSegments.push(`rental income of ${fmtEuro(latestRun.inputs.rentalIncome)} per year`);
+  }
+  if (latestRun.inputs.hasDb && latestRun.inputs.dbPension > 0) {
+    incomeSegments.push(`a defined-benefit pension of ${fmtEuro(latestRun.inputs.dbPension)} per year starting at age ${latestRun.inputs.dbStartAge}`);
+  }
+  let incText = '';
+  if (incomeSegments.length === 1) {
+    incText = incomeSegments[0];
+  } else if (incomeSegments.length === 2) {
+    incText = incomeSegments[0] + ' and ' + incomeSegments[1];
+  } else if (incomeSegments.length > 2) {
+    incText = incomeSegments.slice(0, -1).join(', ') + ', and ' + incomeSegments[incomeSegments.length - 1];
+  }
+  let summaryText = `To provide a gross income of ${fmtEuro(Math.round(reqIncome))} per year`;
+  if (incText) summaryText += `, and allowing for ${incText}`;
+  summaryText += `, you${youAndPartner} will need to build a pension fund of about `+
     `${fmtEuro(latestRun.outputs.requiredPot)} by age `+
     `${latestRun.inputs.retireAge}. `+
     `This projection assumes an annual investment growth rate of `+
