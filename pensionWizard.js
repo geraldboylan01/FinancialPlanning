@@ -24,7 +24,7 @@ const steps = [
       { id: 'employerPct', label: '…or employer contribution (% of salary)', type: 'number', min: 0, max: 100, step: 0.1, optional: true }
     ]
   },
-  { id: 'retireAge', q: 'At what age do you plan to start drawing your pension?', type: 'number', min: 50, max: 75 },
+  { id: 'retireAge', q: 'At what age do you plan on retiring?', type: 'number', min: 50, max: 75 },
   { id: 'growth', q: 'Select an investment-growth (risk) profile for your pension.', type: 'riskCard' }
 ];
 
