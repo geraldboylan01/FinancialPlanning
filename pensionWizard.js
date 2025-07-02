@@ -179,7 +179,7 @@ function buildInput(step) {
       input.value = profile[step.id] ?? '';
     }
   }
-  if (step.type !== 'pair') input.id = 'wizInput';
+  if (step.type !== 'pair' && input.tagName === 'INPUT') input.id = 'wizInput';
   return input;
 }
 
