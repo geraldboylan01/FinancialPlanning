@@ -808,6 +808,14 @@ doc.addImage(
     `${latestRun.inputs.retireAge}. `+
     `This projection assumes an annual investment growth rate of `+
     `${(latestRun.inputs.growthRate*100).toFixed(0)}%.`;
+
+  const sftLimitSinglePdf = sftForYear(latestRun.outputs.retirementYear);
+  const sftLimitCombinedPdf = latestRun.inputs.partnerStatePension ?
+        sftLimitSinglePdf * 2 : sftLimitSinglePdf;
+  if (latestRun.outputs.requiredPot > sftLimitCombinedPdf) {
+    summaryText +=
+      ' This projection ignores the Standard Fund Threshold (SFT), which may impact your required pension; we recommend seeking professional advice regarding this.';
+  }
   const lines = doc.splitTextToSize(summaryText, sumWidth);
   const headingH = 20;
   const lineH = doc.getFontSize() * 1.4;
