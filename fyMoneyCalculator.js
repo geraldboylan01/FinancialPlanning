@@ -258,7 +258,8 @@ These projections are illustrative only — professional guidance is strongly re
 const label = LABEL_MAP[k] ?? k;
 let val = v;
 if (typeof v === 'boolean') val = fmtBool(v);
-else if (k.toLowerCase().includes('income') || k==='dbPension') val = fmtEuro(+v||0);
+  else if (['grossIncome', 'rentalIncome', 'dbPension'].includes(k))
+    val = fmtEuro(+v || 0);
 return `<tr><td>${label}</td><td>${val}</td><td><span class="edit" onclick="wizard.open('${k}')">✏️</span></td></tr>`;
     }).join('');
   const tableHTML = `<table class="assumptions-table"><tbody>${rows}</tbody></table>`;
