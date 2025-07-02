@@ -768,8 +768,49 @@ doc.addImage(
     chartW, chartW * cflR, '', 'FAST');
   chartY += chartW * cflR + 12;               // ← real height!
 
-let rightY  = chartY + 12;          // starts under both charts
-let pageNo  = 3;                    // we’re still on page 3
+  // Summary under charts (right column)
+  let summaryY = chartY;
+  const summaryX = chartX;
+  const summaryW = colW;
+  const padTop = 24, padSide = 24, padBottom = 20, gap = 12;
+  doc.setFontSize(12).setFont(undefined,'normal').setTextColor('#fff');
+  const sumWidth = summaryW - padSide * 2;
+
+  const reqIncome = latestRun.inputs.grossIncome *
+                    (latestRun.inputs.incomePercent / 100);
+  const each = (latestRun.inputs.partnerExists &&
+                latestRun.inputs.statePension &&
+                latestRun.inputs.partnerStatePension) ? ' each' : '';
+  const youAndPartner = latestRun.inputs.partnerExists ?
+                        ' and your partner' : '';
+  const summaryText =
+    `To provide a gross income of ${fmtEuro(Math.round(reqIncome))} per year, `+
+    `and allowing for the State Pension of €15,044 per year${each}, `+
+    `rental income of ${fmtEuro(latestRun.inputs.rentalIncome)} per year, `+
+    `and a defined-benefit pension of ${fmtEuro(latestRun.inputs.dbPension)} `+
+    `per year starting at age ${latestRun.inputs.dbStartAge}, `+
+    `you${youAndPartner} will need to build a pension fund of about `+
+    `${fmtEuro(latestRun.outputs.requiredPot)} by age `+
+    `${latestRun.inputs.retireAge}. `+
+    `This projection assumes an annual investment growth rate of `+
+    `${(latestRun.inputs.growthRate*100).toFixed(0)}%.`;
+  const lines = doc.splitTextToSize(summaryText, sumWidth);
+  const headingH = 20;
+  const lineH = doc.getFontSize() * 1.4;
+  const summaryBoxH = padTop + headingH + gap +
+                      lines.length * lineH + padBottom;
+  doc.setFillColor('#222').setDrawColor(ACCENT_CYAN).setLineWidth(2)
+     .roundedRect(summaryX, summaryY, summaryW, summaryBoxH, 12, 12, 'FD');
+  let currY = summaryY + padTop;
+  doc.setFontSize(16).setFont(undefined,'bold').setTextColor(ACCENT_CYAN);
+  doc.text('Summary', summaryX + padSide, currY);
+  currY += headingH + gap;
+  doc.setFontSize(12).setFont(undefined,'normal').setTextColor('#fff');
+  doc.text(lines, summaryX + padSide, currY, {lineHeightFactor:1.4});
+  summaryY += summaryBoxH;
+
+  let rightY  = summaryY + 12;          // starts under both charts and summary
+  let pageNo  = 3;                    // we’re still on page 3
 
 // Build a single array in display order (mandatory first if present)
 const allWarns = [];
