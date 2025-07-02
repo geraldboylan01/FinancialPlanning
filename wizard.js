@@ -5,7 +5,7 @@ const steps = [
   {id:"partnerExists", q:"Do you share your finances with a spouse or long-term partner (married, civil-partnered, or co-habiting)?", type:"boolean"},
   {id:"grossIncome", q:"What is your personal gross annual income (before tax), in euros?", type:"number", min:0},
   {id:"incomePercent", q:"Approximately what percentage of your current income would you like to receive each year after you retire?", type:"number", min:0, max:100, step:0.1},
-  {id:"retireAge", q:"At what age do you plan to start drawing your pension?", type:"number", min:18, max:100},
+  {id:"retireAge", q:"At what age do you plan on retiring?", type:"number", min:18, max:100},
   {id:"statePension", q:"Do you expect to qualify for the Irish State Pension?", type:"boolean"},
   {id:"partnerStatePension", q:"Will your partner qualify for the Irish State Pension?", type:"boolean", visIf:p=>p.partnerExists},
   {id:"partnerDob", q:"What is your partner’s date of birth?", type:"date", visIf:p=>p.partnerStatePension===true},
