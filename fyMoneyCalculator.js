@@ -10,13 +10,13 @@ const ASSUMPTIONS_TABLE_CONSTANT = [
 ['Inflation (CPI)', '2.3 % per year, fixed'],
 ['Portfolio growth', '4 %–7 % depending on chosen risk profile'],
 ['Spending target', '% of gross salary, uprated by CPI'],
-['Defined-Benefit pension', 'Stays flat until first payment, then increases with CPI'],
+['Defined-Benefit pension', 'Entered value starts at specified age and increases annually with CPI thereafter'],
 ['Rental income', 'Inflates from today with CPI'],
 ['State Pension (Contributory)', '€15,044 p.a. from age 66, no indexation'],
 ['Projection horizon', 'From retirement age to age 100'],
 ['Withdrawal order', 'SPC / Rent / DB first, pension pot covers any shortfall'],
-['Revenue rules modelled', 'No tax and no compulsory ARF withdrawals'],
-['Standard Fund Threshold', 'Compared to Revenue limits for the retirement year']
+['Treatment of Revenue Limits', 'Does not account for Chargeable Excess Tax or mandatory ARF withdrawal rules'],
+['Standard Fund Threshold', 'Compared to Revenue SFT for retirement year; post-2029 threshold assumed fixed (see page 4.)']
 ];
 
 const LABEL_MAP = {
