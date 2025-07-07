@@ -559,6 +559,10 @@ return { inputs, outputs, assumptions: ASSUMPTIONS_TABLE_CONSTANT };
 
 const fmtBool = b => b ? 'Yes' : 'No';
 const fmtEuro = n => '€' + n.toLocaleString();
+const fmtPdfCell = v => {
+  if (typeof v === 'boolean') return v ? '✓' : '✗';
+  return v ? String(v) : 'N/A';
+};
 
 function generatePDF() {
 if (!latestRun) return;
@@ -720,7 +724,7 @@ doc.autoTable({
   margin: { left: 40, right: 40 + colW + columnGap },
   head: [['Input', 'Value']],
   body: Object.entries(latestRun.inputs)
-    .map(([k, v]) => [LABEL_MAP[k] ?? k, String(v || '—')]),
+    .map(([k, v]) => [LABEL_MAP[k] ?? k, fmtPdfCell(v)]),
   headStyles: { fillColor: ACCENT_CYAN, textColor: '#000' },
   bodyStyles: { fillColor: '#2a2a2a', textColor: '#fff' },
   alternateRowStyles: { fillColor: '#242424', textColor: '#fff' },
