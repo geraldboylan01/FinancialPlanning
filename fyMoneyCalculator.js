@@ -16,7 +16,7 @@ const ASSUMPTIONS_TABLE_CONSTANT = [
 ['Projection horizon', 'From retirement age to age 100'],
 ['Withdrawal order', 'SPC / Rent / DB first, pension pot covers any shortfall'],
 ['Treatment of Revenue Limits', 'Does not account for Chargeable Excess Tax or mandatory ARF withdrawal rules'],
-['Standard Fund Threshold', 'Compared to Revenue SFT for retirement year; post-2029 threshold assumed fixed (see page 4.)']
+['Standard Fund Threshold', 'Compared to Revenue SFT for retirement year; post-2029 threshold assumed fixed']
 ];
 
 const LABEL_MAP = {
@@ -653,11 +653,17 @@ doc.setFontSize(18).setFont(undefined, 'bold').setTextColor(ACCENT_CYAN);
 doc.text('Assumptions', 50, y);
 y += 14;
 
+const assumptionsForPdf = latestRun.assumptions.map(row =>
+  row[0] === 'Standard Fund Threshold'
+    ? [row[0], row[1] + ' (see page 4.)']
+    : row
+);
+
 doc.autoTable({
   startY: y,
   margin: { left: 40, right: 40 },
   head: [['Assumption', 'Value']],
-  body: latestRun.assumptions,
+  body: assumptionsForPdf,
   headStyles:    { fillColor: ACCENT_CYAN, textColor: '#000' },
   bodyStyles:    { fillColor: '#2a2a2a', textColor: '#fff' },
   alternateRowStyles: { fillColor: '#242424', textColor: '#fff' }
