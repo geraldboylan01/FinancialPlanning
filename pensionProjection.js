@@ -638,7 +638,8 @@ document.getElementById('downloadPdf').addEventListener('click', generatePDF);
 
 function fmtEuro(n) { return '€' + n.toLocaleString(); }
 function fmtPdfCell(v) {
-  if (typeof v === 'boolean') return v ? '✓' : '✗';
+  if (typeof v === 'boolean')
+    return { content: String.fromCharCode(v ? 51 : 55), styles: { font: 'zapfdingbats' } };
   return v ? String(v) : 'N/A';
 }
 

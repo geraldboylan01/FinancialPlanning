@@ -563,7 +563,8 @@ return { inputs, outputs, assumptions: ASSUMPTIONS_TABLE_CONSTANT };
 const fmtBool = b => b ? 'Yes' : 'No';
 const fmtEuro = n => '€' + n.toLocaleString();
 const fmtPdfCell = v => {
-  if (typeof v === 'boolean') return v ? '✓' : '✗';
+  if (typeof v === 'boolean')
+    return { content: String.fromCharCode(v ? 51 : 55), styles: { font: 'zapfdingbats' } };
   return v ? String(v) : 'N/A';
 };
 
