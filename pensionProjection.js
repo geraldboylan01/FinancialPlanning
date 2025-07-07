@@ -637,6 +637,10 @@ if (projValue > sftLimit) {
 document.getElementById('downloadPdf').addEventListener('click', generatePDF);
 
 function fmtEuro(n) { return '€' + n.toLocaleString(); }
+function fmtPdfCell(v) {
+  if (typeof v === 'boolean') return v ? '✓' : '✗';
+  return v ? String(v) : 'N/A';
+}
 
 function generatePDF() {
   if (!latestRun) return;
@@ -717,7 +721,7 @@ function generatePDF() {
   doc.text('Inputs & results',50,y3); y3+=22;
   const columnGap=20; const colW=(pageW-40*2-columnGap)/2;
   doc.autoTable({ startY:y3, margin:{left:40,right:40+colW+columnGap}, head:[['Input','Value']],
-    body:Object.entries(latestRun.inputs).map(([k,v])=>[LABEL_MAP[k]??k,String(v||'—')]),
+    body:Object.entries(latestRun.inputs).map(([k,v])=>[LABEL_MAP[k]??k,fmtPdfCell(v)]),
     headStyles:{ fillColor:ACCENT_CYAN, textColor:'#000' },
     bodyStyles:{ fillColor:'#2a2a2a', textColor:'#fff' },
     alternateRowStyles:{ fillColor:'#242424', textColor:'#fff' },
