@@ -38,8 +38,8 @@ const ASSUMPTIONS_TABLE = [
   ['Employer contributions', 'No limit beyond salary'],
   ['Investment growth', '4 %–7 % depending on chosen profile'],
   ['Projection period', 'From today to retirement age'],
-  ['Revenue rules modelled', 'No tax or compulsory withdrawals'],
-  ['Standard Fund Threshold', 'Compared to retirement-year limit']
+  ['Treatment of Revenue Limits', 'Does not account for Chargeable Excess Tax or mandatory ARF withdrawal rules'],
+  ['Standard Fund Threshold', 'Compared to Revenue SFT for retirement year; post-2029 threshold assumed fixed (see page 4.)']
 ];
 
 const LABEL_MAP = {
