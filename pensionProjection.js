@@ -377,6 +377,7 @@ function drawContribChart(showMax) {
 document.getElementById('proj-form').addEventListener('submit', e => {
   e.preventDefault();
   try {
+    document.getElementById('calcWarnings').innerHTML = '';
     // Inputs
     const salaryRaw  = +document.getElementById('salary').value;
     salaryCapped    = Math.min(salaryRaw, MAX_SALARY_CAP);
@@ -501,6 +502,7 @@ if (retireAge < 50) {
     </div>`;
 }
 
+const warningsHTML = ageWarning + sftAssumpWarning;
 const resultsHTML = `
   <p>
     Max personal contribution allowed (age ${Math.floor(curAge)}):
@@ -514,7 +516,7 @@ const resultsHTML = `
     Projected value at age ${retireAge}:<br>
     <strong>€${projValue.toLocaleString()}</strong>
   </h2>
-` + ageWarning + sftAssumpWarning;
+`;
 
 let sftWarningHTML = '';
 if (projValue > sftLimit) {
@@ -608,6 +610,7 @@ if (projValue > sftLimit) {
       }).join('');
     const tableHTML = `<h3>Inputs</h3><table class="assumptions-table"><tbody>${rows}</tbody></table>`;
     document.getElementById('results').innerHTML = tableHTML + resultsHTML;
+    document.getElementById('calcWarnings').innerHTML = warningsHTML;
 
     latestRun.warningBlocks = [...document.querySelectorAll('#results .warning-block, #postCalcContent .warning-block')].map(el => {
       const strong = el.querySelector('strong');
