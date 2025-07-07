@@ -86,6 +86,7 @@ try {
   // FIX: reset any previous SFT state
   document.getElementById('sftMessage').innerHTML = '';
   document.getElementById('sftModal').style.display = 'none';
+  setHTML('calcWarnings', '');
   let sftWarningHTML = '';
   const gross = +document.getElementById('grossIncome').value || 0;
   const pctNeed = (+document.getElementById('incomePercent').value || 0) / 100;
@@ -263,7 +264,9 @@ if (typeof v === 'boolean') val = fmtBool(v);
 return `<tr><td>${label}</td><td>${val}</td><td><span class="edit" onclick="wizard.open('${k}')">✏️</span></td></tr>`;
     }).join('');
   const tableHTML = `<table class="assumptions-table"><tbody>${rows}</tbody></table>`;
-  setHTML('results', resultHTML + earlyWarning + sftAssumpWarning + tableHTML);
+  const warningsHTML = earlyWarning + sftAssumpWarning;
+  setHTML('results', resultHTML + tableHTML);
+  setHTML('calcWarnings', warningsHTML);
 
 
   // ─── Build cash-flow & balance arrays ───────────────────────────────
