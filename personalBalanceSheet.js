@@ -99,7 +99,7 @@ const wizardSteps = [
     ]
   },
   {
-    id:'liquidityFunds', title:'Any low-risk funds like money-markets or bond portfolios?', tooltip:'Money-market and bonds',
+    id:'liquidityFunds', title:'Do you have any low-risk funds like money-markets or bond portfolios?', tooltip:'Money-market and bonds',
     store:'liquidity',
     fields:[
       {id:'mmf', label:'Money-market funds (€)', type:'number'},
@@ -201,7 +201,7 @@ function createInput(field,id,value){
     inp=el('input',{id,type:field.type==='number'?'number':'text',value:value||''});
     if(field.type==='number') inp.classList.add('currency');
   }
-  if(!field.optional) inp.required=true;
+  if(!field.optional && field.type!=='number') inp.required=true;
   return inp;
 }
 
