@@ -179,7 +179,7 @@ const wizardSteps = [
     ]
   }
 ];
-];
+
 
 let currentStep = 0;
 const totalSteps = wizardSteps.length;
