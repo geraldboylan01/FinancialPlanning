@@ -67,6 +67,7 @@ const wizardSteps = [
       {id:'homeValue', label:'Market value (€)', type:'number', showIf:d=>d.ownsHome==='Yes'},
       {id:'homeMortgage', label:'Outstanding mortgage (€)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes'},
       {id:'rentRoom', label:'Renting a room?', type:'select', options:['No','Yes occasional','Yes regular'], showIf:d=>d.ownsHome==='Yes'},
+      {id:'optionalNotice', type:'note', text:'The following details are optional.', showIf:d=>d.ownsHome==='Yes'},
       {id:'rentalIncome', label:'Annual rental income (€ gross)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes' && d.rentRoom && d.rentRoom!=='No'},
       {id:'repayment', label:'Annual mortgage repayment (€)', type:'number', optional:true, group:'repayRate', showIf:d=>d.ownsHome==='Yes', help:'Enter either this or the interest rate'},
       {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true, group:'repayRate', showIf:d=>d.ownsHome==='Yes', help:'Enter either this or the annual repayment'},
@@ -259,6 +260,10 @@ function renderStep(i){
         const wrap=el('div');
         renderRepeat(wrap, field, arr);
         container.appendChild(wrap);
+      }else if(field.type==='note'){
+        if(field.showIf && !field.showIf(data)) return;
+        const note=el('p',{className:'optional-info',textContent:field.text});
+        container.appendChild(note);
       }else{
         if(field.showIf && !field.showIf(data)) return;
         const id=field.id;
