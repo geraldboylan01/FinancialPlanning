@@ -94,7 +94,7 @@ const wizardSteps = [
     id:'cash', title:'How much cash do you keep in everyday accounts?', tooltip:'Instant access cash',
     store:'liquidity',
     fields:[
-      {id:'cash', label:'Cash on deposit (€)', type:'number'},
+      {id:'cash', label:'Cash in current account (€)', type:'number'},
       {id:'cashSavings', label:'Cash savings (€)', type:'number'}
     ]
   },
