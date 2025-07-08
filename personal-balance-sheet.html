@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Personal Balance Sheet</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box }
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    button {
+      padding: .8rem 1.2rem;
+      font-weight: 700;
+      font-size: 1rem;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      color: #1a1a1a;
+      background: linear-gradient(135deg, #00ff88, #0099ff);
+    }
+    .modal {
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center;
+      z-index: 9999;
+    }
+    .modal.hidden { display:none }
+    .wizard-card {
+      display:flex; flex-direction:column;
+      max-width:420px; background:#2a2a2a; border-radius:16px; padding:2rem;
+    }
+    .wiz-header { text-align:center; margin-bottom:1rem; }
+    #wizProgress { margin:0 0 .8rem 0; }
+    #wizProgressBar { height:6px; background:#ddd; border-radius:3px; margin:0 24px 12px; }
+    #wizProgressFill { height:100%; width:0; background:#00aaff; border-radius:3px; transition:width .25s ease; }
+    #wizDots { display:flex; justify-content:center; gap:8px; }
+    button.wizDot { width:14px; height:14px; border:none; border-radius:50%; background:#888; cursor:pointer; padding:0; }
+    button.wizDot.active, button.wizDot:focus-visible { background:#00aaff; }
+    .wizard-controls { display:flex; justify-content:space-between; margin-top:auto; }
+    .currency { position:relative; display:inline-block; }
+    .currency input{ padding-left:1.4rem; width:100%; background:#404040; border:none; border-radius:8px; color:#fff; }
+    .currency::before{ content:'\20ac'; position:absolute; left:0.4rem; top:50%; transform:translateY(-50%); color:#bbb; }
+    label{ display:block; margin-top:1rem; }
+    select{ width:100%; padding:.55rem .7rem; background:#404040; color:#fff; border:none; border-radius:8px; }
+    input[type=text], input[type=number]{ width:100%; padding:.55rem .7rem; border:none; border-radius:8px; background:#404040; color:#fff; }
+  </style>
+</head>
+<body>
+  <button id="launchBtn">Launch Wizard</button>
+
+  <div id="wizardModal" class="modal hidden">
+    <div class="wizard-card">
+      <div class="wiz-header">
+        <h3 id="wizProgress"></h3>
+        <div id="wizProgressBar"><div id="wizProgressFill"></div></div>
+        <h3 id="wizTitle"></h3>
+        <div id="wizDots"></div>
+      </div>
+      <div id="wizardStepContainer"></div>
+      <div class="wizard-controls">
+        <button id="wizBack">Back</button>
+        <button id="wizNext">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./personalBalanceSheet.js"></script>
+</body>
+</html>
