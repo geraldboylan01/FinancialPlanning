@@ -52,11 +52,12 @@
     label{ display:block; margin-top:1rem; }
     select{ width:100%; padding:.55rem .7rem; background:#404040; color:#fff; border:none; border-radius:8px; }
     input[type=text], input[type=number]{ width:100%; padding:.55rem .7rem; border:none; border-radius:8px; background:#404040; color:#fff; }
+    .error { color:#ff4d4f; font-size:0.9rem; margin-top:4px; }
+    .repeat-block{ position:relative; }
+    .remove-link{ position:absolute; top:0; right:0; color:#ff4d4f; cursor:pointer; font-size:0.8rem; }
   </style>
 </head>
 <body>
-  <button id="launchBtn">Launch Wizard</button>
-
   <div id="wizardModal" class="modal hidden">
     <div class="wizard-card">
       <div class="wiz-header">
