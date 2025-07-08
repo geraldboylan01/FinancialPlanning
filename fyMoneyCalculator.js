@@ -9,7 +9,7 @@ let latestRun = null;
 const ASSUMPTIONS_TABLE_CONSTANT = [
 ['Inflation (CPI)', '2.3 % per year, fixed'],
 ['Portfolio growth', '4 %–7 % depending on chosen risk profile'],
-['Spending target', '% of gross salary, uprated by CPI'],
+['Income target', '% of gross salary, uprated by CPI'],
 ['Defined-Benefit pension', 'Entered value starts at specified age and increases annually with CPI thereafter'],
 ['Rental income', 'Inflates from today with CPI'],
 ['State Pension (Contributory)', '€15,044 p.a. from age 66, no indexation'],
