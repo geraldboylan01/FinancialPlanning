@@ -112,7 +112,7 @@ const wizardSteps = [
     store:'longevity.pensions[]', repeat:true, addLabel:'Add pension',
     fields:[
       {id:'type', label:'Pension type', type:'select', options:['Occupational Pension','Personal Retirement Bond (PRB)','Personal Retirement Savings Account (PRSA)','Defined Benefit (DB)','Approved Retirement Fund (ARF)']},
-      {id:'value', label:d=>d.type==='Defined Benefit (DB)'?'Expected annual pension income (€)':'Current value (€)', type:'number'},
+      {id:'value', label:d=>d.type==='Defined Benefit (DB)'?'Expected annual pension income (€)':'Current value (€)', type:'number', showIf:d=>!!d.type},
       {id:'retAge', label:'Scheme retirement age', type:'number', optional:true, showIf:d=>d.type==='Defined Benefit (DB)'}
     ]
   },
@@ -214,8 +214,10 @@ function renderRepeat(container, field, values){
     remove.onclick=()=>{ values.splice(idx,1); renderStep(currentStep); };
     block.appendChild(remove);
     field.fields.forEach(f=>{
+      if(f.showIf && !f.showIf(val)) return;
       const inputId=`${field.id}-${idx}-${f.id}`;
-      block.appendChild(el('label',{htmlFor:inputId,textContent:f.label}));
+      const labelTxt=typeof f.label==='function'?f.label(val):f.label;
+      block.appendChild(el('label',{htmlFor:inputId,textContent:labelTxt}));
       const inp=createInput(f,inputId,val[f.id]);
       block.appendChild(inp);
     });
@@ -323,6 +325,7 @@ function saveRepeatValues(arr, field){
     const obj={};
     field.fields.forEach(f=>{
       const inp=block.querySelector(`#${field.id}-${idx}-${f.id}`);
+      if(!inp) return;
       obj[f.id]=f.type==='number'? +(inp.value||0) : inp.value;
     });
     arr.push(obj);
