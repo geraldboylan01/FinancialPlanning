@@ -68,10 +68,10 @@ const wizardSteps = [
       {id:'homeMortgage', label:'Outstanding mortgage (€)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes'},
       {id:'rentRoom', label:'Renting a room?', type:'select', options:['No','Yes occasional','Yes regular'], showIf:d=>d.ownsHome==='Yes'},
       {id:'rentalIncome', label:'Annual rental income (€ gross)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes' && d.rentRoom!=='No'},
-      {id:'repayment', label:'Annual mortgage repayment (€)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes'},
-      {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes'},
-      {id:'yearsLeft', label:'Years remaining on mortgage', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes'},
-      {id:'endYear', label:'Year mortgage ends', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes', help:'Leave blank if unknown.'}
+      {id:'repayment', label:'Annual mortgage repayment (€)', type:'number', optional:true, group:'repayRate', showIf:d=>d.ownsHome==='Yes', help:'Enter either this or the interest rate'},
+      {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true, group:'repayRate', showIf:d=>d.ownsHome==='Yes', help:'Enter either this or the annual repayment'},
+      {id:'yearsLeft', label:'Years remaining on mortgage', type:'number', optional:true, group:'yearsEnd', showIf:d=>d.ownsHome==='Yes', help:'Provide either this or the end year'},
+      {id:'endYear', label:'Year mortgage ends', type:'number', optional:true, group:'yearsEnd', showIf:d=>d.ownsHome==='Yes', help:'Provide either this or years remaining'}
     ]
   },
   {
@@ -83,10 +83,10 @@ const wizardSteps = [
       {id:'mortgage', label:'Mortgage (€)', type:'number', optional:true},
       {id:'rented', label:'Is it rented?', type:'select', options:['No','Yes']},
       {id:'rentalIncome', label:'Annual rental income (€ gross)', type:'number', optional:true, showIf:d=>d.rented==='Yes'},
-      {id:'repayment', label:'Annual mortgage repayment (€)', type:'number', optional:true},
-      {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true},
-      {id:'yearsLeft', label:'Years remaining on mortgage', type:'number', optional:true},
-      {id:'endYear', label:'Year mortgage ends', type:'number', optional:true, help:'Leave blank if unknown.'}
+      {id:'repayment', label:'Annual mortgage repayment (€)', type:'number', optional:true, group:'repayRate', help:'Enter either this or the interest rate'},
+      {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true, group:'repayRate', help:'Enter either this or the annual repayment'},
+      {id:'yearsLeft', label:'Years remaining on mortgage', type:'number', optional:true, group:'yearsEnd', help:'Provide either this or the end year'},
+      {id:'endYear', label:'Year mortgage ends', type:'number', optional:true, group:'yearsEnd', help:'Provide either this or years remaining'}
     ]
   },
   {
@@ -134,10 +134,10 @@ const wizardSteps = [
       {id:'mortgage', label:'Mortgage (€)', type:'number', optional:true},
       {id:'rented', label:'Is it rented?', type:'select', options:['No','Yes']},
       {id:'rentalIncome', label:'Annual rental income (€ gross)', type:'number', optional:true, showIf:d=>d.rented==='Yes'},
-      {id:'repayment', label:'Annual mortgage repayment (€)', type:'number', optional:true},
-      {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true},
-      {id:'yearsLeft', label:'Years remaining on mortgage', type:'number', optional:true},
-      {id:'endYear', label:'Year mortgage ends', type:'number', optional:true, help:'Leave blank if unknown.'}
+      {id:'repayment', label:'Annual mortgage repayment (€)', type:'number', optional:true, group:'repayRate', help:'Enter either this or the interest rate'},
+      {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true, group:'repayRate', help:'Enter either this or the annual repayment'},
+      {id:'yearsLeft', label:'Years remaining on mortgage', type:'number', optional:true, group:'yearsEnd', help:'Provide either this or the end year'},
+      {id:'endYear', label:'Year mortgage ends', type:'number', optional:true, group:'yearsEnd', help:'Provide either this or years remaining'}
     ]
   },
   {
@@ -172,10 +172,10 @@ const wizardSteps = [
     fields:[
       {id:'desc', label:'Description', type:'text'},
       {id:'amount', label:'Amount owed (€)', type:'number'},
-      {id:'repayment', label:'Annual repayment (€)', type:'number', optional:true},
-      {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true},
-      {id:'yearsLeft', label:'Years remaining', type:'number', optional:true},
-      {id:'endYear', label:'Year loan ends', type:'number', optional:true, help:'Leave blank if unknown.'}
+      {id:'repayment', label:'Annual repayment (€)', type:'number', optional:true, group:'repayRate', help:'Enter either this or the interest rate'},
+      {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true, group:'repayRate', help:'Enter either this or the annual repayment'},
+      {id:'yearsLeft', label:'Years remaining', type:'number', optional:true, group:'yearsEnd', help:'Provide either this or the end year'},
+      {id:'endYear', label:'Year loan ends', type:'number', optional:true, group:'yearsEnd', help:'Provide either this or years remaining'}
     ]
   }
 ];
@@ -252,6 +252,7 @@ function renderStep(i){
   if(step.repeat){
     renderRepeat(container, step, data);
   }else{
+    const groups={};
     step.fields.forEach(field=>{
       if(field.type==='repeat'){
         const arr=ensurePath(data, field.store);
@@ -262,10 +263,20 @@ function renderStep(i){
         if(field.showIf && !field.showIf(data)) return;
         const id=field.id;
         const labelTxt=typeof field.label==='function'?field.label(data):field.label;
-        container.appendChild(el('label',{htmlFor:id,textContent:labelTxt}));
+        let parent=container;
+        if(field.group){
+          if(!groups[field.group]){
+            groups[field.group]=el('div',{className:'either-or'});
+            container.appendChild(groups[field.group]);
+          }
+          parent=groups[field.group];
+        }
+        const wrap=field.group?el('div',{className:'either-field'}):el('div');
+        wrap.appendChild(el('label',{htmlFor:id,textContent:labelTxt}));
         const inp=createInput(field,id,data[id]);
-        container.appendChild(inp);
-        if(field.help) container.appendChild(el('small',{textContent:field.help}));
+        wrap.appendChild(inp);
+        if(field.help) wrap.appendChild(el('small',{textContent:field.help}));
+        parent.appendChild(wrap);
       }
     });
   }
