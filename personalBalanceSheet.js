@@ -271,7 +271,10 @@ function renderStep(i){
   }
 
   btnNext.disabled=!validateStep();
-  container.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',()=>{btnNext.disabled=!validateStep();}));
+  container.querySelectorAll('input,select').forEach(el=>{
+    el.addEventListener('input',()=>{btnNext.disabled=!validateStep();});
+    el.addEventListener('change',()=>{saveStepValues(); renderStep(currentStep);});
+  });
 }
 
 function clearErrors(){
