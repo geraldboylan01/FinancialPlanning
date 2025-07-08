@@ -60,32 +60,45 @@ function ensurePath(root, path){
 const wizardSteps = [
   { id:'welcome', title:'Welcome', tooltip:'Intro to the wizard', fields:[] },
   {
-    id:'primaryHome', title:'Lifestyle – Primary Home', tooltip:'Your main residence',
+    id:'primaryHome', title:'Let’s start with your main home', tooltip:'Your main residence',
     store:'lifestyle.primaryHome',
     fields:[
       {id:'ownsHome', label:'Do you own your primary home?', type:'select', options:['Yes','No']},
       {id:'homeValue', label:'Market value (€)', type:'number', showIf:d=>d.ownsHome==='Yes'},
-      {id:'homeMortgage', label:'Outstanding mortgage (€)', type:'number', showIf:d=>d.ownsHome==='Yes'},
-      {id:'rentRoom', label:'Renting a room?', type:'select', options:['No','Yes occasional','Yes regular'], showIf:d=>d.ownsHome==='Yes'}
+      {id:'homeMortgage', label:'Outstanding mortgage (€)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes'},
+      {id:'rentRoom', label:'Renting a room?', type:'select', options:['No','Yes occasional','Yes regular'], showIf:d=>d.ownsHome==='Yes'},
+      {id:'rentalIncome', label:'Annual rental income (€ gross)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes' && d.rentRoom!=='No'},
+      {id:'repayment', label:'Annual mortgage repayment (€)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes'},
+      {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes'},
+      {id:'yearsLeft', label:'Years remaining on mortgage', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes'},
+      {id:'endYear', label:'Year mortgage ends', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes', help:'Leave blank if unknown.'}
     ]
   },
   {
     id:'holidayHome', title:'Lifestyle – Holiday Home', tooltip:'Additional properties',
-    store:'lifestyle.holidayHomes[]', repeat:true,
+    store:'lifestyle.holidayHomes[]', repeat:true, addLabel:'Add holiday home',
     fields:[
       {id:'nick', label:'Nickname / location', type:'text'},
       {id:'value', label:'Market value (€)', type:'number'},
-      {id:'mortgage', label:'Mortgage (€)', type:'number'},
-      {id:'rented', label:'Is it rented?', type:'select', options:['No','Short-term','Long-term']}
+      {id:'mortgage', label:'Mortgage (€)', type:'number', optional:true},
+      {id:'rented', label:'Is it rented?', type:'select', options:['No','Yes']},
+      {id:'rentalIncome', label:'Annual rental income (€ gross)', type:'number', optional:true, showIf:d=>d.rented==='Yes'},
+      {id:'repayment', label:'Annual mortgage repayment (€)', type:'number', optional:true},
+      {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true},
+      {id:'yearsLeft', label:'Years remaining on mortgage', type:'number', optional:true},
+      {id:'endYear', label:'Year mortgage ends', type:'number', optional:true, help:'Leave blank if unknown.'}
     ]
   },
   {
-    id:'cash', title:'Liquidity – Cash & Deposits', tooltip:'Instant access cash',
+    id:'cash', title:'How much cash do you keep in everyday accounts?', tooltip:'Instant access cash',
     store:'liquidity',
-    fields:[{id:'cash', label:'Cash on deposit (€)', type:'number'}]
+    fields:[
+      {id:'cash', label:'Cash on deposit (€)', type:'number'},
+      {id:'cashSavings', label:'Cash savings (€)', type:'number'}
+    ]
   },
   {
-    id:'liquidityFunds', title:'Liquidity – Low-risk Funds', tooltip:'Money-market and bonds',
+    id:'liquidityFunds', title:'Any low-risk funds like money-markets or bond portfolios?', tooltip:'Money-market and bonds',
     store:'liquidity',
     fields:[
       {id:'mmf', label:'Money-market funds (€)', type:'number'},
@@ -94,54 +107,59 @@ const wizardSteps = [
     ]
   },
   {
-    id:'pensions', title:'Longevity – Pensions', tooltip:'Personal and company pensions',
-    store:'longevity.pensions[]', repeat:true,
+    id:'pensions', title:'Do you have existing pensions?', tooltip:'Personal and company pensions',
+    store:'longevity.pensions[]', repeat:true, addLabel:'Add pension',
     fields:[
-      {id:'type', label:'Type', type:'select', options:['Employer DC','PRSA','DB','Other']},
-      {id:'value', label:'Current value (€)', type:'number'},
-      {id:'drawing', label:'Already drawing?', type:'select', options:['No','Yes']}
+      {id:'type', label:'Pension type', type:'select', options:['Occupational Pension','Personal Retirement Bond (PRB)','Personal Retirement Savings Account (PRSA)','Defined Benefit (DB)','Approved Retirement Fund (ARF)']},
+      {id:'value', label:d=>d.type==='Defined Benefit (DB)'?'Expected annual pension income (€)':'Current value (€)', type:'number'},
+      {id:'retAge', label:'Scheme retirement age', type:'number', optional:true, showIf:d=>d.type==='Defined Benefit (DB)'}
     ]
   },
   {
-    id:'diversified', title:'Longevity – Diversified Accounts', tooltip:'Mixed portfolios',
-    store:'longevity.diversified[]', repeat:true,
+    id:'diversified', title:'Do you hold any diversified investment accounts?', tooltip:'Diversified means funds or portfolios spread across many stocks and/or bonds, not a single share.',
+    store:'longevity.diversified[]', repeat:true, addLabel:'Add account',
     fields:[
       {id:'nick', label:'Account nickname', type:'text'},
-      {id:'style', label:'Style', type:'select', options:['Mixed stocks-bonds','100 % diversified equity fund']},
+      {id:'style', label:'Style', type:'select', options:['Mostly stocks, some bonds','50/50 stocks & bonds','Mostly bonds, some stocks','100 % diversified equities']},
       {id:'value', label:'Current value (€)', type:'number'},
       {id:'platform', label:'Platform', type:'text', optional:true}
     ]
   },
   {
-    id:'investmentProps', title:'Legacy – Investment Property', tooltip:'Rental properties',
-    store:'legacy.investmentProps[]', repeat:true,
+    id:'investmentProps', title:'Do you own rental or investment property?', tooltip:'Rental properties',
+    store:'legacy.investmentProps[]', repeat:true, addLabel:'Add investment property',
     fields:[
       {id:'nick', label:'Nickname', type:'text'},
       {id:'value', label:'Market value (€)', type:'number'},
-      {id:'mortgage', label:'Mortgage (€)', type:'number'},
-      {id:'rent', label:'Annual rent (€)', type:'number'}
+      {id:'mortgage', label:'Mortgage (€)', type:'number', optional:true},
+      {id:'rented', label:'Is it rented?', type:'select', options:['No','Yes']},
+      {id:'rentalIncome', label:'Annual rental income (€ gross)', type:'number', optional:true, showIf:d=>d.rented==='Yes'},
+      {id:'repayment', label:'Annual mortgage repayment (€)', type:'number', optional:true},
+      {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true},
+      {id:'yearsLeft', label:'Years remaining on mortgage', type:'number', optional:true},
+      {id:'endYear', label:'Year mortgage ends', type:'number', optional:true, help:'Leave blank if unknown.'}
     ]
   },
   {
-    id:'privateStocks', title:'Legacy – Private & Single Stocks', tooltip:'Businesses and RSUs',
+    id:'privateStocks', title:'Private businesses and direct stock holdings', tooltip:'Businesses and RSUs',
     store:'legacy',
     fields:[
-      {id:'privateBiz', type:'repeat', store:'privateBiz[]', label:'Private Business',
+      {id:'privateBiz', type:'repeat', store:'privateBiz[]', label:'family business or private partnership', addLabel:'Add family business or private partnership',
         fields:[
-          {id:'name', label:'Business name', type:'text'},
-          {id:'stake', label:'Stake %', type:'number'},
-          {id:'value', label:'Market value (€)', type:'number'}
+          {id:'name', label:'Business/Partnership name', type:'text'},
+          {id:'stake', label:'Your % stake', type:'number'},
+          {id:'value', label:'Market value of your stake (€)', type:'number'}
         ]},
-      {id:'singleStocks', type:'repeat', store:'singleStocks[]', label:'Public Single Stock / RSU',
+      {id:'singleStocks', type:'repeat', store:'singleStocks[]', label:'direct stock', addLabel:'Add direct stocks',
         fields:[
-          {id:'ticker', label:'Ticker', type:'text'},
-          {id:'value', label:'Market value (€)', type:'number'}
+          {id:'ticker', label:'Stock name', type:'text'},
+          {id:'value', label:'Current market value (€)', type:'number'}
         ]}
     ]
   },
   {
-    id:'collectibles', title:'Legacy – Collectibles & Alternatives', tooltip:'Other assets',
-    store:'legacy.collectibles[]', repeat:true,
+    id:'collectibles', title:'Any valuable collectibles or alternative assets?', tooltip:'Other assets',
+    store:'legacy.collectibles[]', repeat:true, addLabel:'Add collectible',
     fields:[
       {id:'assetType', label:'Asset type', type:'select', options:['Art','Watches','Classic car','Other']},
       {id:'desc', label:'Description', type:'text'},
@@ -149,14 +167,18 @@ const wizardSteps = [
     ]
   },
   {
-    id:'otherLiabilities', title:'Liabilities – Other Borrowings', tooltip:'Outstanding debts',
-    store:'liabilities[]', repeat:true,
+    id:'otherLiabilities', title:'Any other loans or debts?', tooltip:'Outstanding debts',
+    store:'liabilities[]', repeat:true, addLabel:'Add liability',
     fields:[
       {id:'desc', label:'Description', type:'text'},
-      {id:'amount', label:'Amount owed (€)', type:'number'}
+      {id:'amount', label:'Amount owed (€)', type:'number'},
+      {id:'repayment', label:'Annual repayment (€)', type:'number', optional:true},
+      {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true},
+      {id:'yearsLeft', label:'Years remaining', type:'number', optional:true},
+      {id:'endYear', label:'Year loan ends', type:'number', optional:true, help:'Leave blank if unknown.'}
     ]
-  },
-  { id:'review', title:'Review & Submit', tooltip:'Check totals before sending', fields:[] }
+  }
+];
 ];
 
 let currentStep = 0;
@@ -187,6 +209,9 @@ function renderRepeat(container, field, values){
   container.innerHTML='';
   values.forEach((val, idx)=>{
     const block=el('div',{className:'repeat-block'});
+    const remove=el('span',{className:'remove-link',textContent:'Remove'});
+    remove.onclick=()=>{ values.splice(idx,1); renderStep(currentStep); };
+    block.appendChild(remove);
     field.fields.forEach(f=>{
       const inputId=`${field.id}-${idx}-${f.id}`;
       block.appendChild(el('label',{htmlFor:inputId,textContent:f.label}));
@@ -195,7 +220,8 @@ function renderRepeat(container, field, values){
     });
     container.appendChild(block);
   });
-  const add=el('button',{type:'button',textContent:'Add another'});
+  const label=field.addLabel||('Add another');
+  const add=el('button',{type:'button',textContent:label});
   add.onclick=()=>{ values.push({}); renderStep(currentStep); };
   container.appendChild(add);
 }
@@ -217,13 +243,6 @@ function renderStep(i){
     btnNext.disabled=false;
     return;
   }
-  if(step.id==='review'){
-    buildReview();
-    btnBack.style.display='inline-block';
-    btnNext.textContent='Submit';
-    btnNext.disabled=false;
-    return;
-  }
 
   btnBack.style.display=i===0?'none':'inline-block';
   btnNext.textContent='Next';
@@ -242,9 +261,11 @@ function renderStep(i){
       }else{
         if(field.showIf && !field.showIf(data)) return;
         const id=field.id;
-        container.appendChild(el('label',{htmlFor:id,textContent:field.label}));
+        const labelTxt=typeof field.label==='function'?field.label(data):field.label;
+        container.appendChild(el('label',{htmlFor:id,textContent:labelTxt}));
         const inp=createInput(field,id,data[id]);
         container.appendChild(inp);
+        if(field.help) container.appendChild(el('small',{textContent:field.help}));
       }
     });
   }
@@ -253,14 +274,27 @@ function renderStep(i){
   container.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',()=>{btnNext.disabled=!validateStep();}));
 }
 
-function validateStep(){
-  return Array.from(container.querySelectorAll('input,select')).every(el=>{
+function clearErrors(){
+  container.querySelectorAll('.error').forEach(e=>e.remove());
+}
+
+function validateStep(show){
+  clearErrors();
+  for(const el of container.querySelectorAll('input,select')){
     if(el.type==='number'){
-      if(el.required && el.value==='') return false;
-      if(el.value!=='' && +el.value<0) return false;
+      if(el.required && el.value===''){ if(show){displayError(el);} return false; }
+      if(el.value!=='' && +el.value<0){ if(show){displayError(el);} return false; }
     }
-    return el.checkValidity();
-  });
+    if(!el.checkValidity()){ if(show){displayError(el);} return false; }
+  }
+  return true;
+}
+
+function displayError(el){
+  const p=el.parentNode;
+  const msg=el.closest('.error')?null:document.createElement('p');
+  if(msg){ msg.className='error'; msg.textContent='Please complete or correct the highlighted field.'; el.after(msg); }
+  el.focus();
 }
 
 function saveRepeatValues(arr, field){
@@ -278,7 +312,7 @@ function saveRepeatValues(arr, field){
 
 function saveStepValues(){
   const step=wizardSteps[currentStep];
-  if(step.id==='welcome' || step.id==='review') return;
+  if(step.id==='welcome') return;
   const dest=ensurePath(personalBalanceSheet, step.store);
 
   if(step.repeat){
@@ -303,51 +337,9 @@ function sum(arr){
   return arr.reduce((a,b)=>a+(+b||0),0);
 }
 
-function buildReview(){
-  const tbl=el('table');
-  tbl.innerHTML='<tr><th>Category</th><th>Total Assets</th><th>Linked Liabilities</th><th>Net</th></tr>';
-  const ls=personalBalanceSheet.lifestyle;
-  const home=ls.primaryHome||{};
-  const homeVal=home.ownsHome==='Yes'? +home.homeValue||0:0;
-  const homeMort=home.ownsHome==='Yes'? +home.homeMortgage||0:0;
-  const hhVal=sum((ls.holidayHomes||[]).map(h=>h.value));
-  const hhMort=sum((ls.holidayHomes||[]).map(h=>h.mortgage));
-  const lsAssets=homeVal+hhVal;
-  const lsLiabs=homeMort+hhMort;
-
-  const lq=personalBalanceSheet.liquidity;
-  const lqAssets=sum([lq.cash,lq.mmf,lq.bonds,lq.other]);
-
-  const lg=personalBalanceSheet.longevity;
-  const lgAssets=sum((lg.pensions||[]).map(p=>p.value))+sum((lg.diversified||[]).map(d=>d.value));
-
-  const le=personalBalanceSheet.legacy;
-  const leAssets=sum((le.investmentProps||[]).map(p=>p.value))+sum((le.privateBiz||[]).map(b=>b.value))+sum((le.singleStocks||[]).map(s=>s.value))+sum((le.collectibles||[]).map(c=>c.value));
-  const leLiabs=sum((le.investmentProps||[]).map(p=>p.mortgage));
-
-  const rows=[
-    ['Lifestyle',lsAssets,lsLiabs,lsAssets-lsLiabs],
-    ['Liquidity',lqAssets,'–',lqAssets],
-    ['Longevity',lgAssets,'–',lgAssets],
-    ['Legacy',leAssets,leLiabs,leAssets-leLiabs]
-  ];
-  rows.forEach(r=>{
-    const tr=el('tr');
-    tr.innerHTML=`<td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td>`;
-    tbl.appendChild(tr);
-  });
-  const otherLiab=sum((personalBalanceSheet.liabilities||[]).map(l=>l.amount));
-  const totalAssets=lsAssets+lqAssets+lgAssets+leAssets;
-  const totalLiabs=lsLiabs+leLiabs+otherLiab;
-  const net=totalAssets-totalLiabs;
-  const trNet=el('tr');
-  trNet.innerHTML=`<th>Overall Net Worth</th><th></th><th></th><th>${net}</th>`;
-  tbl.appendChild(trNet);
-  container.appendChild(tbl);
-}
 
 btnNext.addEventListener('click',()=>{
-  if(!validateStep()) return;
+  if(!validateStep(true)) return;
   saveStepValues();
   if(currentStep===totalSteps-1){ onSubmit(); return; }
   renderStep(currentStep+1);
@@ -355,7 +347,8 @@ btnNext.addEventListener('click',()=>{
 
 btnBack.addEventListener('click',()=>{ if(currentStep>0){ saveStepValues(); renderStep(currentStep-1); } });
 
-document.getElementById('launchBtn')?.addEventListener('click',()=>{ modal.classList.remove('hidden'); renderStep(0); });
+modal.classList.remove('hidden');
+renderStep(0);
 
 function onSubmit(){
   console.log(personalBalanceSheet); // TODO: integrate back-end action
