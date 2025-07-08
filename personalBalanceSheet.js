@@ -67,7 +67,7 @@ const wizardSteps = [
       {id:'homeValue', label:'Market value (€)', type:'number', showIf:d=>d.ownsHome==='Yes'},
       {id:'homeMortgage', label:'Outstanding mortgage (€)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes'},
       {id:'rentRoom', label:'Renting a room?', type:'select', options:['No','Yes occasional','Yes regular'], showIf:d=>d.ownsHome==='Yes'},
-      {id:'rentalIncome', label:'Annual rental income (€ gross)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes' && d.rentRoom!=='No'},
+      {id:'rentalIncome', label:'Annual rental income (€ gross)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes' && d.rentRoom && d.rentRoom!=='No'},
       {id:'repayment', label:'Annual mortgage repayment (€)', type:'number', optional:true, group:'repayRate', showIf:d=>d.ownsHome==='Yes', help:'Enter either this or the interest rate'},
       {id:'interestRate', label:'Interest rate (%)', type:'number', optional:true, group:'repayRate', showIf:d=>d.ownsHome==='Yes', help:'Enter either this or the annual repayment'},
       {id:'yearsLeft', label:'Years remaining on mortgage', type:'number', optional:true, group:'yearsEnd', showIf:d=>d.ownsHome==='Yes', help:'Provide either this or the end year'},
