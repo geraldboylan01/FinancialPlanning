@@ -6,74 +6,57 @@
   <title>Personal Balance Sheet</title>
   <link rel="icon" type="image/png" href="favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
+
   <style>
-    * { box-sizing: border-box }
-    body {
-      margin: 0;
-      font-family: 'Inter', sans-serif;
-      background: #1a1a1a;
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    button {
-      padding: .8rem 1.2rem;
-      font-weight: 700;
-      font-size: 1rem;
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      color: #1a1a1a;
-      background: linear-gradient(135deg, #00ff88, #0099ff);
-    }
-    .modal {
-      position: fixed; top:0; left:0; width:100%; height:100%;
-      background: rgba(0,0,0,.7);
-      display:flex;
-      justify-content:center;
-      align-items:flex-start;
-      overflow-y:auto;
-      padding:1rem 0;
-      z-index: 9999;
-    }
-    .modal.hidden { display:none }
-    .wizard-card {
-      display:flex;
-      flex-direction:column;
-      width:90%;
-      max-width:420px;
-      background:#2a2a2a;
-      border-radius:16px;
-      padding:2rem;
-      box-sizing:border-box;
-      margin:auto 0;
-    }
-    .wiz-header { text-align:center; margin-bottom:1rem; }
-    #wizProgress { margin:0 0 .8rem 0; }
-    #wizProgressBar { height:6px; background:#ddd; border-radius:3px; margin:0 24px 12px; }
-    #wizProgressFill { height:100%; width:0; background:#00aaff; border-radius:3px; transition:width .25s ease; }
-    #wizDots { display:flex; justify-content:center; gap:8px; }
-    button.wizDot { width:14px; height:14px; border:none; border-radius:50%; background:#888; cursor:pointer; padding:0; }
-    button.wizDot.active, button.wizDot:focus-visible { background:#00aaff; }
-    .wizard-controls { display:flex; justify-content:space-between; margin-top:auto; }
-    .currency { position:relative; display:inline-block; }
-    .currency input{ padding-left:1.4rem; width:100%; background:#404040; border:none; border-radius:8px; color:#fff; }
-    .currency::before{ content:'\20ac'; position:absolute; left:0.4rem; top:50%; transform:translateY(-50%); color:#bbb; }
-    label{ display:block; margin-top:1rem; }
-    select{ width:100%; padding:.55rem .7rem; background:#404040; color:#fff; border:none; border-radius:8px; }
-    input[type=text], input[type=number]{ width:100%; padding:.55rem .7rem; border:none; border-radius:8px; background:#404040; color:#fff; }
-    .error { color:#ff4d4f; font-size:0.9rem; margin-top:4px; }
-    .repeat-block{ position:relative; }
-    .remove-link{ position:absolute; top:0; right:0; color:#ff4d4f; cursor:pointer; font-size:0.8rem; }
-    .tip{ display:inline-block; width:1.2rem; height:1.2rem; line-height:1.2rem; border-radius:50%; background:#00aaff; color:#fff; font-size:0.75rem; text-align:center; margin-left:0.25rem; cursor:help; }
-    .either-or{ display:flex; gap:1rem; }
-    .either-or .either-field{ flex:1; }
-    .optional-info{ margin-top:1rem; font-weight:bold; color:#00aaff; }
+    /* ========== EXISTING WIZARD STYLES (unchanged) ========== */
+    *{box-sizing:border-box}
+    body{margin:0;font-family:'Inter',sans-serif;background:#1a1a1a;color:#fff;display:flex;justify-content:center;align-items:center;height:100vh}
+    button{padding:.8rem 1.2rem;font-weight:700;font-size:1rem;border:none;border-radius:50px;cursor:pointer;color:#1a1a1a;background:linear-gradient(135deg,#00ff88,#0099ff)}
+    .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);display:flex;justify-content:center;align-items:flex-start;overflow-y:auto;padding:1rem 0;z-index:9999}
+    .modal.hidden{display:none}
+    .wizard-card{display:flex;flex-direction:column;width:90%;max-width:420px;background:#2a2a2a;border-radius:16px;padding:2rem;margin:auto 0}
+    .wiz-header{text-align:center;margin-bottom:1rem}
+    #wizProgress{margin:0 0 .8rem 0}
+    #wizProgressBar{height:6px;background:#ddd;border-radius:3px;margin:0 24px 12px}
+    #wizProgressFill{height:100%;width:0;background:#00aaff;border-radius:3px;transition:width .25s ease}
+    #wizDots{display:flex;justify-content:center;gap:8px}
+    button.wizDot{width:14px;height:14px;border:none;border-radius:50%;background:#888;cursor:pointer;padding:0}
+    button.wizDot.active,button.wizDot:focus-visible{background:#00aaff}
+    .wizard-controls{display:flex;justify-content:space-between;margin-top:auto}
+    .currency{position:relative;display:inline-block}
+    .currency input{padding-left:1.4rem;width:100%;background:#404040;border:none;border-radius:8px;color:#fff}
+    .currency::before{content:'€';position:absolute;left:.4rem;top:50%;transform:translateY(-50%);color:#bbb}
+    label{display:block;margin-top:1rem}
+    select,input[type=text],input[type=number]{width:100%;padding:.55rem .7rem;border:none;border-radius:8px;background:#404040;color:#fff}
+    .error{color:#ff4d4f;font-size:.9rem;margin-top:4px}
+    .repeat-block{position:relative}
+    .remove-link{position:absolute;top:0;right:0;color:#ff4d4f;cursor:pointer;font-size:.8rem}
+    .tip{display:inline-block;width:1.2rem;height:1.2rem;line-height:1.2rem;border-radius:50%;background:#00aaff;color:#fff;font-size:.75rem;text-align:center;margin-left:.25rem;cursor:help}
+    .either-or{display:flex;gap:1rem}
+    .either-or .either-field{flex:1}
+    .optional-info{margin-top:1rem;font-weight:bold;color:#00aaff}
+
+    /* ========== NEW BALANCE-SHEET VIEW ========== */
+    .balance-sheet{width:90%;max-width:1100px;margin:2rem auto;color:#1a1a1a}
+    .balance-sheet.hidden{display:none}
+    .balance-sheet h2{margin:.5rem 0 1.5rem 0;font-weight:700;font-size:1.4rem}
+    .bs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;position:relative}
+    .bs-card{background:#f4f4f4;border-radius:12px;padding:1rem 1.2rem}
+    .bs-card h3{margin:0 0 .4rem 0;font-size:1rem;font-weight:700;color:#fff;padding:.3rem .5rem;border-radius:4px}
+    .bs-card ul{list-style:none;padding:0;margin:.4rem 0 0 0;font-size:.9rem;line-height:1.4}
+    .bs-card li{display:flex;justify-content:space-between;border-bottom:1px solid #ddd;padding:.25rem 0}
+    .bs-card .subtotal{font-weight:700}
+    .card-lifestyle h3{background:#663399}
+    .card-liquidity h3{background:#4a4a4a}
+    .card-longevity h3{background:#7a1f35}
+    .card-legacy h3{background:#0d4f8b}
+    .card-lifestyle{position:absolute;left:-20%;top:-25px;width:18%;min-width:160px;transform:translateY(-100%)}
+    .totals-row{display:flex;justify-content:space-between;font-weight:700;margin-top:1rem}
   </style>
 </head>
 <body>
+
+  <!-- ========== EXISTING WIZARD MODAL ========== -->
   <div id="wizardModal" class="modal hidden">
     <div class="wizard-card">
       <div class="wiz-header">
@@ -88,6 +71,16 @@
         <button id="wizNext">Next</button>
       </div>
     </div>
+  </div>
+
+  <!-- ========== NEW BALANCE-SHEET RESULT PANEL ========== -->
+  <div id="balanceSheet" class="balance-sheet hidden">
+    <h2>Total net assets <span id="totNetAssets">€0</span></h2>
+    <div class="bs-grid"></div>
+    <p class="totals-row">
+      <span>Total assets <span id="totAssets">€0</span></span>
+      <span>Total liabilities <span id="totLiabs">€0</span></span>
+    </p>
   </div>
 
   <script type="module" src="./personalBalanceSheet.js"></script>

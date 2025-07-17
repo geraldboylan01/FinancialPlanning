@@ -372,7 +372,115 @@ btnBack.addEventListener('click',()=>{ if(currentStep>0){ saveStepValues(); rend
 modal.classList.remove('hidden');
 renderStep(0);
 
+/* --------------------------------------------------------------------------- */
+/*                            NEW BALANCE-SHEET CODE                           */
+/* --------------------------------------------------------------------------- */
+
+// Helper: safely reach deep values
+const pick = (obj, path) => path.reduce((o, k) =>
+  (o && o[k] !== undefined ? o[k] : 0), obj);
+
+// Helper: sum an array of numbers
+const sumVals = arr => arr.reduce((t, v) => t + (+v || 0), 0);
+
+// Compute subtotal per asset category + liabilities
+function computeTotals(data) {
+  const lifestyle =
+    (+pick(data, ['lifestyle', 'primaryHome', 'homeValue']) || 0) +
+    sumVals((data.lifestyle.holidayHomes || []).map(h => +h.value || 0));
+
+  const liquidity = ['cash', 'cashSavings', 'mmf', 'bonds', 'other']
+    .map(k => +pick(data, ['liquidity', k]) || 0)
+    .reduce((a, b) => a + b, 0);
+
+  const pensions   = sumVals((data.longevity.pensions || []).map(p => +p.value || 0));
+  const diversified= sumVals((data.longevity.diversified || []).map(d => +d.value || 0));
+  const longevity  = pensions + diversified;
+
+  const invProps   = sumVals((data.legacy.investmentProps || []).map(p => +p.value || 0));
+  const privBiz    = sumVals((data.legacy.privateBiz || []).map(b => +b.value || 0));
+  const stocks     = sumVals((data.legacy.singleStocks || []).map(s => +s.value || 0));
+  const collect    = sumVals((data.legacy.collectibles || []).map(c => +c.value || 0));
+  const legacy     = invProps + privBiz + stocks + collect;
+
+  const liabs      = sumVals((data.liabilities || []).map(l => +l.amount || 0));
+
+  return { lifestyle, liquidity, longevity, legacy, liabs };
+}
+
+// Build the four cards + totals and swap views
+function renderBalanceSheet(data) {
+  const sheet   = document.getElementById('balanceSheet');
+  const grid    = sheet.querySelector('.bs-grid');
+  const totals  = { assets: sheet.querySelector('#totAssets'),
+                    liabs : sheet.querySelector('#totLiabs'),
+                    net   : sheet.querySelector('#totNetAssets') };
+
+  // -------------------------------- subtotals
+  const t           = computeTotals(data);
+  const totalAssets = t.lifestyle + t.liquidity + t.longevity + t.legacy;
+  const netAssets   = totalAssets - t.liabs;
+
+  // -------------------------------- helpers to build HTML blocks
+  const format = n => `€${(+n).toLocaleString()}`;
+
+  const card = (cls, title, rows) => `
+    <div class="bs-card card-${cls}">
+      <h3>${title}</h3>
+      <ul>
+        ${rows.map(r => `<li><span>${r.label}</span><span>${format(r.val)}</span></li>`).join('')}
+        <li class="subtotal"><span>Sub-total</span><span>${format(t[cls])}</span></li>
+      </ul>
+    </div>`;
+
+  // -------------------------------- lifestyle rows
+  const lifestyleRows = [
+    { label:'Primary home', val: pick(data,['lifestyle','primaryHome','homeValue']) },
+    ... (data.lifestyle.holidayHomes||[]).map((h,i)=>({ label:`Holiday home ${i+1}`, val:h.value }))
+  ];
+
+  // -------------------------------- liquidity rows
+  const liquidityRows = [
+    {label:'Cash',        val: pick(data,['liquidity','cash'])},
+    {label:'Savings',     val: pick(data,['liquidity','cashSavings'])},
+    {label:'M-market',    val: pick(data,['liquidity','mmf'])},
+    {label:'Bond funds',  val: pick(data,['liquidity','bonds'])},
+    {label:'Other',       val: pick(data,['liquidity','other'])}
+  ];
+
+  // -------------------------------- longevity rows
+  const longevityRows = [
+    {label:'Pensions',     val: sumVals((data.longevity.pensions||[]).map(p=>+p.value||0))},
+    {label:'Diversified',  val: sumVals((data.longevity.diversified||[]).map(d=>+d.value||0))}
+  ];
+
+  // -------------------------------- legacy rows
+  const legacyRows = [
+    {label:'Inv. property',val: sumVals((data.legacy.investmentProps||[]).map(p=>+p.value||0))},
+    {label:'Private biz',  val: sumVals((data.legacy.privateBiz||[]).map(b=>+b.value||0))},
+    {label:'Stocks',       val: sumVals((data.legacy.singleStocks||[]).map(s=>+s.value||0))},
+    {label:'Collectibles', val: sumVals((data.legacy.collectibles||[]).map(c=>+c.value||0))}
+  ];
+
+  // -------------------------------- render everything
+  grid.innerHTML = `
+    ${card('lifestyle','Lifestyle',  lifestyleRows)}
+    ${card('liquidity','Liquidity',  liquidityRows)}
+    ${card('longevity','Longevity',  longevityRows)}
+    ${card('legacy',   'Legacy',     legacyRows)}
+  `;
+
+  totals.assets.textContent = format(totalAssets);
+  totals.liabs .textContent = format(t.liabs);
+  totals.net   .textContent = format(netAssets);
+
+  // -------------------------------- swap views
+  document.getElementById('wizardModal').classList.add('hidden');
+  sheet.classList.remove('hidden');
+}
+
+// ------------------------------- hook into final “Submit” --------------------
 function onSubmit(){
-  console.log(personalBalanceSheet); // TODO: integrate back-end action
-  modal.classList.add('hidden');
+  saveStepValues();      // capture final page values
+  renderBalanceSheet(personalBalanceSheet);
 }
