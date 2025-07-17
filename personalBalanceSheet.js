@@ -379,6 +379,7 @@ renderStep(0);
 // Helper: safely reach deep values
 const pick = (obj, path) => path.reduce((o, k) =>
   (o && o[k] !== undefined ? o[k] : 0), obj);
+const row  = (label, val) => (+val ? {label, val:+val} : null);
 
 // Helper: sum an array of numbers
 const sumVals = arr => arr.reduce((t, v) => t + (+v || 0), 0);
@@ -412,9 +413,11 @@ function computeTotals(data) {
 function renderBalanceSheet(data) {
   const sheet   = document.getElementById('balanceSheet');
   const grid    = sheet.querySelector('.bs-grid');
-  const totals  = { assets: sheet.querySelector('#totAssets'),
-                    liabs : sheet.querySelector('#totLiabs'),
-                    net   : sheet.querySelector('#totNetAssets') };
+  const totals  = {
+    net   : sheet.querySelector('#netAssets'),
+    assets: sheet.querySelector('#totAssets'),
+    liabs : sheet.querySelector('#totLiabs')
+  };
 
   // -------------------------------- subtotals
   const t           = computeTotals(data);
@@ -435,32 +438,33 @@ function renderBalanceSheet(data) {
 
   // -------------------------------- lifestyle rows
   const lifestyleRows = [
-    { label:'Primary home', val: pick(data,['lifestyle','primaryHome','homeValue']) },
-    ... (data.lifestyle.holidayHomes||[]).map((h,i)=>({ label:`Holiday home ${i+1}`, val:h.value }))
-  ];
+    row('Primary home', pick(data,['lifestyle','primaryHome','homeValue'])),
+    ... (data.lifestyle.holidayHomes||[])
+         .map((h,i)=>row(`Holiday home ${i+1}`, h.value))
+  ].filter(Boolean);
 
   // -------------------------------- liquidity rows
   const liquidityRows = [
-    {label:'Cash',        val: pick(data,['liquidity','cash'])},
-    {label:'Savings',     val: pick(data,['liquidity','cashSavings'])},
-    {label:'M-market',    val: pick(data,['liquidity','mmf'])},
-    {label:'Bond funds',  val: pick(data,['liquidity','bonds'])},
-    {label:'Other',       val: pick(data,['liquidity','other'])}
-  ];
+    row('Cash',       pick(data,['liquidity','cash'])),
+    row('Savings',    pick(data,['liquidity','cashSavings'])),
+    row('M-market',   pick(data,['liquidity','mmf'])),
+    row('Bond funds', pick(data,['liquidity','bonds'])),
+    row('Other',      pick(data,['liquidity','other']))
+  ].filter(Boolean);
 
   // -------------------------------- longevity rows
   const longevityRows = [
-    {label:'Pensions',     val: sumVals((data.longevity.pensions||[]).map(p=>+p.value||0))},
-    {label:'Diversified',  val: sumVals((data.longevity.diversified||[]).map(d=>+d.value||0))}
-  ];
+    row('Pensions',    sumVals((data.longevity.pensions||[]).map(p=>+p.value||0))),
+    row('Diversified', sumVals((data.longevity.diversified||[]).map(d=>+d.value||0)))
+  ].filter(Boolean);
 
   // -------------------------------- legacy rows
   const legacyRows = [
-    {label:'Inv. property',val: sumVals((data.legacy.investmentProps||[]).map(p=>+p.value||0))},
-    {label:'Private biz',  val: sumVals((data.legacy.privateBiz||[]).map(b=>+b.value||0))},
-    {label:'Stocks',       val: sumVals((data.legacy.singleStocks||[]).map(s=>+s.value||0))},
-    {label:'Collectibles', val: sumVals((data.legacy.collectibles||[]).map(c=>+c.value||0))}
-  ];
+    row('Inv. property', sumVals((data.legacy.investmentProps||[]).map(p=>+p.value||0))),
+    row('Private biz',   sumVals((data.legacy.privateBiz||[]).map(b=>+b.value||0))),
+    row('Stocks',        sumVals((data.legacy.singleStocks||[]).map(s=>+s.value||0))),
+    row('Collectibles',  sumVals((data.legacy.collectibles||[]).map(c=>+c.value||0)))
+  ].filter(Boolean);
 
   // -------------------------------- render everything
   grid.innerHTML = `
@@ -470,9 +474,9 @@ function renderBalanceSheet(data) {
     ${card('legacy',   'Legacy',     legacyRows)}
   `;
 
+  totals.net.textContent   = `Net assets ${format(netAssets)}`;
   totals.assets.textContent = format(totalAssets);
-  totals.liabs .textContent = format(t.liabs);
-  totals.net   .textContent = format(netAssets);
+  totals.liabs.textContent  = format(t.liabs);
 
   // -------------------------------- swap views
   document.getElementById('wizardModal').classList.add('hidden');

@@ -39,19 +39,26 @@
     /* ========== NEW BALANCE-SHEET VIEW ========== */
     .balance-sheet{width:90%;max-width:1100px;margin:2rem auto;color:#1a1a1a}
     .balance-sheet.hidden{display:none}
-    .balance-sheet h2{margin:.5rem 0 1.5rem 0;font-weight:700;font-size:1.4rem}
-    .bs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.2rem;position:relative}
-    .bs-card{background:#f4f4f4;border-radius:12px;padding:1rem 1.2rem}
+    .bs-header{display:flex;justify-content:space-between;align-items:flex-end}
+    .bs-header h2{margin:.5rem 0 1.5rem 0;font-weight:700;font-size:1.6rem}
+    .bs-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem}
+    .bs-card{background:#f4f4f4;border-radius:12px;padding:1rem 1.2rem;display:flex;flex-direction:column}
     .bs-card h3{margin:0 0 .4rem 0;font-size:1rem;font-weight:700;color:#fff;padding:.3rem .5rem;border-radius:4px}
-    .bs-card ul{list-style:none;padding:0;margin:.4rem 0 0 0;font-size:.9rem;line-height:1.4}
+    .bs-card ul{list-style:none;padding:0;margin:.4rem 0 0 0;font-size:.9rem;line-height:1.4;flex:1}
     .bs-card li{display:flex;justify-content:space-between;border-bottom:1px solid #ddd;padding:.25rem 0}
-    .bs-card .subtotal{font-weight:700}
-    .card-lifestyle h3{background:#663399}
-    .card-liquidity h3{background:#4a4a4a}
-    .card-longevity h3{background:#7a1f35}
-    .card-legacy h3{background:#0d4f8b}
-    .card-lifestyle{position:absolute;left:-20%;top:-25px;width:18%;min-width:160px;transform:translateY(-100%)}
-    .totals-row{display:flex;justify-content:space-between;font-weight:700;margin-top:1rem}
+    .bs-card .subtotal{font-weight:700;margin-top:auto}
+    :root{
+      --accent-1:#00aaff;
+      --accent-2:#00ff88;
+      --accent-3:#bfa571;
+      --accent-4:#ff4d4f;
+    }
+    .card-lifestyle h3{background:var(--accent-1)}
+    .card-liquidity h3{background:var(--accent-2)}
+    .card-longevity h3{background:var(--accent-3)}
+    .card-legacy h3{background:var(--accent-4)}
+    .gross-wrap{text-align:right}
+    .gross-wrap p{margin:0}
   </style>
 </head>
 <body>
@@ -75,12 +82,14 @@
 
   <!-- ========== NEW BALANCE-SHEET RESULT PANEL ========== -->
   <div id="balanceSheet" class="balance-sheet hidden">
-    <h2>Total net assets <span id="totNetAssets">€0</span></h2>
+    <div class="bs-header">
+      <h2 id="netAssets">Net assets €0</h2>
+      <div class="gross-wrap">
+        <p>Gross assets <span id="totAssets">€0</span></p>
+        <p>Total liabilities <span id="totLiabs">€0</span></p>
+      </div>
+    </div>
     <div class="bs-grid"></div>
-    <p class="totals-row">
-      <span>Total assets <span id="totAssets">€0</span></span>
-      <span>Total liabilities <span id="totLiabs">€0</span></span>
-    </p>
   </div>
 
   <script type="module" src="./personalBalanceSheet.js"></script>
