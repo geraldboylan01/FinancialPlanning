@@ -213,13 +213,25 @@ function renderRepeat(container, field, values){
     const remove=el('span',{className:'remove-link',textContent:'Remove'});
     remove.onclick=()=>{ values.splice(idx,1); renderStep(currentStep); };
     block.appendChild(remove);
+    const groups={};
     field.fields.forEach(f=>{
       if(f.showIf && !f.showIf(val)) return;
       const inputId=`${field.id}-${idx}-${f.id}`;
       const labelTxt=typeof f.label==='function'?f.label(val):f.label;
-      block.appendChild(el('label',{htmlFor:inputId,textContent:labelTxt}));
+      let parent=block;
+      if(f.group){
+        if(!groups[f.group]){
+          groups[f.group]=el('div',{className:'either-or'});
+          block.appendChild(groups[f.group]);
+        }
+        parent=groups[f.group];
+      }
+      const wrap=f.group?el('div',{className:'either-field'}):el('div');
+      wrap.appendChild(el('label',{htmlFor:inputId,textContent:labelTxt}));
       const inp=createInput(f,inputId,val[f.id]);
-      block.appendChild(inp);
+      wrap.appendChild(inp);
+      if(f.help) wrap.appendChild(el('small',{textContent:f.help}));
+      parent.appendChild(wrap);
     });
     container.appendChild(block);
   });
