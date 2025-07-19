@@ -416,7 +416,13 @@ function computeTotals(data) {
   const collect    = sumVals((data.legacy.collectibles || []).map(c => +c.value || 0));
   const legacy     = invProps + privBiz + stocks + collect;
 
-  const liabs      = sumVals((data.liabilities || []).map(l => +l.amount || 0));
+  const mortgages  =
+    (+pick(data, ['lifestyle', 'primaryHome', 'homeMortgage']) || 0) +
+    sumVals((data.lifestyle.holidayHomes || []).map(h => +h.mortgage || 0)) +
+    sumVals((data.legacy.investmentProps || []).map(p => +p.mortgage || 0));
+
+  const liabs      = mortgages +
+    sumVals((data.liabilities || []).map(l => +l.amount || 0));
 
   return { lifestyle, liquidity, longevity, legacy, liabs };
 }
