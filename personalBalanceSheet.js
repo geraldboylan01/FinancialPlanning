@@ -191,6 +191,12 @@ function el(tag, attrs){
   return e;
 }
 
+// Parse numeric inputs robustly by stripping commas or spaces
+function parseNum(val){
+  if(typeof val==='string') val=val.replace(/[,\s]/g,'');
+  return +val || 0;
+}
+
 function createInput(field,id,value){
   let inp;
   if(field.type==='select'){
@@ -338,7 +344,7 @@ function saveRepeatValues(arr, field){
     field.fields.forEach(f=>{
       const inp=block.querySelector(`#${field.id}-${idx}-${f.id}`);
       if(!inp) return;
-      obj[f.id]=f.type==='number'? +(inp.value||0) : inp.value;
+      obj[f.id]=f.type==='number'? parseNum(inp.value) : inp.value;
     });
     arr.push(obj);
   });
@@ -360,7 +366,7 @@ function saveStepValues(){
         if(field.showIf && !field.showIf(dest)) { delete dest[field.id]; return; }
         const inp=container.querySelector('#'+field.id);
         if(!inp) return;
-        dest[field.id]=field.type==='number'? +(inp.value||0) : inp.value;
+        dest[field.id]=field.type==='number'? parseNum(inp.value) : inp.value;
       }
     });
   }
