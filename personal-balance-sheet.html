@@ -39,8 +39,8 @@
     /* ========== NEW BALANCE-SHEET VIEW ========== */
     .balance-sheet{width:90%;max-width:1100px;margin:2rem auto;color:#1a1a1a}
     .balance-sheet.hidden{display:none}
-    .bs-header{display:flex;justify-content:space-between;align-items:flex-end}
-    .bs-header h2{margin:.5rem 0 1.5rem 0;font-weight:700;font-size:1.6rem}
+    .bs-header{display:flex;justify-content:space-between;align-items:center;background:#f4f4f4;border-radius:12px;padding:1rem 1.2rem;margin-bottom:1.2rem}
+    .bs-header .net-worth{font-weight:700;font-size:1.4rem}
     .bs-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.2rem}
     .bs-card{background:#f4f4f4;border-radius:12px;padding:1rem 1.2rem;display:flex;flex-direction:column}
     .bs-card h3{margin:0 0 .4rem 0;font-size:1rem;font-weight:700;color:#fff;padding:.3rem .5rem;border-radius:4px}
@@ -57,8 +57,8 @@
     .card-liquidity h3{background:var(--accent-2)}
     .card-longevity h3{background:var(--accent-3)}
     .card-legacy h3{background:var(--accent-4)}
-    .gross-wrap{text-align:right}
-    .gross-wrap p{margin:0}
+    .gross-wrap{display:flex;flex-direction:column;text-align:right}
+    .gross-wrap div{margin:0}
   </style>
 </head>
 <body>
@@ -83,10 +83,10 @@
   <!-- ========== NEW BALANCE-SHEET RESULT PANEL ========== -->
   <div id="balanceSheet" class="balance-sheet hidden">
     <div class="bs-header">
-      <h2 id="netAssets">Net assets €0</h2>
+      <div class="net-worth"><span id="netAssets">Net assets €0</span></div>
       <div class="gross-wrap">
-        <p>Gross assets <span id="totAssets">€0</span></p>
-        <p>Total liabilities <span id="totLiabs">€0</span></p>
+        <div>Gross assets <span id="totAssets">€0</span></div>
+        <div>Total liabilities <span id="totLiabs">€0</span></div>
       </div>
     </div>
     <div class="bs-grid"></div>
