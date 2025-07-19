@@ -402,6 +402,8 @@ const row  = (label, val) => (+val ? {label, val:+val} : null);
 // Helper: sum an array of numbers
 const sumVals = arr => arr.reduce((t, v) => t + (+v || 0), 0);
 
+let assetsChart = null;
+
 // Compute subtotal per asset category + liabilities
 function computeTotals(data) {
   const lifestyle =
@@ -431,6 +433,75 @@ function computeTotals(data) {
     sumVals((data.liabilities || []).map(l => +l.amount || 0));
 
   return { lifestyle, liquidity, longevity, legacy, liabs };
+}
+
+function renderAssetsChart(t){
+  const ctx = document.getElementById('assetsChart').getContext('2d');
+  const labels = ['Lifestyle','Liquidity','Longevity','Legacy'];
+  const values = [t.lifestyle,t.liquidity,t.longevity,t.legacy];
+  const colours = ['var(--accent-1)','var(--accent-2)','var(--accent-3)','var(--accent-4)'];
+
+  const filtered = values.map((v,i)=>v>0?i:null).filter(i=>i!==null);
+  const data = {
+    labels: filtered.map(i=>labels[i]),
+    datasets:[{
+      data: filtered.map(i=>values[i]),
+      backgroundColor: filtered.map(i=>colours[i]),
+      borderWidth:0
+    }]
+  };
+
+  const total = values.reduce((a,b)=>a+b,0);
+
+  const centerText = {
+    id:'centerText',
+    afterDraw(chart){
+      const {ctx, chartArea:{width,height}} = chart;
+      ctx.save();
+      ctx.font = '600 1.2rem Inter';
+      ctx.textAlign='center';
+      ctx.fillStyle='#fff';
+      ctx.fillText('Net Assets', width/2, height/2 - 6);
+      ctx.font='700 1.4rem Inter';
+      ctx.fillText(`€${total.toLocaleString()}`, width/2, height/2 + 18);
+    }
+  };
+
+  const arcLabels = {
+    id:'arcLabels',
+    afterDatasetDraw(chart,args){
+      const {ctx} = chart;
+      const meta = chart.getDatasetMeta(args.index);
+      meta.data.forEach((arc,i)=>{
+        const value = chart.data.datasets[args.index].data[i];
+        const pct = ((value/total)*100).toFixed(0)+'%';
+        const pos = arc.tooltipPosition();
+        ctx.save();
+        ctx.fillStyle='#fff';
+        ctx.font='600 0.75rem Inter';
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.fillText(pct,pos.x,pos.y);
+        ctx.restore();
+      });
+    }
+  };
+
+  const options = {
+    cutout:'55%',
+    responsive:true,
+    maintainAspectRatio:false,
+    animation:{animateRotate:true,duration:900,easing:'easeOutQuart'},
+    plugins:{legend:{display:false}}
+  };
+
+  if(assetsChart){
+    assetsChart.data=data;
+    assetsChart.options=options;
+    assetsChart.update();
+  }else{
+    assetsChart = new Chart(ctx,{type:'doughnut',data,options,plugins:[centerText,arcLabels]});
+  }
 }
 
 // Build the four cards + totals and swap views
@@ -503,6 +574,8 @@ function renderBalanceSheet(data) {
   totals.net.textContent   = `Net assets ${format(netAssets)}`;
   totals.assets.textContent = format(totalAssets);
   totals.liabs.textContent  = format(t.liabs);
+
+  renderAssetsChart(t);
 
   // -------------------------------- swap views
   document.getElementById('wizardModal').classList.add('hidden');
