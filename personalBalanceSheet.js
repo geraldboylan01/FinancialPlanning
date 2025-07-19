@@ -452,7 +452,7 @@ function renderBalanceSheet(data) {
   const lifestyleRows = [
     row('Primary home', pick(data,['lifestyle','primaryHome','homeValue'])),
     ... (data.lifestyle.holidayHomes||[])
-         .map((h,i)=>row(`Holiday home ${i+1}`, h.value))
+         .map(h=>row(`${h.nick} holiday home`, h.value))
   ].filter(Boolean);
 
   // -------------------------------- liquidity rows
@@ -467,12 +467,14 @@ function renderBalanceSheet(data) {
   // -------------------------------- longevity rows
   const longevityRows = [
     row('Pensions',    sumVals((data.longevity.pensions||[]).map(p=>+p.value||0))),
-    row('Diversified', sumVals((data.longevity.diversified||[]).map(d=>+d.value||0)))
+    ... (data.longevity.diversified||[])
+         .map(d=>row(`${d.nick} investments`, d.value))
   ].filter(Boolean);
 
   // -------------------------------- legacy rows
   const legacyRows = [
-    row('Inv. property', sumVals((data.legacy.investmentProps||[]).map(p=>+p.value||0))),
+    ... (data.legacy.investmentProps||[])
+         .map(p=>row(`${p.nick} inv. property`, p.value)),
     row('Private biz',   sumVals((data.legacy.privateBiz||[]).map(b=>+b.value||0))),
     row('Stocks',        sumVals((data.legacy.singleStocks||[]).map(s=>+s.value||0))),
     row('Collectibles',  sumVals((data.legacy.collectibles||[]).map(c=>+c.value||0)))
