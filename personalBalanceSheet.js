@@ -591,4 +591,11 @@ function onSubmit(){
   saveStepValues();      // capture final page values
   renderBalanceSheet(personalBalanceSheet);
 }
+
+// Allow editing details from the results view
+document.getElementById('editDetails').addEventListener('click', () => {
+  document.getElementById('balanceSheet').classList.add('hidden');
+  modal.classList.remove('hidden');
+  renderStep(0);
+});
 // end of Personal Balance Sheet script
