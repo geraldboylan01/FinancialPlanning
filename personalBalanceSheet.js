@@ -441,7 +441,9 @@ function renderAssetsChart(t){
   const ctx = document.getElementById('assetsChart').getContext('2d');
   const labels = ['Lifestyle','Liquidity','Longevity','Legacy'];
   const values = [t.lifestyle,t.liquidity,t.longevity,t.legacy];
-  const colours = ['var(--accent-1)','var(--accent-2)','var(--accent-3)','var(--accent-4)'];
+  const style = getComputedStyle(document.documentElement);
+  const colours = ['--accent-1','--accent-2','--accent-3','--accent-4']
+    .map(c => style.getPropertyValue(c).trim());
 
   const filtered = values.map((v,i)=>v>0?i:null).filter(i=>i!==null);
   const data = {
