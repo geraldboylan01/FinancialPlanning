@@ -569,7 +569,8 @@ function renderBalanceSheet(data) {
   const legacyRows = [
     ... (data.legacy.investmentProps||[])
          .map(p=>row(`${p.nick} inv. property`, p.value)),
-    row('Private biz',   sumVals((data.legacy.privateBiz||[]).map(b=>+b.value||0))),
+    ... (data.legacy.privateBiz||[])
+         .map(b=>row(b.name || 'Private biz', b.value)),
     row('Stocks',        sumVals((data.legacy.singleStocks||[]).map(s=>+s.value||0))),
     row('Collectibles',  sumVals((data.legacy.collectibles||[]).map(c=>+c.value||0)))
   ].filter(Boolean);
