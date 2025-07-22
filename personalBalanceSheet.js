@@ -225,6 +225,11 @@ function renderRepeat(container, field, values){
     const groups={};
     field.fields.forEach(f=>{
       if(f.showIf && !f.showIf(val)) return;
+      if(f.type==='note'){
+        const note=el('p',{className:'optional-info',textContent:f.text});
+        block.appendChild(note);
+        return;
+      }
       const inputId=`${field.id}-${idx}-${f.id}`;
       const labelTxt=typeof f.label==='function'?f.label(val):f.label;
       let parent=block;
