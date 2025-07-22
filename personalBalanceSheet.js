@@ -112,6 +112,7 @@ const wizardSteps = [
     id:'pensions', title:'Do you have existing pensions?', tooltip:'Personal and company pensions',
     store:'longevity.pensions[]', repeat:true, addLabel:'Add pension',
     fields:[
+      {id:'nick', label:'Nickname', type:'text'},
       {id:'type', label:'Pension type', type:'select', options:['Occupational Pension','Personal Retirement Bond (PRB)','Personal Retirement Savings Account (PRSA)','Defined Benefit (DB)','Approved Retirement Fund (ARF)']},
       {id:'value', label:d=>d.type==='Defined Benefit (DB)'?'Expected annual pension income (€)':'Current value (€)', type:'number', showIf:d=>!!d.type},
       {id:'retAge', label:'Scheme retirement age', type:'number', optional:true, showIf:d=>d.type==='Defined Benefit (DB)'}
@@ -553,7 +554,8 @@ function renderBalanceSheet(data) {
 
   // -------------------------------- longevity rows
   const longevityRows = [
-    row('Pensions',    sumVals((data.longevity.pensions||[]).map(p=>+p.value||0))),
+    ... (data.longevity.pensions||[])
+         .map(p => row(`${(p.nick || p.type || 'Pension')} pension`, p.value)),
     ... (data.longevity.diversified||[])
          .map(d=>row(`${d.nick} investments`, d.value))
   ].filter(Boolean);
