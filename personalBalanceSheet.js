@@ -465,15 +465,16 @@ function renderAssetsChart(t){
 
   const centerText = {
     id:'centerText',
-    afterDraw(chart){
+    afterDatasetsDraw(chart){
       const {ctx, chartArea:{width,height}} = chart;
       ctx.save();
       ctx.font = '600 1.2rem Inter';
       ctx.textAlign='center';
       ctx.fillStyle='#fff';
-      ctx.fillText('Net Assets', width/2, height/2 - 6);
+      ctx.fillText('Gross Assets', width/2, height/2 - 6);
       ctx.font='700 1.4rem Inter';
       ctx.fillText(`€${total.toLocaleString()}`, width/2, height/2 + 18);
+      ctx.restore();
     }
   };
 
