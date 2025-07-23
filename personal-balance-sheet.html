@@ -125,9 +125,13 @@
     <div class="chart-wrapper">
       <canvas id="assetsChart" tabindex="0" aria-label="Breakdown of gross assets" role="img"></canvas>
     </div>
+    <button id="downloadPdf" style="margin-top:1rem">Download PDF report</button>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.0/dist/jspdf.plugin.autotable.min.js"></script>
+  <script type="module" src="pdfWarningHelpers.js"></script>
   <script type="module" src="./personalBalanceSheet.js"></script>
 </body>
 </html>
