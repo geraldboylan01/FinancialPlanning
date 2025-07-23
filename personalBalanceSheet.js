@@ -260,7 +260,8 @@ function renderStep(i){
   const step=wizardSteps[i];
   prog.textContent=`Step ${i+1} of ${totalSteps}`;
   progFill.style.width=((i+1)/totalSteps*100)+"%";
-  titleEl.innerHTML=`${step.title} <span title="${step.tooltip}" class="tip">?</span>`;
+  // Display the step title only; remove tooltip "?" icon
+  titleEl.textContent = step.title;
   dots.innerHTML=wizardSteps.map((_,idx)=>`<button class="wizDot${idx===i?' active':''}" data-idx="${idx}"></button>`).join('');
   dots.querySelectorAll('button').forEach(b=>b.onclick=()=>{saveStepValues();renderStep(+b.dataset.idx);});
   container.innerHTML='';
