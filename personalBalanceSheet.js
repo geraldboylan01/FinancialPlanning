@@ -608,4 +608,147 @@ document.getElementById('editDetails').addEventListener('click', () => {
   modal.classList.remove('hidden');
   renderStep(0);
 });
+
+// Capture chart image for PDF
+function captureChart() {
+  if (!assetsChart) return null;
+  const canvas = assetsChart.canvas;
+  return {
+    img: canvas.toDataURL('image/png', 1.0),
+    w: canvas.clientWidth,
+    h: canvas.clientHeight
+  };
+}
+
+function fmtEuro(n) {
+  return '€' + (+n).toLocaleString();
+}
+
+function generatePDF() {
+  const totals = computeTotals(personalBalanceSheet);
+  const totalAssets = totals.lifestyle + totals.liquidity + totals.longevity + totals.legacy;
+  const netAssets = totalAssets - totals.liabs;
+
+  const chart = captureChart();
+
+  const BG_DARK = '#1a1a1a';
+  const ACCENT_CYAN = '#0099ff';
+  const COVER_GOLD = '#BBA26F';
+
+  const doc = new jspdf.jsPDF({ unit: 'pt', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+
+  const pageBG = () => { doc.setFillColor(BG_DARK); doc.rect(0,0,pageW,pageH,'F'); };
+  const addFooter = n => {
+    doc.setFontSize(9).setTextColor(120);
+    const t = `Page ${n}`;
+    doc.text(t, pageW - doc.getTextWidth(t) - 40, pageH - 30);
+  };
+
+  /* ----- COVER ----- */
+  pageBG();
+  doc.setFont('times','bold').setFontSize(48).setTextColor(COVER_GOLD)
+     .text('Planéir', pageW/2, 90, {align:'center'});
+  const logoW = 220, logoY = 130;
+  doc.addImage('./favicon.png','PNG',(pageW-logoW)/2,logoY,logoW,0,'','FAST');
+  const subY = logoY + logoW + 40;
+  doc.setFontSize(32).setFont(undefined,'bold').setTextColor(COVER_GOLD);
+  doc.text('Personal Balance Sheet', pageW/2, subY, {align:'center'});
+  doc.setFont('times','normal');
+  addFooter(1);
+  doc.addPage();
+
+  /* ----- HOW IT WORKS ----- */
+  pageBG();
+  const boxMargin = 30;
+  const boxX = boxMargin;
+  const boxW = pageW - boxMargin*2;
+  const boxY = 80;
+  const heading = 'How this tool works';
+  const body =
+    '•  We organise your assets into Lifestyle, Liquidity, Longevity and Legacy.' +
+    '\n\n•  Lifestyle covers property for your own use.' +
+    '\n\n•  Liquidity is cash or near-cash for emergencies—typically 3–6 months of expenses when working, or 1–2 years when retired.' +
+    '\n\n•  Longevity represents long-term investments aimed at reaching your F*ck You Money target.' +
+    '\n\n•  Legacy includes assets you plan to pass on. Reviewing this split helps judge if you are setting aside enough for Liquidity and Longevity.';
+
+  doc.setFontSize(16).setFont(undefined,'bold');
+  const headingH = 22;
+  doc.setFontSize(14);
+  const wrapped = doc.splitTextToSize(body, boxW - 48);
+  const lineH = 18;
+  const bodyH = wrapped.length * lineH;
+  const boxH = 32 + headingH + 14 + bodyH + 24;
+
+  doc.setFillColor('#222').setDrawColor(ACCENT_CYAN).setLineWidth(2)
+     .roundedRect(boxX, boxY, boxW, boxH, 14,14,'FD');
+
+  let cursorY = boxY + 32;
+  doc.setFontSize(16).setFont(undefined,'bold').setTextColor(ACCENT_CYAN);
+  doc.text(heading, boxX + 24, cursorY);
+  cursorY += headingH + 14;
+  doc.setFontSize(14).setFont(undefined,'normal').setTextColor('#fff');
+  doc.text(wrapped, boxX + 24, cursorY, {lineHeightFactor:1.3});
+
+  addFooter(2);
+  doc.addPage();
+
+  /* ----- RESULTS ----- */
+  pageBG();
+  let y = 60;
+  doc.setFontSize(18).setFont(undefined,'bold').setTextColor(ACCENT_CYAN);
+  doc.text('Results', 50, y);
+  y += 22;
+
+  const totRows = [
+    ['Gross assets', fmtEuro(totalAssets)],
+    ['Total liabilities', fmtEuro(totals.liabs)],
+    ['Net assets', fmtEuro(netAssets)]
+  ];
+
+  doc.autoTable({
+    startY: y,
+    margin: {left:40,right:40},
+    body: totRows,
+    head: [['Metric','Value']],
+    headStyles:{fillColor:ACCENT_CYAN,textColor:'#000'},
+    bodyStyles:{fillColor:'#2a2a2a',textColor:'#fff'},
+    alternateRowStyles:{fillColor:'#242424',textColor:'#fff'}
+  });
+
+  y = doc.lastAutoTable.finalY + 12;
+  const catRows = [
+    ['Lifestyle', fmtEuro(totals.lifestyle)],
+    ['Liquidity', fmtEuro(totals.liquidity)],
+    ['Longevity', fmtEuro(totals.longevity)],
+    ['Legacy', fmtEuro(totals.legacy)]
+  ];
+
+  doc.autoTable({
+    startY: y,
+    margin: {left:40,right:40},
+    head: [['Category','Value']],
+    body: catRows,
+    headStyles:{fillColor:ACCENT_CYAN,textColor:'#000'},
+    bodyStyles:{fillColor:'#2a2a2a',textColor:'#fff'},
+    alternateRowStyles:{fillColor:'#242424',textColor:'#fff'}
+  });
+
+  y = doc.lastAutoTable.finalY + 20;
+  if (chart) {
+    const ratio = chart.h / chart.w;
+    const imgW = pageW - 80;
+    doc.addImage(chart.img, 'PNG', 40, y, imgW, imgW * ratio, '', 'FAST');
+    y += imgW * ratio + 12;
+  }
+
+  addFooter(3);
+
+  doc.save('planéir_report.pdf');
+  const pdfUrl = doc.output('bloburl');
+  import('./consentModal.js').then(m=>m.showConsent(pdfUrl));
+}
+
+document.getElementById('downloadPdf').addEventListener('click', generatePDF);
 // end of Personal Balance Sheet script
