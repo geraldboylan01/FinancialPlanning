@@ -719,16 +719,16 @@ Understanding and reviewing this breakdown regularly is essential—it helps ens
 
   const headerW = Math.min(pageW * 0.85, 1100);
   const headerX = (pageW - headerW) / 2;
-  const headerH = 80;
+  const headerH = 60;
   doc.setFillColor('#f4f4f4');
   doc.roundedRect(headerX, topY, headerW, headerH, 8, 8, 'F');
   const colW = headerW / 2;
   const leftX = headerX + colW / 2;
   const rightX = headerX + colW + colW / 2;
 
-  const labelSize = 16;   // match table headers
-  const valueSize = 14;   // match table body
-  const spacing    = 6;
+  const labelSize = 12;   // match table headers
+  const valueSize = 10;   // match table body
+  const spacing    = 4;
 
   // ---- Net Assets (single column)
   let blockH = labelSize + valueSize + spacing;
