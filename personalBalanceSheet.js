@@ -699,60 +699,85 @@ function generatePDF() {
   addFooter(2);
   doc.addPage();
 
-  /* ----- RESULTS ----- */
-  pageBG();
-  let y = 60;
-  doc.setFontSize(18).setFont(undefined,'bold').setTextColor(ACCENT_CYAN);
-  doc.text('Results', 50, y);
-  y += 22;
+  const node = document.getElementById('balanceSheet');
+  const opt = {
+    margin: 10,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'pt', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all'] }
+  };
 
-  const totRows = [
-    ['Gross assets', fmtEuro(totalAssets)],
-    ['Total liabilities', fmtEuro(totals.liabs)],
-    ['Net assets', fmtEuro(netAssets)]
-  ];
+  html2pdf().set(opt).from(node).toPdf().get('pdf').then(pdf => {
+    pdf.deletePage(1);
+    pdf.deletePage(1);
 
-  doc.autoTable({
-    startY: y,
-    margin: {left:40,right:40},
-    body: totRows,
-    head: [['Metric','Value']],
-    headStyles:{fillColor:ACCENT_CYAN,textColor:'#000'},
-    bodyStyles:{fillColor:'#2a2a2a',textColor:'#fff'},
-    alternateRowStyles:{fillColor:'#242424',textColor:'#fff'}
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+
+    pdf.insertPage(1);
+    pdf.setPage(1);
+    pageBG();
+    pdf.setFont('times','bold').setFontSize(48).setTextColor(COVER_GOLD)
+       .text('Planéir', pageW/2, 90, {align:'center'});
+    const logoW = 220, logoY = 130;
+    pdf.addImage('./favicon.png','PNG',(pageW-logoW)/2,logoY,logoW,0,'','FAST');
+    const subY = logoY + logoW + 40;
+    pdf.setFontSize(32).setFont(undefined,'bold').setTextColor(COVER_GOLD);
+    pdf.text('Personal Balance Sheet', pageW/2, subY, {align:'center'});
+    pdf.setFont('times','normal');
+    addFooter(1);
+
+    pdf.insertPage(2);
+    pdf.setPage(2);
+    pageBG();
+    const boxMargin = 30;
+    const boxX = boxMargin;
+    const boxW = pageW - boxMargin*2;
+    const boxY = 80;
+    const heading = 'How this tool works';
+    const body = `•  This tool is designed to clearly break down your total asset base into meaningful categories, helping you easily understand your financial position and make smarter decisions about your money. By organising your assets into four intuitive sections—Lifestyle, Liquidity, Longevity, and Legacy—we give you a clear snapshot of what you own, why it matters, and how it can support your future goals.
+
+•  Lifestyle includes properties used primarily for your own enjoyment or personal living, such as your family home or holiday home. Ideally, these assets shouldn't be considered investments to fund your retirement. By placing them in their own category, we’re highlighting that they’re not the assets you should be relying on when planning your financial future.
+
+•  Liquidity includes cash or easily accessible funds that you should keep available to handle emergencies or unexpected expenses. Typically, it’s recommended to hold between 3–6 months of living expenses if you’re working, or 1–2 years if you’re retired. Ensuring sufficient liquidity gives you peace of mind, knowing you're prepared for life's surprises.
+
+•  Longevity represents your long-term, diversified investments designed specifically to support your lifestyle in retirement. These assets are strategically positioned to grow steadily over time, while remaining liquid enough for you to access when needed. Building a robust Longevity portfolio ensures that you can comfortably fund your retirement years.
+
+•  Legacy covers concentrated or illiquid assets, such as investment properties, family businesses, equity partnerships, or individual stocks. While these assets might generate valuable income (like rental income) during retirement, they typically carry greater risk due to their concentrated nature and limited liquidity. Regularly reviewing your Legacy allocation helps prevent becoming overly reliant on these riskier assets when planning your financial future.
+
+•  Understanding and reviewing this breakdown regularly is essential—it helps ensure you maintain a balanced approach to risk, sufficient liquidity for security, and a reliable investment plan to sustain your long-term goals.`;
+
+    pdf.setFontSize(16).setFont(undefined,'bold');
+    const headingH = 22;
+    pdf.setFontSize(14);
+    const wrapped = pdf.splitTextToSize(body, boxW - 48);
+    const lineH = 18;
+    const bodyH = wrapped.length * lineH;
+    const boxH = 32 + headingH + 14 + bodyH + 24;
+
+    pdf.setFillColor('#222').setDrawColor(ACCENT_CYAN).setLineWidth(2)
+       .roundedRect(boxX, boxY, boxW, boxH, 14,14,'FD');
+
+    let cursorY = boxY + 32;
+    pdf.setFontSize(16).setFont(undefined,'bold').setTextColor(ACCENT_CYAN);
+    pdf.text(heading, boxX + 24, cursorY);
+    cursorY += headingH + 14;
+    pdf.setFontSize(14).setFont(undefined,'normal').setTextColor('#fff');
+    pdf.text(wrapped, boxX + 24, cursorY, {lineHeightFactor:1.3});
+
+    addFooter(2);
+
+    const count = pdf.getNumberOfPages();
+    for (let i = 3; i <= count; i++) {
+      pdf.setPage(i);
+      addFooter(i);
+    }
+
+    pdf.save('planéir_report.pdf');
+    const pdfUrl = pdf.output('bloburl');
+    import('./consentModal.js').then(m=>m.showConsent(pdfUrl));
   });
-
-  y = doc.lastAutoTable.finalY + 12;
-  const catRows = [
-    ['Lifestyle', fmtEuro(totals.lifestyle)],
-    ['Liquidity', fmtEuro(totals.liquidity)],
-    ['Longevity', fmtEuro(totals.longevity)],
-    ['Legacy', fmtEuro(totals.legacy)]
-  ];
-
-  doc.autoTable({
-    startY: y,
-    margin: {left:40,right:40},
-    head: [['Category','Value']],
-    body: catRows,
-    headStyles:{fillColor:ACCENT_CYAN,textColor:'#000'},
-    bodyStyles:{fillColor:'#2a2a2a',textColor:'#fff'},
-    alternateRowStyles:{fillColor:'#242424',textColor:'#fff'}
-  });
-
-  y = doc.lastAutoTable.finalY + 20;
-  if (chart) {
-    const ratio = chart.h / chart.w;
-    const imgW = pageW - 80;
-    doc.addImage(chart.img, 'PNG', 40, y, imgW, imgW * ratio, '', 'FAST');
-    y += imgW * ratio + 12;
-  }
-
-  addFooter(3);
-
-  doc.save('planéir_report.pdf');
-  const pdfUrl = doc.output('bloburl');
-  import('./consentModal.js').then(m=>m.showConsent(pdfUrl));
 }
 
 document.getElementById('downloadPdf').addEventListener('click', generatePDF);
