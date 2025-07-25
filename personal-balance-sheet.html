@@ -31,7 +31,24 @@
     #wizProgressBar{height:6px;background:#ddd;border-radius:3px;margin:0 24px 12px}
     #wizProgressFill{height:100%;width:0;background:#00aaff;border-radius:3px;transition:width .25s ease}
     #wizDots{display:flex;gap:.35rem;justify-content:center}
-    button.wizDot{width:.75rem;aspect-ratio:1/1;border-radius:50%;flex:0 0 auto;border:none;background:#888;cursor:pointer;padding:0;margin:0}
+    button.wizDot{
+      width:.75rem;
+      height:.75rem;
+      min-height:0;
+      aspect-ratio:1/1;
+      border-radius:50%;
+      flex:0 0 auto;
+      border:none;
+      background:#888;
+      cursor:pointer;
+      padding:0;
+      margin:0;
+      transition:transform .25s,box-shadow .25s;
+    }
+    button.wizDot:hover{
+      box-shadow:0 0 12px rgba(0,255,136,.6);
+      transform:scale(1.2);
+    }
     button.wizDot.active,button.wizDot:focus-visible{background:#00aaff}
     .wizard-controls{display:flex;justify-content:space-between;margin-top:auto}
     .currency{position:relative;display:inline-block}
