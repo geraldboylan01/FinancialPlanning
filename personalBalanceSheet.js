@@ -725,19 +725,34 @@ Understanding and reviewing this breakdown regularly is essential—it helps ens
   const colW = headerW / 2;
   const leftX = headerX + colW / 2;
   const rightX = headerX + colW + colW / 2;
-  curY = topY + 20;
-  doc.setFontSize(12).setFont(undefined,'bold').setTextColor('#1a1a1a');
+
+  const LABEL_FONT = 12;
+  const VALUE_FONT = 14;
+  const ROW_GAP = 4;
+  const PAIR_GAP = 12;
+
+  // ----- Left column (Net Assets) -----
+  let blockH = LABEL_FONT + ROW_GAP + VALUE_FONT;
+  curY = topY + (headerH - blockH) / 2 + LABEL_FONT;
+  doc.setFontSize(LABEL_FONT).setFont(undefined,'bold').setTextColor('#1a1a1a');
   doc.text('Net Assets', leftX, curY, {align:'center'});
-  doc.text('Gross Assets', rightX, curY, {align:'center'});
-  curY += 18;
-  doc.setFontSize(14).setFont(undefined,'normal');
+  curY += ROW_GAP + VALUE_FONT;
+  doc.setFontSize(VALUE_FONT).setFont(undefined,'normal');
   doc.text(fmtEuro(netAssets), leftX, curY, {align:'center'});
+
+  // ----- Right column (Gross Assets & Liabilities) -----
+  blockH = LABEL_FONT + ROW_GAP + VALUE_FONT + PAIR_GAP + LABEL_FONT + ROW_GAP + VALUE_FONT;
+  curY = topY + (headerH - blockH) / 2 + LABEL_FONT;
+  doc.setFontSize(LABEL_FONT).setFont(undefined,'bold');
+  doc.text('Gross Assets', rightX, curY, {align:'center'});
+  curY += ROW_GAP + VALUE_FONT;
+  doc.setFontSize(VALUE_FONT).setFont(undefined,'normal');
   doc.text(fmtEuro(totalAssets), rightX, curY, {align:'center'});
-  curY += 26;
-  doc.setFontSize(12).setFont(undefined,'bold');
+  curY += PAIR_GAP + LABEL_FONT;
+  doc.setFontSize(LABEL_FONT).setFont(undefined,'bold');
   doc.text('Total Liabilities', rightX, curY, {align:'center'});
-  curY += 18;
-  doc.setFontSize(14).setFont(undefined,'normal');
+  curY += ROW_GAP + VALUE_FONT;
+  doc.setFontSize(VALUE_FONT).setFont(undefined,'normal');
   doc.text(fmtEuro(t.liabs), rightX, curY, {align:'center'});
   topY += headerH + 30;
 
