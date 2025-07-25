@@ -723,8 +723,9 @@ Understanding and reviewing this breakdown regularly is essential—it helps ens
   doc.setFillColor('#f4f4f4');
   doc.roundedRect(headerX, topY, headerW, headerH, 8, 8, 'F');
   const colW = headerW / 2;
-  const leftX = headerX + colW / 2;
-  const rightX = headerX + colW + colW / 2;
+  const leftX = headerX + colW / 2;   // unused but kept for backward compatibility
+  const rightX = headerX + colW + colW / 2; // unused but kept for backward compatibility
+  const pad = 24;
 
   const labelSize = 10;   // slightly smaller fonts for summary box
   const valueSize = 8;    // slightly smaller fonts for summary box
@@ -733,18 +734,18 @@ Understanding and reviewing this breakdown regularly is essential—it helps ens
   // ---- Net Assets (single column)
   currentY = topY + (headerH - netFontSize)/2 + netFontSize;
   doc.setFontSize(netFontSize).setFont(undefined,'bold').setTextColor('#1a1a1a');
-  doc.text(`Net Assets ${fmtEuro(netAssets)}`, leftX, currentY, {align:'center'});
+  doc.text(`Net Assets ${fmtEuro(netAssets)}`, headerX + pad, currentY, {align:'left'});
 
   // ---- Gross Assets (top right)
   const rowH = headerH / 2;
   currentY = topY + (rowH - labelSize)/2 + labelSize;
-  doc.setFontSize(labelSize).setFont(undefined,'bold');
-  doc.text(`Gross Assets ${fmtEuro(totalAssets)}`, rightX, currentY, {align:'center'});
+  doc.setFontSize(labelSize).setFont(undefined,'normal');
+  doc.text(`Gross Assets ${fmtEuro(totalAssets)}`, headerX + headerW - pad, currentY, {align:'right'});
 
   // ---- Total Liabilities (bottom right)
   currentY = topY + rowH + (rowH - labelSize)/2 + labelSize;
-  doc.setFontSize(labelSize).setFont(undefined,'bold');
-  doc.text(`Total Liabilities ${fmtEuro(t.liabs)}`, rightX, currentY, {align:'center'});
+  doc.setFontSize(labelSize).setFont(undefined,'normal');
+  doc.text(`Total Liabilities ${fmtEuro(t.liabs)}`, headerX + headerW - pad, currentY, {align:'right'});
   topY += headerH + 30;
 
   const gridNode = document.querySelector('.bs-grid');
