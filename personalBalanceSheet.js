@@ -726,8 +726,8 @@ Understanding and reviewing this breakdown regularly is essential—it helps ens
   const leftX = headerX + colW / 2;
   const rightX = headerX + colW + colW / 2;
 
-  const labelSize = 12;   // match table headers
-  const valueSize = 10;   // match table body
+  const labelSize = 10;   // slightly smaller fonts for summary box
+  const valueSize = 8;    // slightly smaller fonts for summary box
   const spacing    = 4;
 
   // ---- Net Assets (single column)
