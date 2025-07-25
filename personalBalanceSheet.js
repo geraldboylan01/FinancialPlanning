@@ -725,19 +725,36 @@ Understanding and reviewing this breakdown regularly is essential—it helps ens
   const colW = headerW / 2;
   const leftX = headerX + colW / 2;
   const rightX = headerX + colW + colW / 2;
-  currentY = topY + 20;
-  doc.setFontSize(12).setFont(undefined,'bold').setTextColor('#1a1a1a');
+
+  const labelSize = 16;   // match table headers
+  const valueSize = 14;   // match table body
+  const spacing    = 6;
+
+  // ---- Net Assets (single column)
+  let blockH = labelSize + valueSize + spacing;
+  currentY = topY + (headerH - blockH)/2 + labelSize;
+  doc.setFontSize(labelSize).setFont(undefined,'bold').setTextColor('#1a1a1a');
   doc.text('Net Assets', leftX, currentY, {align:'center'});
-  doc.text('Gross Assets', rightX, currentY, {align:'center'});
-  currentY += 18;
-  doc.setFontSize(14).setFont(undefined,'normal');
+  currentY += spacing + valueSize;
+  doc.setFontSize(valueSize).setFont(undefined,'normal');
   doc.text(fmtEuro(netAssets), leftX, currentY, {align:'center'});
+
+  // ---- Gross Assets (top right)
+  const rowH = headerH / 2;
+  blockH = labelSize + valueSize + spacing;
+  currentY = topY + (rowH - blockH)/2 + labelSize;
+  doc.setFontSize(labelSize).setFont(undefined,'bold');
+  doc.text('Gross Assets', rightX, currentY, {align:'center'});
+  currentY += spacing + valueSize;
+  doc.setFontSize(valueSize).setFont(undefined,'normal');
   doc.text(fmtEuro(totalAssets), rightX, currentY, {align:'center'});
-  currentY += 26;
-  doc.setFontSize(12).setFont(undefined,'bold');
+
+  // ---- Total Liabilities (bottom right)
+  currentY = topY + rowH + (rowH - blockH)/2 + labelSize;
+  doc.setFontSize(labelSize).setFont(undefined,'bold');
   doc.text('Total Liabilities', rightX, currentY, {align:'center'});
-  currentY += 18;
-  doc.setFontSize(14).setFont(undefined,'normal');
+  currentY += spacing + valueSize;
+  doc.setFontSize(valueSize).setFont(undefined,'normal');
   doc.text(fmtEuro(t.liabs), rightX, currentY, {align:'center'});
   topY += headerH + 30;
 
