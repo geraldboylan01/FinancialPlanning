@@ -717,17 +717,29 @@ Understanding and reviewing this breakdown regularly is essential—it helps ens
   doc.text('Results', pageW/2, topY, {align:'center'});
   topY += 30;
 
-  doc.setFontSize(12).setFont(undefined,'bold').setTextColor('#fff');
-  const colW = pageW/3;
-  doc.text('Gross Assets', colW/2, topY, {align:'center'});
-  doc.text('Total Liabilities', colW/2 + colW, topY, {align:'center'});
-  doc.text('Net Assets', colW/2 + colW*2, topY, {align:'center'});
-  topY += 16;
-  doc.setFontSize(14).setFont(undefined,'normal').setTextColor('#fff');
-  doc.text(fmtEuro(totalAssets), colW/2, topY, {align:'center'});
-  doc.text(fmtEuro(t.liabs), colW/2 + colW, topY, {align:'center'});
-  doc.text(fmtEuro(netAssets), colW/2 + colW*2, topY, {align:'center'});
-  topY += 30;
+  const headerW = Math.min(pageW * 0.85, 1100);
+  const headerX = (pageW - headerW) / 2;
+  const headerH = 80;
+  doc.setFillColor('#f4f4f4');
+  doc.roundedRect(headerX, topY, headerW, headerH, 8, 8, 'F');
+  const colW = headerW / 2;
+  const leftX = headerX + colW / 2;
+  const rightX = headerX + colW + colW / 2;
+  let curY = topY + 20;
+  doc.setFontSize(12).setFont(undefined,'bold').setTextColor('#1a1a1a');
+  doc.text('Net Assets', leftX, curY, {align:'center'});
+  doc.text('Gross Assets', rightX, curY, {align:'center'});
+  curY += 18;
+  doc.setFontSize(14).setFont(undefined,'normal');
+  doc.text(fmtEuro(netAssets), leftX, curY, {align:'center'});
+  doc.text(fmtEuro(totalAssets), rightX, curY, {align:'center'});
+  curY += 26;
+  doc.setFontSize(12).setFont(undefined,'bold');
+  doc.text('Total Liabilities', rightX, curY, {align:'center'});
+  curY += 18;
+  doc.setFontSize(14).setFont(undefined,'normal');
+  doc.text(fmtEuro(t.liabs), rightX, curY, {align:'center'});
+  topY += headerH + 30;
 
   const gridNode = document.querySelector('.bs-grid');
   if(gridNode){
