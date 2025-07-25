@@ -725,7 +725,7 @@ Understanding and reviewing this breakdown regularly is essential—it helps ens
   const colW = headerW / 2;
   const leftX = headerX + colW / 2;
   const rightX = headerX + colW + colW / 2;
-  let curY = topY + 20;
+  curY = topY + 20;
   doc.setFontSize(12).setFont(undefined,'bold').setTextColor('#1a1a1a');
   doc.text('Net Assets', leftX, curY, {align:'center'});
   doc.text('Gross Assets', rightX, curY, {align:'center'});
