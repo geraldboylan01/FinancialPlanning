@@ -624,7 +624,25 @@ function fmtEuro(n) {
   return '€' + (+n).toLocaleString();
 }
 
-function generatePDF() {
+// Ensure the html2pdf library is loaded before generating the PDF
+function ensureHtml2Pdf(){
+  if (window.html2pdf) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = './html2pdf.bundle.min.js';
+    s.onload = () => resolve();
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+async function generatePDF() {
+  try { await ensureHtml2Pdf(); }
+  catch(err){
+    console.error('html2pdf failed to load', err);
+    alert('Unable to load PDF library. Please try again.');
+    return;
+  }
   const totals = computeTotals(personalBalanceSheet);
   const totalAssets = totals.lifestyle + totals.liquidity + totals.longevity + totals.legacy;
   const netAssets = totalAssets - totals.liabs;
