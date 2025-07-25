@@ -666,12 +666,17 @@ function generatePDF() {
   const boxW = pageW - boxMargin*2;
   const boxY = 80;
   const heading = 'How this tool works';
-  const body =
-    '•  We organise your assets into Lifestyle, Liquidity, Longevity and Legacy.' +
-    '\n\n•  Lifestyle covers property for your own use.' +
-    '\n\n•  Liquidity is cash or near-cash for emergencies—typically 3–6 months of expenses when working, or 1–2 years when retired.' +
-    '\n\n•  Longevity represents long-term investments aimed at reaching your F*ck You Money target.' +
-    '\n\n•  Legacy includes assets you plan to pass on. Reviewing this split helps judge if you are setting aside enough for Liquidity and Longevity.';
+  const body = `•  This tool is designed to clearly break down your total asset base into meaningful categories, helping you easily understand your financial position and make smarter decisions about your money. By organising your assets into four intuitive sections—Lifestyle, Liquidity, Longevity, and Legacy—we give you a clear snapshot of what you own, why it matters, and how it can support your future goals.
+
+•  Lifestyle includes properties used primarily for your own enjoyment or personal living, such as your family home or holiday home. Ideally, these assets shouldn't be considered investments to fund your retirement. By placing them in their own category, we’re highlighting that they’re not the assets you should be relying on when planning your financial future.
+
+•  Liquidity includes cash or easily accessible funds that you should keep available to handle emergencies or unexpected expenses. Typically, it’s recommended to hold between 3–6 months of living expenses if you’re working, or 1–2 years if you’re retired. Ensuring sufficient liquidity gives you peace of mind, knowing you're prepared for life's surprises.
+
+•  Longevity represents your long-term, diversified investments designed specifically to support your lifestyle in retirement. These assets are strategically positioned to grow steadily over time, while remaining liquid enough for you to access when needed. Building a robust Longevity portfolio ensures that you can comfortably fund your retirement years.
+
+•  Legacy covers concentrated or illiquid assets, such as investment properties, family businesses, equity partnerships, or individual stocks. While these assets might generate valuable income (like rental income) during retirement, they typically carry greater risk due to their concentrated nature and limited liquidity. Regularly reviewing your Legacy allocation helps prevent becoming overly reliant on these riskier assets when planning your financial future.
+
+•  Understanding and reviewing this breakdown regularly is essential—it helps ensure you maintain a balanced approach to risk, sufficient liquidity for security, and a reliable investment plan to sustain your long-term goals.`;
 
   doc.setFontSize(16).setFont(undefined,'bold');
   const headingH = 22;
