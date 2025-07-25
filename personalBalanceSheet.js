@@ -728,34 +728,23 @@ Understanding and reviewing this breakdown regularly is essential—it helps ens
 
   const labelSize = 10;   // slightly smaller fonts for summary box
   const valueSize = 8;    // slightly smaller fonts for summary box
-  const spacing    = 4;
+  const netFontSize = 12; // emphasised net assets font
 
   // ---- Net Assets (single column)
-  let blockH = labelSize + valueSize + spacing;
-  currentY = topY + (headerH - blockH)/2 + labelSize;
-  doc.setFontSize(labelSize).setFont(undefined,'bold').setTextColor('#1a1a1a');
-  doc.text('Net Assets', leftX, currentY, {align:'center'});
-  currentY += spacing + valueSize;
-  doc.setFontSize(valueSize).setFont(undefined,'normal');
-  doc.text(fmtEuro(netAssets), leftX, currentY, {align:'center'});
+  currentY = topY + (headerH - netFontSize)/2 + netFontSize;
+  doc.setFontSize(netFontSize).setFont(undefined,'bold').setTextColor('#1a1a1a');
+  doc.text(`Net Assets ${fmtEuro(netAssets)}`, leftX, currentY, {align:'center'});
 
   // ---- Gross Assets (top right)
   const rowH = headerH / 2;
-  blockH = labelSize + valueSize + spacing;
-  currentY = topY + (rowH - blockH)/2 + labelSize;
+  currentY = topY + (rowH - labelSize)/2 + labelSize;
   doc.setFontSize(labelSize).setFont(undefined,'bold');
-  doc.text('Gross Assets', rightX, currentY, {align:'center'});
-  currentY += spacing + valueSize;
-  doc.setFontSize(valueSize).setFont(undefined,'normal');
-  doc.text(fmtEuro(totalAssets), rightX, currentY, {align:'center'});
+  doc.text(`Gross Assets ${fmtEuro(totalAssets)}`, rightX, currentY, {align:'center'});
 
   // ---- Total Liabilities (bottom right)
-  currentY = topY + rowH + (rowH - blockH)/2 + labelSize;
+  currentY = topY + rowH + (rowH - labelSize)/2 + labelSize;
   doc.setFontSize(labelSize).setFont(undefined,'bold');
-  doc.text('Total Liabilities', rightX, currentY, {align:'center'});
-  currentY += spacing + valueSize;
-  doc.setFontSize(valueSize).setFont(undefined,'normal');
-  doc.text(fmtEuro(t.liabs), rightX, currentY, {align:'center'});
+  doc.text(`Total Liabilities ${fmtEuro(t.liabs)}`, rightX, currentY, {align:'center'});
   topY += headerH + 30;
 
   const gridNode = document.querySelector('.bs-grid');
