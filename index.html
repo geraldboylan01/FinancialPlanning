@@ -47,6 +47,7 @@
       justify-content: center;  /* center horizontally */
       align-items: center;      /* center vertically if they're on the same row */
       gap: 1rem;                /* space between bubbles */
+      width: fit-content;       /* shrink to bubbles width for full-monty btn */
       max-width: 100%;          /* ensure it never overflows the viewport */
     }
 
@@ -190,6 +191,10 @@
       background: linear-gradient(135deg, #c000ff 0%, #7f00ff 100%);
       box-shadow: 0 0 18px rgba(192, 0, 255, .6);
       transition: transform .25s, box-shadow .25s, filter .25s;
+      border-radius: 12px;
+      flex-basis: 100%;
+      width: 100%;
+      text-align: center;
     }
     .btn-full-monty:hover,
     .btn-full-monty:focus-visible {
@@ -272,7 +277,7 @@
   </div>
 
   <div class="container">
-    <a id="launchFullMonty" class="btn-full-monty" aria-label="Launch Full Monty wizard">
+    <a href="full-monty.html" class="btn-full-monty" aria-label="Launch Full Monty wizard">
       Full Monty&nbsp;(all-in-one)
     </a>
     <!-- Bubble #1 -->
@@ -294,23 +299,5 @@
     </div>
   </div>
 
-  <!-- Full Monty wizard overlay -->
-  <div id="fullMontyModal" class="modal hidden">
-    <div class="wizard-card">
-      <div class="wiz-header">
-        <h3 id="fmProgress"></h3>
-        <div id="fmProgressBar"><div id="fmProgressFill"></div></div>
-        <div id="fmDots"></div>
-      </div>
-      <div id="fmStepContainer"></div>
-      <div class="wizard-controls">
-        <button id="fmBack">Back</button>
-        <button id="fmNext">Next</button>
-      </div>
-    </div>
-  </div>
-
-  <script type="module" src="./index-enhancements.js"></script>
-  <script type="module" src="./fullMontyWizard.js"></script>
 </body>
 </html>
