@@ -688,44 +688,73 @@ Legacy covers concentrated or illiquid assets, such as investment properties, fa
 Understanding and reviewing this breakdown regularly is essential—it helps ensure you maintain a balanced approach to risk, sufficient liquidity for security, and a reliable investment plan to sustain your long-term goals.`;
 
   doc.setFillColor('#222').setDrawColor(ACCENT).setLineWidth(2);
-  const headingHeight=22;
-  const bodyLines=doc.splitTextToSize(body, boxW-48);
-  const lineH=18;
-  const bodyH=bodyLines.length*lineH;
-  const boxH=32+headingHeight+14+bodyH+24;
+  const headingHeight = 22;
+  const bodyFont = 14;
+  const lineH = bodyFont * 1.3;
+  doc.setFontSize(bodyFont).setFont(undefined,'normal');
+  const bodyLines = doc.splitTextToSize(body, boxW - 48);
+  const bodyH = bodyLines.length * lineH;
+  const boxH = 32 + headingHeight + 14 + bodyH + 24;
   doc.roundedRect(boxX, boxY, boxW, boxH, 14, 14, 'FD');
-  let curY=boxY+32;
+  let curY = boxY + 32;
   doc.setFontSize(16).setFont(undefined,'bold').setTextColor(ACCENT);
-  doc.text(heading, boxX+24, curY); curY+=headingHeight+14;
-  doc.setFontSize(14).setFont(undefined,'normal').setTextColor('#fff');
-  doc.text(bodyLines, boxX+24, curY, {lineHeightFactor:1.3});
+  doc.text(heading, boxX + 24, curY); curY += headingHeight + 14;
+  doc.setFontSize(bodyFont).setFont(undefined,'normal').setTextColor('#fff');
+  doc.text(bodyLines, boxX + 24, curY, {maxWidth: boxW - 48, lineHeightFactor:1.3});
   addFooter(pageNumber);
   doc.addPage();
   pageNumber++;
 
   /* ---------- Assets Page ---------- */
-  doc.addPage();
-  pageNumber++;
   pageBG();
 
+  const t = computeTotals(personalBalanceSheet);
+  const totalAssets = t.lifestyle + t.liquidity + t.longevity + t.legacy;
+  const netAssets = totalAssets - t.liabs;
+
+  let topY = 60;
+  doc.setFontSize(20).setFont(undefined,'bold').setTextColor(ACCENT);
+  doc.text('Results', pageW/2, topY, {align:'center'});
+  topY += 30;
+
+  doc.setFontSize(12).setFont(undefined,'bold').setTextColor('#fff');
+  const colW = pageW/3;
+  doc.text('Gross Assets', colW/2, topY, {align:'center'});
+  doc.text('Total Liabilities', colW/2 + colW, topY, {align:'center'});
+  doc.text('Net Assets', colW/2 + colW*2, topY, {align:'center'});
+  topY += 16;
+  doc.setFontSize(14).setFont(undefined,'normal').setTextColor('#fff');
+  doc.text(fmtEuro(totalAssets), colW/2, topY, {align:'center'});
+  doc.text(fmtEuro(t.liabs), colW/2 + colW, topY, {align:'center'});
+  doc.text(fmtEuro(netAssets), colW/2 + colW*2, topY, {align:'center'});
+  topY += 30;
+
   const gridNode = document.querySelector('.bs-grid');
-  let topY = 40;
   if(gridNode){
+    const origCols = gridNode.style.gridTemplateColumns;
+    const origWidth = gridNode.style.width;
+    gridNode.style.gridTemplateColumns = 'repeat(4,1fr)';
+    gridNode.style.width = '1100px';
+
     const gridCanvas = await html2canvas(gridNode,{backgroundColor:'#121212',scale:2,logging:false});
-    const img = gridCanvas.toDataURL('image/png');
-    const imgW = Math.min(gridCanvas.width, pageW * 0.8);
+    gridNode.style.gridTemplateColumns = origCols;
+    gridNode.style.width = origWidth;
+
+    const maxW = pageW * 0.85;
+    const imgW = Math.min(gridCanvas.width, maxW);
     const ratio = imgW / gridCanvas.width;
     const imgH = gridCanvas.height * ratio;
-    doc.addImage(img,'PNG',(pageW - imgW)/2, topY, imgW, imgH);
+    doc.addImage(gridCanvas.toDataURL('image/png'),'PNG',(pageW - imgW)/2, topY, imgW, imgH);
     topY += imgH + 24;
   }
 
   const chart = captureChart();
   if(chart){
-    const chartW = pageW * 0.65;
+    const chartW = pageW * 0.6;
     const ratio = chartW / chart.w;
     const chartH = chart.h * ratio;
     doc.addImage(chart.img,'PNG',(pageW-chartW)/2, topY, chartW, chartH);
+    topY += chartH;
   }
   doc.setFontSize(12).setTextColor(122,122,122);
   doc.text(`${pageNumber}`, pageW - 40, pageH - 30);
