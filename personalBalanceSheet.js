@@ -1,9 +1,7 @@
 // Wizard logic for Personal Balance Sheet
 import html2canvas from "./html2canvas.esm.js";
-import { jsPDF } from "./jspdf.es.min.js";
-// expose jsPDF under the classic `jspdf` namespace for backward compatibility
-// with any code that might still expect the UMD bundle's global
-window.jspdf = { jsPDF };
+// jsPDF is loaded globally via jspdf.umd.min.js
+const { jsPDF } = window.jspdf;
 
 const origGetCtx = HTMLCanvasElement.prototype.getContext;
 if(!origGetCtx.__willReadFreqPatch){
