@@ -689,7 +689,7 @@ Understanding and reviewing this breakdown regularly is essential—it helps ens
 
   doc.setFillColor('#222').setDrawColor(ACCENT).setLineWidth(2);
   const headingHeight = 22;
-  const bodyFont = 14;
+  const bodyFont = 12; // slightly smaller font so textbox doesn't overlap footer
   const lineH = bodyFont * 1.3;
   doc.setFontSize(bodyFont).setFont(undefined,'normal');
   const bodyLines = doc.splitTextToSize(body, boxW - 48);
