@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Planéir – Full Monty</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap" rel="stylesheet">
+  <style>
+    body {font-family:'Inter',sans-serif;background:#1a1a1a;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:1rem;}
+    button{padding:.8rem 1.2rem;font-weight:700;font-size:1rem;border:none;border-radius:50px;cursor:pointer;color:#1a1a1a;background:linear-gradient(135deg,#00ff88,#0099ff);margin:.3rem 0;min-height:2.75rem;}
+    .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:9999;}
+    .modal.hidden{display:none;}
+    .wizard-card{display:flex;flex-direction:column;max-width:420px;border-radius:16px;padding:2rem;background:#2a2a2a;}
+    #fullMontyModal h3{font-weight:600;font-size:1.1rem;color:#fff;}
+    .wiz-header{text-align:center;margin-bottom:1.2rem;}
+    #fmProgress{margin:0 0 .8rem 0;}
+    #fmProgressBar{height:6px;background:#ddd;border-radius:3px;margin:0 24px 12px;}
+    #fmProgressFill{height:100%;width:0;background:#c000ff;border-radius:3px;transition:width .25s ease;}
+    #fmDots{display:flex;justify-content:center;gap:8px;}
+    button.wizDot{width:14px;height:14px;padding:0;line-height:0;border:none;border-radius:50%;background:#888;cursor:pointer;}
+    button.wizDot.active,button.wizDot:focus-visible{background:#c000ff;}
+    .wizard-controls{display:flex;justify-content:space-between;margin-top:auto;}
+    @keyframes slideInLeft{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
+    @keyframes slideInRight{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+    #fmStepContainer.anim-left{animation:slideInLeft .25s ease-out both}
+    #fmStepContainer.anim-right{animation:slideInRight .25s ease-out both}
+  </style>
+</head>
+<body>
+  <div id="fullMontyModal" class="modal hidden">
+    <div class="wizard-card">
+      <div class="wiz-header">
+        <h3 id="fmProgress"></h3>
+        <div id="fmProgressBar"><div id="fmProgressFill"></div></div>
+        <div id="fmDots"></div>
+      </div>
+      <div id="fmStepContainer"></div>
+      <div class="wizard-controls">
+        <button id="fmBack">Back</button>
+        <button id="fmNext">Next</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="./fullMontyWizard.js"></script>
+  <script type="module">
+    import { openFullMontyWizard } from './fullMontyWizard.js';
+    openFullMontyWizard();
+  </script>
+</body>
+</html>
