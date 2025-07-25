@@ -1,6 +1,7 @@
 // Wizard logic for Personal Balance Sheet
 import html2canvas from "./html2canvas.esm.js";
 // jsPDF is loaded globally via jspdf.umd.min.js
+import { formatDate, savePdfBlob } from "./pdf-utils.js";
 const { jsPDF } = window.jspdf;
 
 const origGetCtx = HTMLCanvasElement.prototype.getContext;
@@ -641,26 +642,97 @@ function fmtEuro(n) {
 }
 
 async function generatePDF(){
-  const node = document.getElementById("balanceSheet");
-  const canvas = await html2canvas(node,{scale:2});
-  const img = canvas.toDataURL("image/png");
-  const BG="#1a1a1a";
-  const ACCENT="#0099ff";
-  const doc = new jsPDF({unit:"pt",format:"a4"});
+  const doc = new jsPDF({unit:'pt', format:'a4'});
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  doc.setFillColor(BG);
-  doc.rect(0,0,pageW,pageH,"F");
-  const ratio = Math.min(pageW/canvas.width,pageH/canvas.height);
-  const imgW = canvas.width*ratio;
-  const imgH = canvas.height*ratio;
-  doc.addImage(img,"PNG",(pageW-imgW)/2,20,imgW,imgH);
-  doc.setFontSize(9).setTextColor(ACCENT);
-  const t="Page 1";
-  doc.text(t,pageW-doc.getTextWidth(t)-40,pageH-30);
-  doc.save("planeir_report.pdf");
-  const url = doc.output("bloburl");
-  import("./consentModal.js").then(m=>m.showConsent(url));
+
+  const BG_DARK   = '#121212';
+  const ACCENT    = '#0099ff';
+  const COVER_GOLD= '#BBA26F';
+
+  const pageBG = () => { doc.setFillColor(18,18,18); doc.rect(0,0,pageW,pageH,'F'); };
+  const addFooter = n => {
+    doc.setFontSize(12).setTextColor(122,122,122);
+    doc.text(String(n), pageW - 40, pageH - 30);
+  };
+
+  let pageNumber = 1;
+
+  /* ---------- Cover Page ---------- */
+  pageBG();
+  doc.setFont('times','bold').setFontSize(48).setTextColor(COVER_GOLD);
+  doc.text('Planéir', pageW/2, 90, {align:'center'});
+  const logoW=220, logoY=130;
+  doc.addImage('./favicon.png','PNG',(pageW-logoW)/2,logoY,logoW,0,'','FAST');
+  const subY=logoY+logoW+40;
+  doc.setFontSize(32).setFont(undefined,'bold').setTextColor(COVER_GOLD);
+  doc.text('Personal Balance Sheet', pageW/2, subY, {align:'center'});
+  addFooter(pageNumber);
+  doc.addPage();
+  pageNumber++;
+
+  /* ---------- How it works ---------- */
+  pageBG();
+  const boxX=40, boxW=pageW-80, boxY=100;
+  const heading='How This Tool Works';
+  const body=`This tool is designed to clearly break down your total asset base into meaningful categories, helping you easily understand your financial position and make smarter decisions about your money. By organising your assets into four intuitive sections—Lifestyle, Liquidity, Longevity, and Legacy—we give you a clear snapshot of what you own, why it matters, and how it can support your future goals.
+
+Lifestyle includes properties used primarily for your own enjoyment or personal living, such as your family home or holiday home. Ideally, these assets shouldn't be considered investments to fund your retirement. By placing them in their own category, we’re highlighting that they’re not the assets you should be relying on when planning your financial future.
+
+Liquidity includes cash or easily accessible funds that you should keep available to handle emergencies or unexpected expenses. Typically, it’s recommended to hold between 3–6 months of living expenses if you’re working, or 1–2 years if you’re retired. Ensuring sufficient liquidity gives you peace of mind, knowing you're prepared for life's surprises.
+
+Longevity represents your long-term, diversified investments designed specifically to support your lifestyle in retirement. These assets are strategically positioned to grow steadily over time, while remaining liquid enough for you to access when needed. Building a robust Longevity portfolio ensures that you can comfortably fund your retirement years.
+
+Legacy covers concentrated or illiquid assets, such as investment properties, family businesses, equity partnerships, or individual stocks. While these assets might generate valuable income (like rental income) during retirement, they typically carry greater risk due to their concentrated nature and limited liquidity. Regularly reviewing your Legacy allocation helps prevent becoming overly reliant on these riskier assets when planning your financial future.
+
+Understanding and reviewing this breakdown regularly is essential—it helps ensure you maintain a balanced approach to risk, sufficient liquidity for security, and a reliable investment plan to sustain your long-term goals.`;
+
+  doc.setFillColor('#222').setDrawColor(ACCENT).setLineWidth(2);
+  const headingHeight=22;
+  const bodyLines=doc.splitTextToSize(body, boxW-48);
+  const lineH=18;
+  const bodyH=bodyLines.length*lineH;
+  const boxH=32+headingHeight+14+bodyH+24;
+  doc.roundedRect(boxX, boxY, boxW, boxH, 14, 14, 'FD');
+  let curY=boxY+32;
+  doc.setFontSize(16).setFont(undefined,'bold').setTextColor(ACCENT);
+  doc.text(heading, boxX+24, curY); curY+=headingHeight+14;
+  doc.setFontSize(14).setFont(undefined,'normal').setTextColor('#fff');
+  doc.text(bodyLines, boxX+24, curY, {lineHeightFactor:1.3});
+  addFooter(pageNumber);
+  doc.addPage();
+  pageNumber++;
+
+  /* ---------- Assets Page ---------- */
+  doc.addPage();
+  pageNumber++;
+  pageBG();
+
+  const gridNode = document.querySelector('.bs-grid');
+  let topY = 40;
+  if(gridNode){
+    const gridCanvas = await html2canvas(gridNode,{backgroundColor:'#121212',scale:2,logging:false});
+    const img = gridCanvas.toDataURL('image/png');
+    const imgW = Math.min(gridCanvas.width, pageW * 0.8);
+    const ratio = imgW / gridCanvas.width;
+    const imgH = gridCanvas.height * ratio;
+    doc.addImage(img,'PNG',(pageW - imgW)/2, topY, imgW, imgH);
+    topY += imgH + 24;
+  }
+
+  const chart = captureChart();
+  if(chart){
+    const chartW = pageW * 0.65;
+    const ratio = chartW / chart.w;
+    const chartH = chart.h * ratio;
+    doc.addImage(chart.img,'PNG',(pageW-chartW)/2, topY, chartW, chartH);
+  }
+  doc.setFontSize(12).setTextColor(122,122,122);
+  doc.text(`${pageNumber}`, pageW - 40, pageH - 30);
+
+  savePdfBlob(doc,'personal_balance_sheet.pdf');
+  const url = doc.output('bloburl');
+  import('./consentModal.js').then(m=>m.showConsent(url));
 }
 
 

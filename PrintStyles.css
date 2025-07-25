@@ -1,0 +1,8 @@
+@media print {
+  body { background:#121212 !important; color:#e4e4e4; }
+  .pdf-page    { page-break-after: always; }
+  .pdf-cover   { display:flex; align-items:center; justify-content:center; height:100vh; }
+  .pdf-body    { font-size:14px; line-height:1.55; margin-top:48px; }
+  .bs-grid  { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:24px; }
+  .bs-card { background:#1e1e1e; color:#e4e4e4; padding:20px; border-radius:8px; }
+}
