@@ -10,22 +10,22 @@ import { animate, addKeyboardNav } from './wizardCore.js';
 // ----------------------------------------------------------------
 
 const fullMontyStore = {
-  // step 1 – household
+  // household
   hasPartner: false,
   dobSelf: null,
   dobPartner: null,
   retireAge: null,
 
-  // step 2 – income
+  // income
   grossIncome: null,
   grossIncomePartner: null,
 
-  // step 3 – retirement goal
+  // retirement goal (LOCKED to percent)
   goalType: 'percent',
   incomePercent: 70,
-  retireSpend: null,
+  retireSpend: null, // keep but unused
 
-  // step 4 – pensions (defined contribution + DB + SP)
+  // pensions (self/partner as before)
   currentPensionValueSelf: 0,
   personalContribSelf: null,
   personalPctSelf: null,
@@ -46,26 +46,26 @@ const fullMontyStore = {
   dbStartAgePartner: null,
   statePensionPartner: false,
 
-  // step 5 – other income
+  // rental income (always CPI indexed)
   rentalIncomeNow: null,
-  rentalInflatesWithCPI: true,
+  rentalInflatesWithCPI: true, // constant truthy
 
-  // step 6 – assets
-  homes: [],
-  cashLike: [],
-  investments: [],
-  rentProps: [],
-  valuables: [],
+  // ASSETS (split into mini-steps)
+  homes: [],        // [{id,name,value,notes?}]
+  cashLike: [],     // [{id,name,value}]
+  investments: [],  // [{id,name,value}]
+  rentProps: [],    // [{id,name,value,mortgageBalance?,grossRent?}]
+  valuables: [],    // [{id,name,value}]
 
-  // step 7 – liabilities
-  liabilities: [],
+  // debts
+  liabilities: [],  // [{id,name,balance,rate?}]
 
-  // step 8 – growth profile
+  // risk profile
   growthProfile: 0.05,
 
-  // step 9 – assumptions
-  cpiRate: 2.0,
-  sftAwareness: true,
+  // assumptions (internal only)
+  cpiRate: 2.3,         // fixed, not user-editable
+  sftAwareness: true    // fixed, not user-editable
 };
 
 function uuid() {
@@ -181,6 +181,180 @@ function showErrors(errs = {}) {
     grp.appendChild(div);
   });
 }
+
+// mini-list renderer for asset/debt steps
+function makeListStepRenderer(listKey, { addLabel = 'Add item', hint = '', fields = [], valueKey = 'value' }) {
+  const renderer = (cont) => {
+    cont.innerHTML = '';
+    const form = document.createElement('div');
+    form.className = 'form';
+    const list = document.createElement('div');
+    (fullMontyStore[listKey] || []).forEach(row => list.appendChild(rowEl(row)));
+    form.appendChild(list);
+    const add = document.createElement('button');
+    add.type = 'button';
+    add.textContent = addLabel;
+    add.addEventListener('click', () => {
+      const r = {};
+      fields.forEach(f => r[f.key] = f.default ?? null);
+      pushRow(listKey, r);
+      render();
+    });
+    form.appendChild(add);
+    if (hint) {
+      const help = document.createElement('div');
+      help.className = 'help';
+      help.textContent = hint;
+      form.appendChild(help);
+    }
+    cont.appendChild(form);
+
+    function rowEl(row) {
+      const wrap = document.createElement('div');
+      wrap.className = 'asset-row form-group';
+      fields.forEach(f => {
+        const id = uuid();
+        let inp;
+        if (f.type === 'currency') {
+          inp = currencyInput({ id, value: row[f.key] ?? '' });
+          inp.querySelector('input').addEventListener('input', () => row[f.key] = numFromInput(inp.querySelector('input')) || 0);
+        } else if (f.type === 'percent') {
+          inp = percentInput({ id, value: row[f.key] ?? '' });
+          inp.querySelector('input').addEventListener('input', () => row[f.key] = numFromInput(inp.querySelector('input')) || 0);
+        } else {
+          inp = document.createElement('input');
+          inp.type = 'text';
+          inp.id = id;
+          inp.value = row[f.key] ?? '';
+          inp.addEventListener('input', () => row[f.key] = inp.value);
+        }
+        wrap.appendChild(formGroup(id, f.label, inp));
+      });
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.textContent = 'Remove';
+      rm.addEventListener('click', () => { removeRow(listKey, row.id); render(); });
+      wrap.appendChild(rm);
+      return wrap;
+    }
+  };
+  renderer.validate = () => {
+    const arr = getStore()[listKey] || [];
+    setStore({ [listKey]: arr.filter(r => (r[valueKey] || 0) > 0) });
+    return { ok: true };
+  };
+  return renderer;
+}
+
+// Step 3 – percent-only goal
+function renderStepGoal(container){
+  const s = getStore();
+  setStore({ goalType: 'percent' }); // hard lock
+
+  container.innerHTML = `
+    <div class="form">
+      <div class="form-group">
+        <label for="incomePercent">Income you will need at retirement</label>
+        <div class="input-wrap suffix">
+          <input id="incomePercent" type="number" inputmode="decimal" min="0" max="100" step="0.1"
+                 value="${s.incomePercent ?? 70}">
+          <span class="unit">%</span>
+        </div>
+        <div class="help">We’ll target this share of your gross income.</div>
+      </div>
+    </div>
+  `;
+  const pct = container.querySelector('#incomePercent');
+  pct.addEventListener('input', () => {
+    let v = parseFloat(pct.value);
+    if (Number.isNaN(v)) v = 0;
+    if (v < 0) v = 0; if (v > 100) v = 100;
+    pct.value = v;
+    setStore({ incomePercent: v, goalType: 'percent', retireSpend: null });
+  });
+}
+renderStepGoal.validate = () => {
+  const v = getStore().incomePercent;
+  return (typeof v === 'number' && v >= 0 && v <= 100)
+    ? { ok: true } : { ok: false, message: 'Enter a % between 0 and 100.' };
+};
+
+// Step 5 – rental income (no CPI toggle)
+function renderStepRental(container){
+  const s = getStore();
+  setStore({ rentalInflatesWithCPI: true }); // Always indexed
+
+  container.innerHTML = `
+    <div class="form">
+      <div class="form-group">
+        <label for="rentalIncomeNow">Rental income today</label>
+        <div class="input-wrap prefix">
+          <span class="unit">€</span>
+          <input id="rentalIncomeNow" type="number" inputmode="decimal" min="0"
+                 value="${s.rentalIncomeNow ?? ''}">
+        </div>
+        <div class="help">We’ll index rent with inflation automatically.</div>
+      </div>
+    </div>
+  `;
+  const el = container.querySelector('#rentalIncomeNow');
+  el.addEventListener('input', () => {
+    const v = parseFloat(el.value);
+    setStore({ rentalIncomeNow: Number.isNaN(v) ? null : Math.max(0, v) });
+  });
+}
+renderStepRental.validate = () => ({ ok: true });
+
+// Step 6–10 renderers
+const renderStepHomes = makeListStepRenderer('homes', {
+  addLabel: 'Add home',
+  hint: 'Family home or holiday home you use yourself.',
+  fields: [
+    { key: 'name', label: 'Name', type: 'text' },
+    { key: 'value', label: 'Value', type: 'currency', default: 0 },
+    { key: 'notes', label: 'Notes', type: 'text' }
+  ]
+});
+
+const renderStepCash = makeListStepRenderer('cashLike', {
+  addLabel: 'Add item',
+  hint: 'Cash on deposit, savings accounts, money market funds, 100% bond portfolio.',
+  fields: [
+    { key: 'name', label: 'Name', type: 'text' },
+    { key: 'value', label: 'Value', type: 'currency', default: 0 }
+  ]
+});
+
+const renderStepInvest = makeListStepRenderer('investments', {
+  addLabel: 'Add investment',
+  hint: 'Investment accounts/funds (mixed asset or equity funds). Exclude pensions (we captured those earlier).',
+  fields: [
+    { key: 'name', label: 'Name', type: 'text' },
+    { key: 'value', label: 'Value', type: 'currency', default: 0 }
+  ]
+});
+
+const renderStepRentProps = makeListStepRenderer('rentProps', {
+  addLabel: 'Add property',
+  hint: 'Properties you rent out.',
+  fields: [
+    { key: 'name', label: 'Name', type: 'text' },
+    { key: 'value', label: 'Value', type: 'currency', default: 0 },
+    { key: 'mortgageBalance', label: 'Mortgage balance', type: 'currency', default: 0 },
+    { key: 'grossRent', label: 'Gross rent', type: 'currency' }
+  ]
+});
+
+const renderStepLiabilities = makeListStepRenderer('liabilities', {
+  addLabel: 'Add liability',
+  hint: 'Loans, credit cards, other debts.',
+  valueKey: 'balance',
+  fields: [
+    { key: 'name', label: 'Name', type: 'text' },
+    { key: 'balance', label: 'Balance', type: 'currency', default: 0 },
+    { key: 'rate', label: 'Rate', type: 'percent' }
+  ]
+});
 
 // ───────────────────────────────────────────────────────────────
 // Step engine
@@ -303,43 +477,8 @@ const steps = [
   {
     id: 'goal',
     title: 'Retirement goal',
-    render(cont) {
-      cont.innerHTML = '';
-      const form = document.createElement('div');
-      form.className = 'form';
-
-      const sel = document.createElement('select');
-      sel.id = 'goalType';
-      sel.innerHTML = '<option value="percent">Percent of income</option><option value="spend">Annual spending</option>';
-      sel.value = fullMontyStore.goalType;
-      sel.addEventListener('change', () => { setStore({ goalType: sel.value }); render(); });
-      form.appendChild(formGroup('goalType', 'Goal type', sel));
-
-      if (fullMontyStore.goalType === 'percent') {
-        const pct = percentInput({ id: 'incomePercent', value: fullMontyStore.incomePercent ?? '' });
-        pct.querySelector('input').addEventListener('input', () => setStore({ incomePercent: numFromInput(pct.querySelector('input')) ?? 0 }));
-        form.appendChild(formGroup('incomePercent', 'Income you will need at retirement', pct));
-      } else {
-        const spend = currencyInput({ id: 'retireSpend', value: fullMontyStore.retireSpend ?? '' });
-        spend.querySelector('input').addEventListener('input', () => setStore({ retireSpend: numFromInput(spend.querySelector('input')) }));
-        form.appendChild(formGroup('retireSpend', 'Desired annual spending in retirement', spend));
-      }
-
-      cont.appendChild(form);
-    },
-    validate() {
-      const errs = {};
-      if (fullMontyStore.goalType === 'percent') {
-        const v = fullMontyStore.incomePercent;
-        if (v == null) errs.incomePercent = 'This field is required.';
-        else if (v < 0 || v > 100) errs.incomePercent = 'Enter a % between 0 and 100.';
-      } else {
-        const v = fullMontyStore.retireSpend;
-        if (v == null) errs.retireSpend = 'This field is required.';
-        else if (v < 0) errs.retireSpend = 'Please enter a number ≥ 0.';
-      }
-      return { ok: Object.keys(errs).length === 0, errors: errs };
-    }
+    render: renderStepGoal,
+    validate: renderStepGoal.validate
   },
 
   {
@@ -433,239 +572,45 @@ const steps = [
   },
 
   {
-    id: 'otherIncome',
-    title: 'Other income',
-    render(cont) {
-      cont.innerHTML = '';
-      const form = document.createElement('div');
-      form.className = 'form';
-
-      const rent = currencyInput({ id: 'rentalIncome', value: fullMontyStore.rentalIncomeNow ?? '' });
-      rent.querySelector('input').addEventListener('input', () => setStore({ rentalIncomeNow: numFromInput(rent.querySelector('input')) }));
-      form.appendChild(formGroup('rentalIncome', 'Rental income today', rent));
-
-      const chk = controlGroup('rentInfl', 'Rental income grows with CPI', fullMontyStore.rentalInflatesWithCPI);
-      chk.input.addEventListener('change', () => setStore({ rentalInflatesWithCPI: chk.input.checked }));
-      form.appendChild(chk.group);
-
-      cont.appendChild(form);
-    },
-    validate() { return { ok: true, errors: {} }; }
+    id: 'rental',
+    title: 'Rental income',
+    render: renderStepRental,
+    validate: renderStepRental.validate
   },
 
   {
-    id: 'assets',
-    title: 'Assets',
-    render(cont) {
-      cont.innerHTML = '';
-      const form = document.createElement('div');
-      form.className = 'form';
+    id: 'homes',
+    title: 'Homes you live in / holiday places',
+    render: renderStepHomes,
+    validate: renderStepHomes.validate
+  },
 
-      const groups = [
-        { key: 'homes', label: 'Homes' },
-        { key: 'cashLike', label: 'Cash & cash-like' },
-        { key: 'investments', label: 'Investments (non-pension)' },
-        { key: 'rentProps', label: 'Rental properties' },
-        { key: 'valuables', label: 'Valuables / collectibles' },
-      ];
+  {
+    id: 'cash',
+    title: 'Cash & easy-access savings',
+    render: renderStepCash,
+    validate: renderStepCash.validate
+  },
 
-      groups.forEach(g => {
-        const sec = document.createElement('div');
-        sec.className = 'form-group';
-        const h = document.createElement('h4');
-        h.textContent = g.label;
-        sec.appendChild(h);
-        const list = document.createElement('div');
-        fullMontyStore[g.key].forEach(row => list.appendChild(assetRow(g.key, row)));
-        sec.appendChild(list);
-        const add = document.createElement('button');
-        add.textContent = 'Add';
-        add.type = 'button';
-        add.addEventListener('click', () => {
-          const r = { id: uuid(), name: '', value: 0 };
-          fullMontyStore[g.key].push(r);
-          render();
-        });
-        sec.appendChild(add);
-        form.appendChild(sec);
-      });
+  {
+    id: 'investments',
+    title: 'Investments',
+    render: renderStepInvest,
+    validate: renderStepInvest.validate
+  },
 
-      cont.appendChild(form);
-
-      function assetRow(key, row) {
-        const wrap = document.createElement('div');
-        wrap.className = 'asset-row form-group';
-
-        const nameId = uuid();
-        const nameGrp = document.createElement('div');
-        nameGrp.className = 'form-group';
-        const nameLab = document.createElement('label');
-        nameLab.htmlFor = nameId; nameLab.textContent = 'Name';
-        const name = document.createElement('input');
-        name.type = 'text'; name.id = nameId; name.value = row.name || '';
-        name.addEventListener('input', () => row.name = name.value);
-        nameGrp.append(nameLab, name);
-        wrap.appendChild(nameGrp);
-
-        const valId = uuid();
-        const val = currencyInput({ id: valId, value: row.value || '' });
-        val.querySelector('input').addEventListener('input', () => row.value = numFromInput(val.querySelector('input')) || 0);
-        wrap.appendChild(formGroup(valId, 'Value', val));
-
-        if (key === 'rentProps') {
-          const mortId = uuid();
-          const mort = currencyInput({ id: mortId, value: row.mortgageBalance || '' });
-          mort.querySelector('input').addEventListener('input', () => row.mortgageBalance = numFromInput(mort.querySelector('input')) || null);
-          wrap.appendChild(formGroup(mortId, 'Mortgage', mort));
-          const grId = uuid();
-          const gr = currencyInput({ id: grId, value: row.grossRent || '' });
-          gr.querySelector('input').addEventListener('input', () => row.grossRent = numFromInput(gr.querySelector('input')) || null);
-          wrap.appendChild(formGroup(grId, 'Gross rent', gr));
-        }
-
-        const rm = document.createElement('button');
-        rm.type = 'button';
-        rm.textContent = 'Remove';
-        rm.addEventListener('click', () => {
-          removeRow(key, row.id);
-          render();
-        });
-        wrap.appendChild(rm);
-        return wrap;
-      }
-    },
-    validate() { return { ok: true, errors: {} }; }
+  {
+    id: 'rentProps',
+    title: 'Properties you rent out',
+    render: renderStepRentProps,
+    validate: renderStepRentProps.validate
   },
 
   {
     id: 'debts',
-    title: 'Debts',
-    render(cont) {
-      cont.innerHTML = '';
-      const form = document.createElement('div');
-      form.className = 'form';
-      const list = document.createElement('div');
-      fullMontyStore.liabilities.forEach(row => list.appendChild(debtRow(row)));
-      form.appendChild(list);
-      const add = document.createElement('button');
-      add.textContent = 'Add liability';
-      add.type = 'button';
-      add.addEventListener('click', () => { fullMontyStore.liabilities.push({ id: uuid(), name: '', balance: 0 }); render(); });
-      form.appendChild(add);
-      cont.appendChild(form);
-
-      function debtRow(row) {
-        const wrap = document.createElement('div');
-        wrap.className = 'debt-row form-group';
-
-        const nameId = uuid();
-        const nameGrp = document.createElement('div');
-        nameGrp.className = 'form-group';
-        const nameLab = document.createElement('label');
-        nameLab.htmlFor = nameId; nameLab.textContent = 'Name';
-        const name = document.createElement('input');
-        name.type = 'text'; name.id = nameId; name.value = row.name || '';
-        name.addEventListener('input', () => row.name = name.value);
-        nameGrp.append(nameLab, name);
-        wrap.appendChild(nameGrp);
-
-        const balId = uuid();
-        const bal = currencyInput({ id: balId, value: row.balance || '' });
-        bal.querySelector('input').addEventListener('input', () => row.balance = numFromInput(bal.querySelector('input')) || 0);
-        wrap.appendChild(formGroup(balId, 'Balance', bal));
-
-        const rateId = uuid();
-        const rate = percentInput({ id: rateId, value: row.rate || '' });
-        rate.querySelector('input').addEventListener('input', () => row.rate = numFromInput(rate.querySelector('input')) || null);
-        wrap.appendChild(formGroup(rateId, 'Rate', rate));
-
-        const rm = document.createElement('button');
-        rm.textContent = 'Remove';
-        rm.type = 'button';
-        rm.addEventListener('click', () => { removeRow('liabilities', row.id); render(); });
-        wrap.appendChild(rm);
-        return wrap;
-      }
-    },
-    validate() { return { ok: true, errors: {} }; }
-  },
-
-  {
-    id: 'growth',
-    title: 'Growth profile',
-    render(cont) {
-      cont.innerHTML = '';
-      const form = document.createElement('div');
-      form.className = 'form';
-      const opts = [
-        { val: 0.04, title: 'Low', desc: '≈4% p.a.' },
-        { val: 0.05, title: 'Balanced', desc: '≈5% p.a.' },
-        { val: 0.06, title: 'High', desc: '≈6% p.a.' },
-        { val: 0.07, title: 'Very high', desc: '≈7% p.a.' }
-      ];
-      const wrap = document.createElement('div');
-      wrap.className = 'risk-options';
-      opts.forEach((o, i) => {
-        const id = `growth${i}`;
-        const radio = document.createElement('input');
-        radio.type = 'radio';
-        radio.name = 'growth';
-        radio.id = id;
-        radio.value = o.val;
-        if (fullMontyStore.growthProfile === o.val) radio.checked = true;
-        radio.addEventListener('change', () => {
-          fullMontyStore.growthProfile = o.val;
-          wrap.querySelectorAll('.risk-card').forEach(c => c.classList.remove('selected'));
-          wrap.querySelector(`label[for="${id}"]`).classList.add('selected');
-          validateStep();
-        });
-        const label = document.createElement('label');
-        label.className = 'risk-card';
-        label.htmlFor = id;
-        if (radio.checked) label.classList.add('selected');
-        const t = document.createElement('span'); t.className = 'risk-title'; t.textContent = o.title; label.appendChild(t);
-        const d = document.createElement('span'); d.className = 'risk-desc'; d.textContent = o.desc; label.appendChild(d);
-        wrap.append(radio, label);
-      });
-      form.appendChild(wrap);
-      cont.appendChild(form);
-    },
-    validate() { return { ok: fullMontyStore.growthProfile != null, errors: {} }; }
-  },
-
-  {
-    id: 'assumptions',
-    title: 'Assumptions',
-    render(cont) {
-      cont.innerHTML = '';
-      const form = document.createElement('div');
-      form.className = 'form';
-      const cpi = percentInput({ id: 'cpi', value: fullMontyStore.cpiRate });
-      cpi.querySelector('input').addEventListener('input', () => setStore({ cpiRate: numFromInput(cpi.querySelector('input')) ?? 0 }));
-      form.appendChild(formGroup('cpi', 'Inflation (CPI)', cpi));
-      const sft = controlGroup('sftWarn', 'Warn about SFT threshold', fullMontyStore.sftAwareness);
-      sft.input.addEventListener('change', () => setStore({ sftAwareness: sft.input.checked }));
-      form.appendChild(sft.group);
-      cont.appendChild(form);
-    },
-    validate() { return { ok: true, errors: {} }; }
-  },
-
-  {
-    id: 'review',
-    title: 'Review',
-    render(cont, nav) {
-      cont.innerHTML = '';
-      const pre = document.createElement('pre');
-      pre.textContent = JSON.stringify(fullMontyStore, null, 2);
-      cont.appendChild(pre);
-      const runBtn = document.createElement('button');
-      runBtn.textContent = 'Run my plan';
-      runBtn.type = 'button';
-      runBtn.addEventListener('click', runAll);
-      cont.appendChild(runBtn);
-    },
-    validate() { return { ok: true, errors: {} }; }
+    title: 'Loans & other debts',
+    render: renderStepLiabilities,
+    validate: renderStepLiabilities.validate
   }
 ];
 
@@ -711,8 +656,13 @@ function validateStep(show = false) {
 
 function next() {
   if (!validateStep(true)) return;
-  animate(container, 'next');
-  if (cur < steps.length - 1) { cur++; render(); }
+  if (cur < steps.length - 1) {
+    animate(container, 'next');
+    cur++;
+    render();
+  } else {
+    modal.classList.add('hidden');
+  }
 }
 
 function back() {
