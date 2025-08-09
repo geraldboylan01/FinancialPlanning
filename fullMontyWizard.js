@@ -101,7 +101,7 @@ function q(id) { return document.getElementById(id); }
 function numFromInput(inp) {
   const v = inp.value.trim();
   if (v === '') return null;
-  const n = +v.replace(/[,\s]/g, '');
+  const n = +v.replace(/[^0-9.-]/g, '');
   return isNaN(n) ? null : n;
 }
 
@@ -115,6 +115,9 @@ function percentInput({ id, value = '', min = 0, max = 100 }) {
   inp.max = max;
   inp.step = '0.1';
   inp.value = value;
+  inp.addEventListener('input', () => {
+    inp.value = inp.value.replace(/[^0-9.-]/g, '');
+  });
   const span = document.createElement('span');
   span.textContent = '%';
   span.className = 'unit';
@@ -130,6 +133,9 @@ function currencyInput({ id, value = '', min = 0 }) {
   inp.id = id;
   if (min != null) inp.min = min;
   inp.value = value;
+  inp.addEventListener('input', () => {
+    inp.value = inp.value.replace(/[^0-9.-]/g, '');
+  });
   const span = document.createElement('span');
   span.textContent = '€';
   span.className = 'unit';
@@ -137,24 +143,43 @@ function currencyInput({ id, value = '', min = 0 }) {
   return wrap;
 }
 
-function labelled(labelText, field) {
-  const wrap = document.createElement('label');
-  wrap.className = 'wiz-field';
-  wrap.textContent = labelText;
-  if (field) {
-    field.id = field.id || uuid();
-    wrap.htmlFor = field.id;
-    wrap.appendChild(field);
-  }
-  return wrap;
+function formGroup(id, labelText, input) {
+  const g = document.createElement('div');
+  g.className = 'form-group';
+  const lab = document.createElement('label');
+  lab.htmlFor = id;
+  lab.textContent = labelText;
+  input.id = id;
+  g.append(lab, input);
+  return g;
 }
 
-function checkbox({ id, checked = false }) {
+function controlGroup(id, labelText, checked = false) {
+  const g = document.createElement('div');
+  g.className = 'form-group control';
   const inp = document.createElement('input');
   inp.type = 'checkbox';
   inp.id = id;
   inp.checked = checked;
-  return inp;
+  const lab = document.createElement('label');
+  lab.htmlFor = id;
+  lab.textContent = labelText;
+  g.append(inp, lab);
+  return { group: g, input: inp };
+}
+
+function showErrors(errs = {}) {
+  container.querySelectorAll('.error').forEach(e => e.remove());
+  Object.entries(errs).forEach(([id, msg]) => {
+    const field = q(id);
+    if (!field) return;
+    const grp = field.closest('.form-group');
+    if (!grp) return;
+    const div = document.createElement('div');
+    div.className = 'error';
+    div.textContent = msg;
+    grp.appendChild(div);
+  });
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -185,45 +210,61 @@ const steps = [
     title: 'About you',
     render(cont) {
       cont.innerHTML = '';
+      const form = document.createElement('div');
+      form.className = 'form';
 
-      const hasPartner = checkbox({ id: 'fmHasPartner', checked: fullMontyStore.hasPartner });
-      hasPartner.addEventListener('change', () => {
-        setStore({ hasPartner: hasPartner.checked });
-        render();
-      });
-      cont.appendChild(labelled('Do you have a partner?', hasPartner));
+      const partnerToggle = controlGroup('hasPartner', 'Do you plan your money together with a partner?', fullMontyStore.hasPartner);
+      form.appendChild(partnerToggle.group);
+
+      const row = document.createElement('div');
+      row.className = 'form-2col';
 
       const dobSelf = document.createElement('input');
       dobSelf.type = 'date';
-      dobSelf.id = 'fmDobSelf';
       if (fullMontyStore.dobSelf) dobSelf.value = fullMontyStore.dobSelf;
-      dobSelf.addEventListener('change', () => setStore({ dobSelf: dobSelf.value || null }));
-      cont.appendChild(labelled('Your date of birth', dobSelf));
-
-      if (fullMontyStore.hasPartner) {
-        const dobP = document.createElement('input');
-        dobP.type = 'date';
-        dobP.id = 'fmDobPartner';
-        if (fullMontyStore.dobPartner) dobP.value = fullMontyStore.dobPartner;
-        dobP.addEventListener('change', () => setStore({ dobPartner: dobP.value || null }));
-        cont.appendChild(labelled("Partner's date of birth", dobP));
-      }
+      dobSelf.addEventListener('input', () => setStore({ dobSelf: dobSelf.value || null }));
+      row.appendChild(formGroup('dobSelf', 'Your date of birth', dobSelf));
 
       const retireAge = document.createElement('input');
       retireAge.type = 'number';
-      retireAge.min = 18; retireAge.max = 100;
-      retireAge.id = 'fmRetireAge';
+      retireAge.min = 18;
       if (fullMontyStore.retireAge != null) retireAge.value = fullMontyStore.retireAge;
       retireAge.addEventListener('input', () => setStore({ retireAge: numFromInput(retireAge) }));
-      cont.appendChild(labelled('Target retirement age', retireAge));
+      row.appendChild(formGroup('retireAge', 'Target retirement age', retireAge));
+
+      form.appendChild(row);
+
+      const partnerBlock = formGroup('dobPartner', 'Partner’s date of birth', (() => {
+        const inp = document.createElement('input');
+        inp.type = 'date';
+        if (fullMontyStore.dobPartner) inp.value = fullMontyStore.dobPartner;
+        inp.addEventListener('input', () => setStore({ dobPartner: inp.value || null }));
+        return inp;
+      })());
+      partnerBlock.id = 'partnerBlock';
+      partnerBlock.style.display = fullMontyStore.hasPartner ? '' : 'none';
+      form.appendChild(partnerBlock);
+
+      partnerToggle.input.addEventListener('change', () => {
+        const chk = partnerToggle.input.checked;
+        setStore({ hasPartner: chk, dobPartner: null });
+        partnerBlock.style.display = chk ? '' : 'none';
+        const p = partnerBlock.querySelector('input');
+        if (!chk) { p.value = ''; }
+        validateStep();
+      });
+
+      cont.appendChild(form);
     },
     validate() {
-      if (!fullMontyStore.dobSelf) return { ok: false, message: 'Enter your date of birth' };
-      if (fullMontyStore.hasPartner && !fullMontyStore.dobPartner) return { ok: false, message: 'Enter partner DOB' };
-      if (!fullMontyStore.retireAge) return { ok: false, message: 'Enter retirement age' };
+      const errs = {};
+      if (!fullMontyStore.dobSelf) errs.dobSelf = 'This field is required.';
+      if (fullMontyStore.hasPartner && !fullMontyStore.dobPartner) errs.dobPartner = 'This field is required.';
+      if (fullMontyStore.retireAge == null) errs.retireAge = 'This field is required.';
+      else if (fullMontyStore.retireAge < 0) errs.retireAge = 'Please enter a number ≥ 0.';
       const age = yearsFrom(fullMontyStore.dobSelf);
-      if (fullMontyStore.retireAge < age) return { ok: false, message: 'Retirement age must be at least your current age.' };
-      return { ok: true };
+      if (fullMontyStore.retireAge != null && age && fullMontyStore.retireAge < age) errs.retireAge = 'Retirement age must be at least your current age.';
+      return { ok: Object.keys(errs).length === 0, errors: errs };
     }
   },
 
@@ -232,20 +273,30 @@ const steps = [
     title: 'Income today',
     render(cont) {
       cont.innerHTML = '';
+      const form = document.createElement('div');
+      form.className = 'form';
 
-      const gross = currencyInput({ id: 'fmGross', value: fullMontyStore.grossIncome ?? '' });
+      const gross = currencyInput({ id: 'grossIncome', value: fullMontyStore.grossIncome ?? '' });
       gross.querySelector('input').addEventListener('input', () => setStore({ grossIncome: numFromInput(gross.querySelector('input')) }));
-      cont.appendChild(labelled('Your gross annual income', gross));
+      form.appendChild(formGroup('grossIncome', 'Your gross annual income', gross));
 
       if (fullMontyStore.hasPartner) {
-        const gp = currencyInput({ id: 'fmGrossPartner', value: fullMontyStore.grossIncomePartner ?? '' });
+        const gp = currencyInput({ id: 'grossIncomePartner', value: fullMontyStore.grossIncomePartner ?? '' });
         gp.querySelector('input').addEventListener('input', () => setStore({ grossIncomePartner: numFromInput(gp.querySelector('input')) }));
-        cont.appendChild(labelled("Partner's gross annual income", gp));
+        form.appendChild(formGroup('grossIncomePartner', "Partner's gross annual income", gp));
       }
+
+      cont.appendChild(form);
     },
     validate() {
-      if (!fullMontyStore.grossIncome) return { ok: false, message: 'Enter your income' };
-      return { ok: true };
+      const errs = {};
+      if (fullMontyStore.grossIncome == null) errs.grossIncome = 'This field is required.';
+      else if (fullMontyStore.grossIncome < 0) errs.grossIncome = 'Please enter a number ≥ 0.';
+      if (fullMontyStore.hasPartner) {
+        if (fullMontyStore.grossIncomePartner == null) errs.grossIncomePartner = 'This field is required.';
+        else if (fullMontyStore.grossIncomePartner < 0) errs.grossIncomePartner = 'Please enter a number ≥ 0.';
+      }
+      return { ok: Object.keys(errs).length === 0, errors: errs };
     }
   },
 
@@ -254,31 +305,40 @@ const steps = [
     title: 'Retirement goal',
     render(cont) {
       cont.innerHTML = '';
+      const form = document.createElement('div');
+      form.className = 'form';
 
       const sel = document.createElement('select');
-      sel.id = 'fmGoalType';
+      sel.id = 'goalType';
       sel.innerHTML = '<option value="percent">Percent of income</option><option value="spend">Annual spending</option>';
       sel.value = fullMontyStore.goalType;
       sel.addEventListener('change', () => { setStore({ goalType: sel.value }); render(); });
-      cont.appendChild(labelled('Goal type', sel));
+      form.appendChild(formGroup('goalType', 'Goal type', sel));
 
       if (fullMontyStore.goalType === 'percent') {
-        const pct = percentInput({ id: 'fmIncomePct', value: fullMontyStore.incomePercent });
+        const pct = percentInput({ id: 'incomePercent', value: fullMontyStore.incomePercent ?? '' });
         pct.querySelector('input').addEventListener('input', () => setStore({ incomePercent: numFromInput(pct.querySelector('input')) ?? 0 }));
-        cont.appendChild(labelled('Income you will need at retirement', pct));
+        form.appendChild(formGroup('incomePercent', 'Income you will need at retirement', pct));
       } else {
-        const spend = currencyInput({ id: 'fmRetireSpend', value: fullMontyStore.retireSpend ?? '' });
+        const spend = currencyInput({ id: 'retireSpend', value: fullMontyStore.retireSpend ?? '' });
         spend.querySelector('input').addEventListener('input', () => setStore({ retireSpend: numFromInput(spend.querySelector('input')) }));
-        cont.appendChild(labelled('Desired annual spending in retirement', spend));
+        form.appendChild(formGroup('retireSpend', 'Desired annual spending in retirement', spend));
       }
+
+      cont.appendChild(form);
     },
     validate() {
+      const errs = {};
       if (fullMontyStore.goalType === 'percent') {
-        if (fullMontyStore.incomePercent == null) return { ok: false, message: 'Enter percent of income' };
+        const v = fullMontyStore.incomePercent;
+        if (v == null) errs.incomePercent = 'This field is required.';
+        else if (v < 0 || v > 100) errs.incomePercent = 'Enter a % between 0 and 100.';
       } else {
-        if (!fullMontyStore.retireSpend) return { ok: false, message: 'Enter annual spending' };
+        const v = fullMontyStore.retireSpend;
+        if (v == null) errs.retireSpend = 'This field is required.';
+        else if (v < 0) errs.retireSpend = 'Please enter a number ≥ 0.';
       }
-      return { ok: true };
+      return { ok: Object.keys(errs).length === 0, errors: errs };
     }
   },
 
@@ -287,23 +347,21 @@ const steps = [
     title: 'Pensions',
     render(cont) {
       cont.innerHTML = '';
+      const form = document.createElement('div');
+      form.className = 'form';
 
-      // Helper to render block for person (self/partner)
       function personBlock(prefix, labelPrefix) {
         const wrap = document.createElement('div');
-        wrap.className = 'person-block';
         const h = document.createElement('h4');
         h.textContent = labelPrefix;
         wrap.appendChild(h);
 
         const cur = currencyInput({ id: `${prefix}Cur`, value: fullMontyStore[`currentPensionValue${labelPrefix}`] ?? 0 });
         cur.querySelector('input').addEventListener('input', () => setStore({ [`currentPensionValue${labelPrefix}`]: numFromInput(cur.querySelector('input')) || 0 }));
-        wrap.appendChild(labelled('Current pension value', cur));
+        wrap.appendChild(formGroup(`${prefix}Cur`, 'Current pension value', cur));
 
-        // personal contrib – euro or percent
         const pc = currencyInput({ id: `${prefix}Pers€`, value: fullMontyStore[`personalContrib${labelPrefix}`] ?? '' });
         const pp = percentInput({ id: `${prefix}Pers%`, value: fullMontyStore[`personalPct${labelPrefix}`] ?? '' });
-
         pc.querySelector('input').addEventListener('input', () => {
           const v = numFromInput(pc.querySelector('input'));
           setStore({ [`personalContrib${labelPrefix}`]: v, [`personalPct${labelPrefix}`]: null });
@@ -314,8 +372,8 @@ const steps = [
           setStore({ [`personalPct${labelPrefix}`]: v, [`personalContrib${labelPrefix}`]: null });
           pc.querySelector('input').disabled = v != null && v !== 0;
         });
-        wrap.appendChild(labelled('Your contribution', pc));
-        wrap.appendChild(labelled('…or % of salary', pp));
+        wrap.appendChild(formGroup(`${prefix}Pers€`, 'Your contribution', pc));
+        wrap.appendChild(formGroup(`${prefix}Pers%`, '…or % of salary', pp));
 
         const ec = currencyInput({ id: `${prefix}Emp€`, value: fullMontyStore[`employerContrib${labelPrefix}`] ?? '' });
         const ep = percentInput({ id: `${prefix}Emp%`, value: fullMontyStore[`employerPct${labelPrefix}`] ?? '' });
@@ -329,39 +387,48 @@ const steps = [
           setStore({ [`employerPct${labelPrefix}`]: v, [`employerContrib${labelPrefix}`]: null });
           ec.querySelector('input').disabled = v != null && v !== 0;
         });
-        wrap.appendChild(labelled('Employer contribution', ec));
-        wrap.appendChild(labelled('…or % of salary', ep));
+        wrap.appendChild(formGroup(`${prefix}Emp€`, 'Employer contribution', ec));
+        wrap.appendChild(formGroup(`${prefix}Emp%`, '…or % of salary', ep));
 
-        const dbToggle = checkbox({ id: `${prefix}HasDb`, checked: fullMontyStore[`hasDb${labelPrefix}`] });
-        dbToggle.addEventListener('change', () => { setStore({ [`hasDb${labelPrefix}`]: dbToggle.checked }); render(); });
-        wrap.appendChild(labelled('Defined benefit pension?', dbToggle));
+        const db = controlGroup(`${prefix}HasDb`, 'Defined benefit pension?', fullMontyStore[`hasDb${labelPrefix}`]);
+        db.input.addEventListener('change', () => { setStore({ [`hasDb${labelPrefix}`]: db.input.checked }); render(); });
+        wrap.appendChild(db.group);
 
         if (fullMontyStore[`hasDb${labelPrefix}`]) {
           const dbAmt = currencyInput({ id: `${prefix}DbAmt`, value: fullMontyStore[`dbPension${labelPrefix}`] ?? '' });
           dbAmt.querySelector('input').addEventListener('input', () => setStore({ [`dbPension${labelPrefix}`]: numFromInput(dbAmt.querySelector('input')) }));
-          wrap.appendChild(labelled('DB annual amount', dbAmt));
+          wrap.appendChild(formGroup(`${prefix}DbAmt`, 'DB annual amount', dbAmt));
+
           const dbAge = document.createElement('input');
-          dbAge.type = 'number'; dbAge.min = 50; dbAge.max = 100; dbAge.value = fullMontyStore[`dbStartAge${labelPrefix}`] ?? '';
+          dbAge.type = 'number';
+          dbAge.min = 50; dbAge.max = 100; dbAge.id = `${prefix}DbAge`;
+          if (fullMontyStore[`dbStartAge${labelPrefix}`]) dbAge.value = fullMontyStore[`dbStartAge${labelPrefix}`];
           dbAge.addEventListener('input', () => setStore({ [`dbStartAge${labelPrefix}`]: numFromInput(dbAge) }));
-          wrap.appendChild(labelled('DB pension start age', dbAge));
+          wrap.appendChild(formGroup(`${prefix}DbAge`, 'DB pension start age', dbAge));
         }
 
-        const sp = checkbox({ id: `${prefix}State`, checked: fullMontyStore[`statePension${labelPrefix}`] });
-        sp.addEventListener('change', () => setStore({ [`statePension${labelPrefix}`]: sp.checked }));
-        wrap.appendChild(labelled('Qualifies for State Pension?', sp));
+        const sp = controlGroup(`${prefix}State`, 'Qualifies for State Pension?', fullMontyStore[`statePension${labelPrefix}`]);
+        sp.input.addEventListener('change', () => setStore({ [`statePension${labelPrefix}`]: sp.input.checked }));
+        wrap.appendChild(sp.group);
 
         return wrap;
       }
 
-      cont.appendChild(personBlock('self', 'Self'));
-      if (fullMontyStore.hasPartner) cont.appendChild(personBlock('partner', 'Partner'));
+      form.appendChild(personBlock('self', 'Self'));
+      if (fullMontyStore.hasPartner) form.appendChild(personBlock('partner', 'Partner'));
+      cont.appendChild(form);
     },
     validate() {
-      if (fullMontyStore.hasDbSelf && (!fullMontyStore.dbPensionSelf || !fullMontyStore.dbStartAgeSelf))
-        return { ok: false, message: 'Enter DB pension details for yourself' };
-      if (fullMontyStore.hasPartner && fullMontyStore.hasDbPartner && (!fullMontyStore.dbPensionPartner || !fullMontyStore.dbStartAgePartner))
-        return { ok: false, message: 'Enter DB pension details for partner' };
-      return { ok: true };
+      const errs = {};
+      if (fullMontyStore.hasDbSelf && (!fullMontyStore.dbPensionSelf || !fullMontyStore.dbStartAgeSelf)) {
+        if (!fullMontyStore.dbPensionSelf) errs.selfDbAmt = 'This field is required.';
+        if (!fullMontyStore.dbStartAgeSelf) errs.selfDbAge = 'This field is required.';
+      }
+      if (fullMontyStore.hasPartner && fullMontyStore.hasDbPartner && (!fullMontyStore.dbPensionPartner || !fullMontyStore.dbStartAgePartner)) {
+        if (!fullMontyStore.dbPensionPartner) errs.partnerDbAmt = 'This field is required.';
+        if (!fullMontyStore.dbStartAgePartner) errs.partnerDbAge = 'This field is required.';
+      }
+      return { ok: Object.keys(errs).length === 0, errors: errs };
     }
   },
 
@@ -370,14 +437,20 @@ const steps = [
     title: 'Other income',
     render(cont) {
       cont.innerHTML = '';
-      const rent = currencyInput({ id: 'fmRent', value: fullMontyStore.rentalIncomeNow ?? '' });
+      const form = document.createElement('div');
+      form.className = 'form';
+
+      const rent = currencyInput({ id: 'rentalIncome', value: fullMontyStore.rentalIncomeNow ?? '' });
       rent.querySelector('input').addEventListener('input', () => setStore({ rentalIncomeNow: numFromInput(rent.querySelector('input')) }));
-      cont.appendChild(labelled('Rental income today', rent));
-      const chk = checkbox({ id: 'fmRentInfl', checked: fullMontyStore.rentalInflatesWithCPI });
-      chk.addEventListener('change', () => setStore({ rentalInflatesWithCPI: chk.checked }));
-      cont.appendChild(labelled('Rental income grows with CPI', chk));
+      form.appendChild(formGroup('rentalIncome', 'Rental income today', rent));
+
+      const chk = controlGroup('rentInfl', 'Rental income grows with CPI', fullMontyStore.rentalInflatesWithCPI);
+      chk.input.addEventListener('change', () => setStore({ rentalInflatesWithCPI: chk.input.checked }));
+      form.appendChild(chk.group);
+
+      cont.appendChild(form);
     },
-    validate() { return { ok: true }; }
+    validate() { return { ok: true, errors: {} }; }
   },
 
   {
@@ -385,6 +458,8 @@ const steps = [
     title: 'Assets',
     render(cont) {
       cont.innerHTML = '';
+      const form = document.createElement('div');
+      form.className = 'form';
 
       const groups = [
         { key: 'homes', label: 'Homes' },
@@ -396,6 +471,7 @@ const steps = [
 
       groups.forEach(g => {
         const sec = document.createElement('div');
+        sec.className = 'form-group';
         const h = document.createElement('h4');
         h.textContent = g.label;
         sec.appendChild(h);
@@ -411,31 +487,40 @@ const steps = [
           render();
         });
         sec.appendChild(add);
-        cont.appendChild(sec);
+        form.appendChild(sec);
       });
+
+      cont.appendChild(form);
 
       function assetRow(key, row) {
         const wrap = document.createElement('div');
-        wrap.className = 'asset-row';
+        wrap.className = 'asset-row form-group';
 
+        const nameId = uuid();
+        const nameGrp = document.createElement('div');
+        nameGrp.className = 'form-group';
+        const nameLab = document.createElement('label');
+        nameLab.htmlFor = nameId; nameLab.textContent = 'Name';
         const name = document.createElement('input');
-        name.type = 'text';
-        name.value = row.name || '';
-        name.placeholder = 'name';
+        name.type = 'text'; name.id = nameId; name.value = row.name || '';
         name.addEventListener('input', () => row.name = name.value);
-        wrap.appendChild(name);
+        nameGrp.append(nameLab, name);
+        wrap.appendChild(nameGrp);
 
-        const val = currencyInput({ id: uuid(), value: row.value || '' });
+        const valId = uuid();
+        const val = currencyInput({ id: valId, value: row.value || '' });
         val.querySelector('input').addEventListener('input', () => row.value = numFromInput(val.querySelector('input')) || 0);
-        wrap.appendChild(val);
+        wrap.appendChild(formGroup(valId, 'Value', val));
 
         if (key === 'rentProps') {
-          const mort = currencyInput({ id: uuid(), value: row.mortgageBalance || '' });
+          const mortId = uuid();
+          const mort = currencyInput({ id: mortId, value: row.mortgageBalance || '' });
           mort.querySelector('input').addEventListener('input', () => row.mortgageBalance = numFromInput(mort.querySelector('input')) || null);
-          wrap.appendChild(labelled('Mortgage', mort));
-          const gr = currencyInput({ id: uuid(), value: row.grossRent || '' });
+          wrap.appendChild(formGroup(mortId, 'Mortgage', mort));
+          const grId = uuid();
+          const gr = currencyInput({ id: grId, value: row.grossRent || '' });
           gr.querySelector('input').addEventListener('input', () => row.grossRent = numFromInput(gr.querySelector('input')) || null);
-          wrap.appendChild(labelled('Gross rent', gr));
+          wrap.appendChild(formGroup(grId, 'Gross rent', gr));
         }
 
         const rm = document.createElement('button');
@@ -449,7 +534,7 @@ const steps = [
         return wrap;
       }
     },
-    validate() { return { ok: true }; }
+    validate() { return { ok: true, errors: {} }; }
   },
 
   {
@@ -457,35 +542,52 @@ const steps = [
     title: 'Debts',
     render(cont) {
       cont.innerHTML = '';
+      const form = document.createElement('div');
+      form.className = 'form';
       const list = document.createElement('div');
       fullMontyStore.liabilities.forEach(row => list.appendChild(debtRow(row)));
-      cont.appendChild(list);
+      form.appendChild(list);
       const add = document.createElement('button');
       add.textContent = 'Add liability';
       add.type = 'button';
       add.addEventListener('click', () => { fullMontyStore.liabilities.push({ id: uuid(), name: '', balance: 0 }); render(); });
-      cont.appendChild(add);
+      form.appendChild(add);
+      cont.appendChild(form);
 
       function debtRow(row) {
         const wrap = document.createElement('div');
-        wrap.className = 'debt-row';
+        wrap.className = 'debt-row form-group';
+
+        const nameId = uuid();
+        const nameGrp = document.createElement('div');
+        nameGrp.className = 'form-group';
+        const nameLab = document.createElement('label');
+        nameLab.htmlFor = nameId; nameLab.textContent = 'Name';
         const name = document.createElement('input');
-        name.type = 'text'; name.placeholder = 'name'; name.value = row.name || '';
+        name.type = 'text'; name.id = nameId; name.value = row.name || '';
         name.addEventListener('input', () => row.name = name.value);
-        wrap.appendChild(name);
-        const bal = currencyInput({ id: uuid(), value: row.balance || '' });
+        nameGrp.append(nameLab, name);
+        wrap.appendChild(nameGrp);
+
+        const balId = uuid();
+        const bal = currencyInput({ id: balId, value: row.balance || '' });
         bal.querySelector('input').addEventListener('input', () => row.balance = numFromInput(bal.querySelector('input')) || 0);
-        wrap.appendChild(bal);
-        const rate = percentInput({ id: uuid(), value: row.rate || '' });
+        wrap.appendChild(formGroup(balId, 'Balance', bal));
+
+        const rateId = uuid();
+        const rate = percentInput({ id: rateId, value: row.rate || '' });
         rate.querySelector('input').addEventListener('input', () => row.rate = numFromInput(rate.querySelector('input')) || null);
-        wrap.appendChild(rate);
-        const rm = document.createElement('button'); rm.textContent = 'Remove'; rm.type = 'button';
+        wrap.appendChild(formGroup(rateId, 'Rate', rate));
+
+        const rm = document.createElement('button');
+        rm.textContent = 'Remove';
+        rm.type = 'button';
         rm.addEventListener('click', () => { removeRow('liabilities', row.id); render(); });
         wrap.appendChild(rm);
         return wrap;
       }
     },
-    validate() { return { ok: true }; }
+    validate() { return { ok: true, errors: {} }; }
   },
 
   {
@@ -493,6 +595,8 @@ const steps = [
     title: 'Growth profile',
     render(cont) {
       cont.innerHTML = '';
+      const form = document.createElement('div');
+      form.className = 'form';
       const opts = [
         { val: 0.04, title: 'Low', desc: '≈4% p.a.' },
         { val: 0.05, title: 'Balanced', desc: '≈5% p.a.' },
@@ -501,26 +605,32 @@ const steps = [
       ];
       const wrap = document.createElement('div');
       wrap.className = 'risk-options';
-      opts.forEach(o => {
-        const card = document.createElement('label');
-        card.className = 'risk-card';
+      opts.forEach((o, i) => {
+        const id = `growth${i}`;
         const radio = document.createElement('input');
         radio.type = 'radio';
-        radio.name = 'fmGrowth';
+        radio.name = 'growth';
+        radio.id = id;
         radio.value = o.val;
-        radio.style.display = 'none';
-        if (fullMontyStore.growthProfile === o.val) {
-          radio.checked = true; card.classList.add('selected');
-        }
-        radio.addEventListener('change', () => { fullMontyStore.growthProfile = o.val; wrap.querySelectorAll('.risk-card').forEach(c => c.classList.remove('selected')); card.classList.add('selected'); });
-        card.appendChild(radio);
-        const t = document.createElement('div'); t.className = 'risk-title'; t.textContent = o.title; card.appendChild(t);
-        const d = document.createElement('div'); d.className = 'risk-desc'; d.textContent = o.desc; card.appendChild(d);
-        wrap.appendChild(card);
+        if (fullMontyStore.growthProfile === o.val) radio.checked = true;
+        radio.addEventListener('change', () => {
+          fullMontyStore.growthProfile = o.val;
+          wrap.querySelectorAll('.risk-card').forEach(c => c.classList.remove('selected'));
+          wrap.querySelector(`label[for="${id}"]`).classList.add('selected');
+          validateStep();
+        });
+        const label = document.createElement('label');
+        label.className = 'risk-card';
+        label.htmlFor = id;
+        if (radio.checked) label.classList.add('selected');
+        const t = document.createElement('span'); t.className = 'risk-title'; t.textContent = o.title; label.appendChild(t);
+        const d = document.createElement('span'); d.className = 'risk-desc'; d.textContent = o.desc; label.appendChild(d);
+        wrap.append(radio, label);
       });
-      cont.appendChild(wrap);
+      form.appendChild(wrap);
+      cont.appendChild(form);
     },
-    validate() { return { ok: true }; }
+    validate() { return { ok: fullMontyStore.growthProfile != null, errors: {} }; }
   },
 
   {
@@ -528,14 +638,17 @@ const steps = [
     title: 'Assumptions',
     render(cont) {
       cont.innerHTML = '';
-      const cpi = percentInput({ id: 'fmCpi', value: fullMontyStore.cpiRate });
+      const form = document.createElement('div');
+      form.className = 'form';
+      const cpi = percentInput({ id: 'cpi', value: fullMontyStore.cpiRate });
       cpi.querySelector('input').addEventListener('input', () => setStore({ cpiRate: numFromInput(cpi.querySelector('input')) ?? 0 }));
-      cont.appendChild(labelled('Inflation (CPI)', cpi));
-      const sft = checkbox({ id: 'fmSft', checked: fullMontyStore.sftAwareness });
-      sft.addEventListener('change', () => setStore({ sftAwareness: sft.checked }));
-      cont.appendChild(labelled('Warn about SFT threshold', sft));
+      form.appendChild(formGroup('cpi', 'Inflation (CPI)', cpi));
+      const sft = controlGroup('sftWarn', 'Warn about SFT threshold', fullMontyStore.sftAwareness);
+      sft.input.addEventListener('change', () => setStore({ sftAwareness: sft.input.checked }));
+      form.appendChild(sft.group);
+      cont.appendChild(form);
     },
-    validate() { return { ok: true }; }
+    validate() { return { ok: true, errors: {} }; }
   },
 
   {
@@ -552,7 +665,7 @@ const steps = [
       runBtn.addEventListener('click', runAll);
       cont.appendChild(runBtn);
     },
-    validate() { return { ok: true }; }
+    validate() { return { ok: true, errors: {} }; }
   }
 ];
 
@@ -575,23 +688,29 @@ function render() {
   container.appendChild(h);
   step.render(container);
   dots.innerHTML = steps.map((_, i) => `<button class="wizDot${i === cur ? ' active' : ''}" data-idx="${i}"></button>`).join('');
-  dots.querySelectorAll('button').forEach(b => {
-    b.addEventListener('click', () => { if (i <= cur) { cur = +b.dataset.idx; render(); } });
+  dots.querySelectorAll('button').forEach((b, i) => {
+    b.addEventListener('click', () => { if (i <= cur) { cur = i; render(); } });
   });
+  container.querySelectorAll('input, select, textarea, button').forEach(el => {
+    el.addEventListener('blur', () => validateStep(true));
+    el.addEventListener('input', () => validateStep());
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') e.preventDefault(); });
+  });
+  validateStep();
   btnBack.style.display = cur === 0 ? 'none' : '';
   btnNext.textContent = cur === steps.length - 1 ? 'Finish' : 'Next';
   focusFirst();
 }
 
-function validateStep() {
+function validateStep(show = false) {
   const res = steps[cur].validate();
-  if (res.ok) return true;
-  alert(res.message || 'Please fill required fields');
-  return false;
+  btnNext.disabled = !res.ok;
+  if (show) showErrors(res.errors || {}); else showErrors();
+  return res.ok;
 }
 
 function next() {
-  if (!validateStep()) return;
+  if (!validateStep(true)) return;
   animate(container, 'next');
   if (cur < steps.length - 1) { cur++; render(); }
 }
