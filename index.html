@@ -6,298 +6,126 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Planéir – Financial Planning Tools</title>
   <link rel="icon" type="image/png" href="favicon.png" />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
-    rel="stylesheet"
-  />
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap" rel="stylesheet" />
+  <link rel="prefetch" href="full-monty.html" />
   <style>
-    /* 1. Base reset and body centering */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    html,
-    body {
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
-    body {
-      font-family: 'Inter', sans-serif;
-      background: #1a1a1a;
-      color: #fff;
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-start;
-      align-items: center;
-      gap: 1.5rem;
-      /* Increased space at top and bottom to ensure the info box outline is visible */
-      padding: calc(env(safe-area-inset-top,0) + 3rem) 1rem calc(env(safe-area-inset-bottom,0) + 3rem);
-    }
-
-    @media (min-width: 700px) {
-      body { justify-content: center; }
-    }
-
-    /* 2. Make the container flex and allow wrapping */
-    .container {
-      display: flex;
-      flex-wrap: wrap;          /* allow bubbles to move down on small screens */
-      justify-content: center;  /* center horizontally */
-      align-items: center;      /* center vertically if they're on the same row */
-      gap: 1rem;                /* space between bubbles */
-      width: fit-content;       /* shrink to bubbles width for full-monty btn */
-      max-width: 100%;          /* ensure it never overflows the viewport */
-    }
-
-    /* 3. Responsive bubble sizing */
-    .bubble {
-      /* Use viewport‐relative sizing, up to a max of 220px */
-      width: 40vw;              /* 40% of viewport width */
-      max-width: 220px;         /* never exceed 220px */
-      height: 40vw;             /* keep it square (circle) */
-      max-height: 220px;        /* never exceed 220px */
-      /* Keep the circle shape */
-      background: linear-gradient(135deg, #00ff88, #0099ff);
-      border-radius: 50%;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-      transition: transform 0.3s, box-shadow 0.3s;
-      box-shadow: 0 0 20px rgba(0, 255, 136, 0.6);
-      text-decoration: none;    /* in case you wrap in an <a> */
-    }
-    .bubble:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 35px rgba(0, 255, 136, 0.9);
-    }
-
-    .bubble-icon {
-      font-size: 10vw;          /* scale icon with viewport, up to a max below */
-      max-font-size: 50px;      /* browsers will ignore this, so we’ll override with media query if needed */
-      margin-bottom: 0.5rem;
-      line-height: 1;
-    }
-    .bubble span {
-      font-size: 4vw;          /* Title text also scales */
-      max-font-size: 20px;     /* never exceed 20px */
-      font-weight: 700;
-      text-align: center;
-      line-height: 1.2;
-    }
-
-    /* 4. On very small viewports, stack them and shrink fonts/icons a bit more */
-    @media (max-width: 480px) {
-      .bubble {
-        width: 60vw;
-        height: 60vw;
-        max-width: none;
-        max-height: none;
-      }
-      .bubble-icon {
-        font-size: 8vw;
-      }
-      .bubble span {
-        font-size: 5vw;
-      }
-      /* If you want them stacked (one above the other) on very narrow screens: */
-      .container {
-        flex-direction: column;
-        gap: 1.5rem;
-      }
-    }
-    /* Desktop/large-screen override: cap the fonts at fixed px values */
-    @media (min-width: 600px) {
-      .bubble-icon { font-size: 50px; }
-      .bubble span  { font-size: 20px; }
-    }
-
-    /* Title styling inside info box */
-    .info-title {
-      font-size: 2rem;
-      font-family: 'Cormorant Garamond', serif;
-      font-weight: 700;
-      text-align: center;
-      color: #bfa571; /* match favicon colour */
-      margin-bottom: 0.5rem;
-    }
-    @media (min-width: 700px) {
-      .info-title { font-size: 2.5rem; }
-    }
-
-    .title-logo {
-      width: 1.6em;
-      height: auto;
-      vertical-align: middle;
-      margin-right: .4rem;
-    }
-
-    /* Informational box under the bubbles */
-    .info-box {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      gap: 0.75rem;
-      background: #2a2a2a;
-      border-radius: 12px;
-      box-shadow: 0 0 20px rgba(0, 255, 136, 0.25);
-      padding: 1rem;
-      max-width: 720px;
-      font-size: 0.95rem;
-      line-height: 1.4;
-    }
-
-    .info-box img {
-      width: auto;
-      max-width: 80px;
-      height: auto;
-      flex-shrink: 0;
-      margin-right: 0.75rem;
-    }
-
-    .info-box ul {
-      margin-left: 1.25rem;
-      padding-left: 1rem;
-    }
-
-    @media (max-width: 600px) {
-      .info-box {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: 1rem;
-      }
-      .info-box img {
-        margin-right: 0;
-        margin-bottom: 0.75rem;
-        max-width: 60px;
-      }
-    }
-
-    /* === Full Monty button === */
-    .btn-full-monty {
-      display: inline-flex;
-      justify-content: center;
-      align-items: center;
-      padding: 1rem 1.8rem;
-      font-weight: 700;
-      font-size: 1.05rem;
-      color: #fff;
-      text-decoration: none;
-      cursor: pointer;
-      background: linear-gradient(135deg, #c000ff 0%, #7f00ff 100%);
-      box-shadow: 0 0 18px rgba(192, 0, 255, .6);
-      transition: transform .25s, box-shadow .25s, filter .25s;
-      border-radius: 12px;
-      flex-basis: 100%;
-      width: 100%;
-      text-align: center;
-    }
-    .btn-full-monty:hover,
-    .btn-full-monty:focus-visible {
-      transform: scale(1.03);
-      box-shadow: 0 0 28px rgba(192, 0, 255, .9);
-      filter: brightness(1.15);
-    }
-
-    /* Wizard basics */
-    button {
-      padding: .8rem 1.2rem;
-      font-weight: 700;
-      font-size: 1rem;
-      border: none;
-      border-radius: 50px;
-      cursor: pointer;
-      color: #1a1a1a;
-      background: linear-gradient(135deg, #00ff88, #0099ff);
-      margin: .3rem 0;
-      min-height: 2.75rem;
-    }
-    .modal {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    }
-    .modal.hidden { display: none; }
-    .wizard-card {
-      display: flex;
-      flex-direction: column;
-      max-width: 420px;
-      border-radius: 16px;
-      padding: 2rem;
-      background: #2a2a2a;
-    }
-    #fullMontyModal h3 { font-weight: 600; font-size: 1.1rem; color: #fff; }
-    .wiz-header { text-align: center; margin-bottom: 1.2rem; }
-    #fmProgress { margin: 0 0 .8rem 0; }
-    #fmProgressBar { height: 6px; background:#ddd; border-radius:3px; margin:0 24px 12px; }
-    #fmProgressFill { height:100%; width:0; background:#c000ff; border-radius:3px; transition:width .25s ease; }
-    #fmDots { display:flex; justify-content:center; gap:8px; }
-    button.wizDot {
-      width:14px; height:14px; padding:0; line-height:0;
-      border:none; border-radius:50%; background:#888; cursor:pointer;
-    }
-    button.wizDot.active,
-    button.wizDot:focus-visible { background:#c000ff; }
-    .wizard-controls { display:flex; justify-content:space-between; margin-top:auto; }
-    @keyframes slideInLeft{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
-    @keyframes slideInRight{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
-    #fmStepContainer.anim-left{animation:slideInLeft .25s ease-out both}
-    #fmStepContainer.anim-right{animation:slideInRight .25s ease-out both}
-
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{min-height:100vh;overflow-x:hidden}
+    body{font-family:'Inter',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1.5rem;padding:calc(env(safe-area-inset-top,0)+3rem) 1rem calc(env(safe-area-inset-bottom,0)+3rem);background:var(--bg);color:var(--ink)}
+    @media (min-width:960px){body{justify-content:center}}
+    /* ========== Tokens ========== */
+    :root{--bg:#1a1a1a;--card:#2a2a2a;--ink:#fff;--muted:#bbb;--gold:#bfa571;--accentA:#00ff88;--accentB:#0099ff;--pmag1:#c000ff;--pmag2:#7f00ff;--shadow:0 0 25px rgba(0,255,136,.25)}
+    /* ========== Page layout tweaks ========== */
+    main{display:grid;gap:1.5rem;width:100%;max-width:1100px}
+    @media (min-width:960px){main{gap:2rem}}
+    /* Info band stays, but narrower and cleaner */
+    .info-box{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:1rem 1.25rem;max-width:none}
+    .info-title{font-size:2rem;font-family:'Cormorant Garamond',serif;font-weight:700;text-align:center;color:var(--gold);margin-bottom:.5rem}
+    .title-logo{width:1.6em;height:auto;vertical-align:middle;margin-right:.4rem}
+    /* ========== HERO (Full Monty) ========== */
+    .hero{display:grid;gap:1rem;align-items:center;grid-template-columns:1fr}
+    @media (min-width:960px){.hero{grid-template-columns:1.1fr .9fr}}
+    .hero-copy h1{font-family:'Cormorant Garamond',serif;font-size:clamp(2rem,3.5vw,2.75rem);color:var(--gold);margin-bottom:.25rem}
+    .hero-copy p.lead{color:#ddd;font-size:1.05rem;line-height:1.5;margin-bottom:.75rem}
+    .hero-card{position:relative;overflow:hidden;background:linear-gradient(135deg,var(--pmag1),var(--pmag2));border-radius:18px;color:#fff;padding:1.2rem 1.4rem;box-shadow:0 0 28px rgba(192,0,255,.35);transition:transform .25s,box-shadow .25s,filter .25s}
+    .hero-card:hover{transform:translateY(-2px);box-shadow:0 0 38px rgba(192,0,255,.55);filter:brightness(1.06)}
+    .hero-card::after{content:"";position:absolute;inset:-40%;background:conic-gradient(from 0deg at 50% 50%,transparent 0 35%,rgba(255,255,255,.08) 36% 40%,transparent 41% 100%);animation:spin 8s linear infinite;pointer-events:none}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .hero-top{display:flex;align-items:center;justify-content:space-between;gap:.75rem}
+    .badge{display:inline-flex;align-items:center;gap:.5rem;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.15);padding:.35rem .6rem;border-radius:999px;font-weight:700;font-size:.85rem}
+    .badge .dot{width:.5rem;height:.5rem;border-radius:50%;background:#00ffc2;box-shadow:0 0 8px rgba(0,255,194,.9)}
+    .hero-title{font-weight:800;font-size:1.4rem;letter-spacing:.2px}
+    .hero-list{margin:.75rem 0 .9rem 1.1rem;line-height:1.35}
+    .hero-list li{margin:.25rem 0}
+    .hero-cta{display:flex;gap:.75rem;flex-wrap:wrap;align-items:center}
+    .hero-cta .btn-primary{display:inline-flex;align-items:center;gap:.6rem;padding:.9rem 1.4rem;border-radius:14px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--accentA),var(--accentB));color:#1a1a1a;font-weight:800;font-size:1.05rem;box-shadow:0 0 22px rgba(0,255,136,.6);transition:transform .2s,box-shadow .2s;text-decoration:none;animation:breathe 10s ease-in-out infinite}
+    .hero-cta .btn-primary:hover{transform:scale(1.03);box-shadow:0 0 28px rgba(0,255,136,.85)}
+    .hero-cta .hint{color:#f3f3f3;opacity:.85;font-size:.95rem}
+    @keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.015)}}
+    /* ========== Secondary tools section ========== */
+    .tools-head{display:flex;align-items:center;gap:.75rem;margin-top:.25rem;margin-bottom:.25rem}
+    .tools-head .rule{flex:1;height:1px;background:linear-gradient(90deg,#444,transparent)}
+    .tools-head .label{color:#ccc;font-weight:700;font-size:.95rem;text-transform:uppercase;letter-spacing:.08em}
+    .container{display:flex;flex-wrap:wrap;justify-content:center;gap:1rem}
+    .bubble{width:36vw;max-width:200px;height:36vw;max-height:200px;border-radius:50%;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:pointer;transition:transform .25s,box-shadow .25s,filter .25s;background:linear-gradient(135deg,#2e2e2e,#3a3a3a);box-shadow:0 0 16px rgba(0,0,0,.35);filter:saturate(.65) brightness(.95)}
+    .bubble:hover{transform:translateY(-2px) scale(1.03);background:linear-gradient(135deg,var(--accentA),var(--accentB));box-shadow:0 0 28px rgba(0,255,136,.55);filter:none}
+    .bubble-icon{font-size:44px;line-height:1;margin-bottom:.4rem}
+    .bubble span{font-weight:700;text-align:center;font-size:16px}
+    /* Accessibility focus */
+    a:focus-visible,.bubble:focus-visible,.btn-primary:focus-visible{outline:2px solid var(--accentA);outline-offset:4px;box-shadow:0 0 0 3px rgba(0,255,136,.25)}
   </style>
 </head>
 <body>
+<main>
+
+  <!-- Info band stays -->
   <div class="info-box">
     <div>
       <h1 class="info-title">
-        <img src="favicon.png" class="title-logo" alt="Irish pension logo">
+        <img src="favicon.png" class="title-logo" alt="Planéir logo">
         Planéir
       </h1>
       <p>🇮🇪 Built for Irish Pensions</p>
-      <p>All of our tools are designed specifically for Irish pension rules — because pensions are the most tax-efficient way to invest in Ireland.</p>
-      <p>When you invest through a pension:</p>
+      <p>All of our tools are designed specifically for Irish pension rules — because pensions are the most tax‑efficient way to invest in Ireland.</p>
       <ul>
         <li>You don’t pay income tax on the money you contribute</li>
-        <li>Your investments grow tax-free, with no 8-year deemed disposal</li>
-        <li>You can take a portion tax-free at retirement</li>
+        <li>Your investments grow tax‑free (no 8‑year deemed disposal)</li>
+        <li>You can take a portion tax‑free at retirement</li>
       </ul>
-      <p>That’s why our calculators focus on helping you understand how much you need in your pension to retire comfortably — and how to get there.</p>
     </div>
   </div>
 
-  <div class="container">
-    <a href="full-monty.html" class="btn-full-monty" aria-label="Launch Full Monty wizard">
-      Full Monty&nbsp;(all-in-one)
-    </a>
-    <!-- Bubble #1 -->
-    <div class="bubble" onclick="location.href='fy-money-calculator.html'">
+  <!-- HERO: Full Monty spotlight -->
+  <section class="hero" aria-label="All-in-one planner">
+    <div class="hero-copy">
+      <h1>Your full financial picture in minutes</h1>
+      <p class="lead">Answer a few friendly questions and get a retirement income plan, pension projection, and a personal balance sheet — all in one flow.</p>
+    </div>
+
+    <div class="hero-card" role="region" aria-label="Full Monty all-in-one">
+      <div class="hero-top">
+        <div class="badge"><span class="dot"></span> All‑in‑one · Recommended</div>
+        <div class="hero-title">Full Monty</div>
+      </div>
+
+      <ul class="hero-list">
+        <li>One questionnaire, three outputs</li>
+        <li>Auto‑classifies your assets for clarity</li>
+        <li>Download a clean PDF report</li>
+      </ul>
+
+      <div class="hero-cta">
+        <a href="full-monty.html" class="btn-primary" aria-label="Launch Full Monty wizard">Start Full Monty</a>
+        <span class="hint">Takes about 2–4 minutes</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECONDARY: single tools -->
+  <div class="tools-head" aria-hidden="true">
+    <span class="rule"></span>
+    <span class="label">Or pick a specific tool</span>
+    <span class="rule"></span>
+  </div>
+
+  <div class="container" role="navigation" aria-label="Individual tools">
+    <div class="bubble" tabindex="0" onclick="location.href='fy-money-calculator.html'" aria-label="Open F You Money Calculator">
       <div class="bubble-icon">💸</div>
-      <span>F*ck You Money<br />Calculator</span>
+      <span>F*ck You Money<br/>Calculator</span>
     </div>
 
-    <!-- Bubble #2 -->
-    <div class="bubble" onclick="location.href='pension-projection.html'">
+    <div class="bubble" tabindex="0" onclick="location.href='pension-projection.html'" aria-label="Open Pension Growth Projection">
       <div class="bubble-icon">📈</div>
-      <span>Pension Growth<br />Projection</span>
+      <span>Pension Growth<br/>Projection</span>
     </div>
 
-    <!-- Bubble #3 -->
-    <div class="bubble" onclick="location.href='personal-balance-sheet.html'">
+    <div class="bubble" tabindex="0" onclick="location.href='personal-balance-sheet.html'" aria-label="Open Personal Balance Sheet">
       <div class="bubble-icon">📊</div>
-      <span>Personal Balance<br />Sheet</span>
+      <span>Personal Balance<br/>Sheet</span>
     </div>
   </div>
 
+</main>
 </body>
 </html>
