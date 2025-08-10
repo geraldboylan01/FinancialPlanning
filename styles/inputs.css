@@ -91,3 +91,16 @@ button.wizDot.active, button.wizDot:focus-visible{ background:#c000ff; outline:n
   transform:scale(1.03);
   box-shadow:0 0 22px rgba(0,255,136,.8);
 }
+
+.card-like{
+  background:#353535;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  padding:.9rem;
+}
+.card-like .form-group + .form-group{ margin-top:.8rem; }
+
+.control.control-switch{
+  display:flex; align-items:center; gap:.6rem; margin:.3rem 0 .3rem;
+}
+.control.control-switch input[type="checkbox"]{ accent-color:#00aaff; }

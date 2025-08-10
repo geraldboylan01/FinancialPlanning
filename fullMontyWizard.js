@@ -67,14 +67,43 @@ const fullMontyStore = {
   statePensionPartner: false,
 
   // ASSETS (split into mini-steps)
-  homes: [],        // [{ id, name, value, hasRent?: boolean, rentAmount?: number }]
-  cashLike: [],     // [{id,name,value}]
-  investments: [],  // [{id,name,value}]
-  rentProps: [],    // [{id,name,value,mortgageBalance?,grossRent?}]
-  valuables: [],    // [{id,name,value}]
+  // Homes you live in / holiday places
+  homes: {
+    familyHome: { value: 0, hasRent: false, rentAmount: 0 },
+    holidayHome: { value: 0, hasRent: false, rentAmount: 0 }
+  },
 
-  // debts
-  liabilities: [],  // [{id,name,balance,rate?}]
+  // Cash-like / liquidity (all € amounts)
+  liquidity: {
+    currentAccount: 0,
+    cashSavings: 0,
+    moneyMarket: 0,
+    bond100: 0,
+    otherInstant: 0
+  },
+
+  // Non-pension investments (all € amounts)
+  investments: {
+    etfIndexFunds: 0,
+    mixedEquityFunds: 0,
+    brokerageCash: 0,
+    otherInvestments: 0
+  },
+
+  // Properties for rent (can still be a compact table)
+  rentProps: [],   // [{id,name,value,mortgageBalance,grossRent}]
+
+  // Liabilities (all € balances, with optional % rate)
+  liabilities: {
+    mortgageHome: { balance: 0, rate: 0 },
+    mortgageRental: { balance: 0, rate: 0 },
+    creditCard: { balance: 0, rate: 0 },
+    personalLoan: { balance: 0, rate: 0 },
+    carFinance: { balance: 0, rate: 0 },
+    studentLoan: { balance: 0, rate: 0 },
+    taxOwed: { balance: 0, rate: 0 },
+    otherDebt: { balance: 0, rate: 0 }
+  },
 
   // risk profile
   growthProfile: 0.05,
@@ -89,6 +118,27 @@ if(boot && typeof boot === 'object'){
   Object.assign(fullMontyStore, boot);
 }
 window.addEventListener('beforeunload', saveStore);
+
+// Fold older array-based data into new structured buckets once
+(function migrateOld(){
+  const s = fullMontyStore;
+
+  if (Array.isArray(s.cashLike) && !s.liquidity){
+    s.liquidity = { currentAccount:0, cashSavings:0, moneyMarket:0, bond100:0, otherInstant:0 };
+    s.cashLike.forEach(r => { const v = +r.value || 0; s.liquidity.otherInstant += v; });
+    delete s.cashLike; queueSave();
+  }
+  if (Array.isArray(s.investments)) {
+    const sum = s.investments.reduce((a,r)=>a+(+r.value||0),0);
+    s.investments = { etfIndexFunds: sum, mixedEquityFunds: 0, brokerageCash: 0, otherInvestments: 0 };
+    queueSave();
+  }
+  if (Array.isArray(s.homes)) {
+    const total = s.homes.reduce((a,r)=>a+(+r.value||0),0);
+    s.homes = { familyHome:{value:total,hasRent:false,rentAmount:0}, holidayHome:{value:0,hasRent:false,rentAmount:0} };
+    queueSave();
+  }
+})();
 
 function uuid() {
   if (crypto?.randomUUID) return crypto.randomUUID();
@@ -310,135 +360,126 @@ renderStepGoal.validate = () => {
   return (typeof v === 'number' && v >= 0 && v <= 100) ? { ok:true } : { ok:false, message:'Enter a % between 0 and 100.' };
 };
 // Step 5–9 renderers
-// Step 5 — Homes you live in / holiday places
-function renderStepHomes(container) {
-  container.innerHTML = '';
-
-  const form = document.createElement('div');
-  form.className = 'form';
-
-  const list = document.createElement('div');
-  list.className = 'list-wrap';
-
-  // paint existing rows
-  (fullMontyStore.homes || []).forEach(row => list.appendChild(makeHomeRow(row)));
-
-  // Add button
-  const add = document.createElement('button');
-  add.type = 'button';
-  add.className = 'btn-list-add';
-  add.textContent = 'Add home';
-  add.addEventListener('click', () => {
-    const r = { id: uuid(), name: '', value: 0, hasRent: false, rentAmount: 0 };
-    pushRow('homes', r);
-    const el = makeHomeRow(r);
-    list.appendChild(el);
-    setTimeout(() => el.scrollIntoView({ block:'nearest', behavior:'smooth' }), 0);
+function renderStepHomes(container){
+  const s = getStore();
+  const H = s.homes || (s.homes = {
+    familyHome: { value: 0, hasRent: false, rentAmount: 0 },
+    holidayHome: { value: 0, hasRent: false, rentAmount: 0 }
   });
 
-  // Hint
+  container.innerHTML = '';
+  const form = document.createElement('div'); form.className = 'form';
+
+  form.appendChild(homeBlock('Family home', 'familyHome'));
+  form.appendChild(homeBlock('Holiday home', 'holidayHome'));
+
   const help = document.createElement('div');
   help.className = 'help';
-  help.textContent = 'Family home or holiday home you use yourself.';
+  help.textContent = 'Enter estimated current values. If a property generates rent (e.g., room letting/holiday-let), toggle and enter yearly rent.';
+  form.appendChild(help);
 
-  form.append(list, add, help);
   container.appendChild(form);
 
-  // ——— row builder ———
-  function makeHomeRow(row) {
+  function homeBlock(label, key){
     const wrap = document.createElement('div');
     wrap.className = 'asset-row form-group card-like';
 
-    // Name
-    const nameInp = document.createElement('input');
-    nameInp.type = 'text';
-    nameInp.id = `home-name-${row.id}`;
-    nameInp.value = row.name ?? '';
-    nameInp.placeholder = 'e.g., Family home';
-    nameInp.addEventListener('input', () => { row.name = nameInp.value; queueSave(); });
+    const nameLabel = document.createElement('label');
+    nameLabel.textContent = label; nameLabel.style.fontWeight = '700';
+    nameLabel.style.marginBottom = '.4rem';
+    wrap.appendChild(nameLabel);
 
-    wrap.appendChild(formGroup(nameInp.id, 'Name', nameInp));
+    const valWrap = currencyInput({ id: `${key}-value`, value: H[key].value || '' });
+    const valEl = valWrap.querySelector('input');
+    valEl.addEventListener('input', () => { H[key].value = Math.max(0, numFromInput(valEl) ?? 0); queueSave(); });
+    wrap.appendChild(formGroup(`${key}-value`, 'Value (€)', valWrap));
 
-    // Value €
-    const valueWrap = currencyInput({ id: `home-val-${row.id}`, value: row.value ?? '' });
-    const valueEl = valueWrap.querySelector('input');
-    valueEl.addEventListener('input', () => { row.value = Math.max(0, numFromInput(valueEl) ?? 0); queueSave(); });
+    const toggleId = `${key}-hasRent`;
+    const ctrl = document.createElement('div'); ctrl.className = 'control control-switch';
+    const cb = document.createElement('input'); cb.type='checkbox'; cb.id = toggleId; cb.checked = !!H[key].hasRent;
+    const lab = document.createElement('label'); lab.htmlFor = toggleId; lab.textContent = 'This property generates rental income';
+    ctrl.append(cb, lab); wrap.appendChild(ctrl);
 
-    wrap.appendChild(formGroup(`home-val-${row.id}`, 'Value', valueWrap));
-
-    // Rent toggle + conditional rent amount
-    const toggleId = `home-hasRent-${row.id}`;
-    const toggleGrp = document.createElement('div');
-    toggleGrp.className = 'control control-switch';
-    const toggle = document.createElement('input');
-    toggle.type = 'checkbox';
-    toggle.id = toggleId;
-    toggle.checked = !!row.hasRent;
-    const toggleLab = document.createElement('label');
-    toggleLab.htmlFor = toggleId;
-    toggleLab.textContent = 'I get rental income from this property';
-    toggleGrp.append(toggle, toggleLab);
-
-    // Rent amount input (hidden unless checked)
-    const rentWrap = currencyInput({ id: `home-rent-${row.id}`, value: row.rentAmount ?? '' });
+    const rentGrpWrap = document.createElement('div');
+    const rentWrap = currencyInput({ id: `${key}-rent`, value: H[key].rentAmount || '' });
     const rentEl = rentWrap.querySelector('input');
-    rentEl.addEventListener('input', () => { row.rentAmount = Math.max(0, numFromInput(rentEl) ?? 0); queueSave(); });
+    rentEl.addEventListener('input', () => { H[key].rentAmount = Math.max(0, numFromInput(rentEl) ?? 0); queueSave(); });
 
-    const rentFormGrp = formGroup(`home-rent-${row.id}`, 'Rental income (yearly)', rentWrap);
-    rentFormGrp.classList.add('condensed');
-    rentFormGrp.style.display = toggle.checked ? '' : 'none';
-
-    toggle.addEventListener('change', () => {
-      row.hasRent = toggle.checked;
-      if (!row.hasRent) row.rentAmount = 0;
-      rentFormGrp.style.display = row.hasRent ? '' : 'none';
+    rentGrpWrap.appendChild(formGroup(`${key}-rent`, 'Rental income (yearly)', rentWrap));
+    rentGrpWrap.style.display = cb.checked ? '' : 'none';
+    cb.addEventListener('change', () => {
+      H[key].hasRent = cb.checked;
+      if (!cb.checked) { H[key].rentAmount = 0; rentEl.value = ''; }
+      rentGrpWrap.style.display = cb.checked ? '' : 'none';
       queueSave();
     });
 
-    wrap.append(toggleGrp, rentFormGrp);
-
-    // Remove row
-    const rm = document.createElement('button');
-    rm.type = 'button';
-    rm.className = 'btn-row-remove';
-    rm.textContent = 'Remove';
-    rm.addEventListener('click', () => {
-      removeRow('homes', row.id);
-      wrap.remove();
-    });
-    wrap.appendChild(rm);
-
+    wrap.appendChild(rentGrpWrap);
     return wrap;
   }
 }
 renderStepHomes.validate = () => {
-  const arr = getStore().homes || [];
-  arr.forEach(r => {
-    r.value = Math.max(0, +r.value || 0);
-    if (!r.hasRent) r.rentAmount = 0;
-    else r.rentAmount = Math.max(0, +r.rentAmount || 0);
+  const H = getStore().homes;
+  ['familyHome','holidayHome'].forEach(k => {
+    H[k].value = Math.max(0, +H[k].value || 0);
+    H[k].rentAmount = H[k].hasRent ? Math.max(0, +H[k].rentAmount || 0) : 0;
   });
-  setStore({ homes: arr });
+  setStore({ homes: H });
   return { ok: true };
 };
 
-const renderStepCash = makeListStepRenderer('cashLike', {
-  addLabel: 'Add item',
-  hint: 'Cash on deposit, savings accounts, money market funds, 100% bond portfolio.',
-  fields: [
-    { key: 'name', label: 'Name', type: 'text' },
-    { key: 'value', label: 'Value', type: 'currency', default: 0 }
-  ]
-});
+function renderStepCash(container){
+  const s = getStore();
+  const L = s.liquidity || (s.liquidity = { currentAccount:0, cashSavings:0, moneyMarket:0, bond100:0, otherInstant:0 });
 
-const renderStepInvest = makeListStepRenderer('investments', {
-  addLabel: 'Add investment',
-  hint: 'Investment accounts/funds (mixed asset or equity funds). Exclude pensions (we captured those earlier).',
-  fields: [
-    { key: 'name', label: 'Name', type: 'text' },
-    { key: 'value', label: 'Value', type: 'currency', default: 0 }
-  ]
-});
+  container.innerHTML = '';
+  const form = document.createElement('div'); form.className = 'form';
+
+  form.appendChild(currencyRow('Cash in current account (€)', 'currentAccount'));
+  form.appendChild(currencyRow('Cash savings (€)', 'cashSavings'));
+  form.appendChild(currencyRow('Money‑market funds (€)', 'moneyMarket'));
+  form.appendChild(currencyRow('100% bond portfolios (€)', 'bond100'));
+  form.appendChild(currencyRow('Other instantly‑available assets (€)', 'otherInstant'));
+
+  const help = document.createElement('div'); help.className='help';
+  help.textContent = 'Instant or near‑instant access assets.';
+  form.appendChild(help);
+
+  container.appendChild(form);
+
+  function currencyRow(label, key){
+    const w = currencyInput({ id:`liq-${key}`, value: L[key] || '' });
+    w.querySelector('input').addEventListener('input', e => { L[key] = Math.max(0, numFromInput(e.target) ?? 0); queueSave(); });
+    return formGroup(`liq-${key}`, label, w);
+  }
+}
+renderStepCash.validate = () => { setStore({ liquidity: getStore().liquidity }); return { ok:true }; };
+
+function renderStepInvest(container){
+  const s = getStore();
+  const I = s.investments || (s.investments = { etfIndexFunds:0, mixedEquityFunds:0, brokerageCash:0, otherInvestments:0 });
+
+  container.innerHTML = '';
+  const form = document.createElement('div'); form.className='form';
+
+  form.appendChild(currencyRow('ETF / Index funds (€)', 'etfIndexFunds'));
+  form.appendChild(currencyRow('Mixed / equity funds (non‑pension) (€)', 'mixedEquityFunds'));
+  form.appendChild(currencyRow('Brokerage cash (€)', 'brokerageCash'));
+  form.appendChild(currencyRow('Other investments (€)', 'otherInvestments'));
+
+  const help = document.createElement('div'); help.className='help';
+  help.textContent = 'Exclude pensions (we captured those earlier).';
+  form.appendChild(help);
+
+  container.appendChild(form);
+
+  function currencyRow(label, key){
+    const w = currencyInput({ id:`inv-${key}`, value: I[key] || '' });
+    w.querySelector('input').addEventListener('input', e => { I[key] = Math.max(0, numFromInput(e.target) ?? 0); queueSave(); });
+    return formGroup(`inv-${key}`, label, w);
+  }
+}
+renderStepInvest.validate = () => { setStore({ investments: getStore().investments }); return { ok:true }; };
 
 const renderStepRentProps = makeListStepRenderer('rentProps', {
   addLabel: 'Add property',
@@ -451,18 +492,67 @@ const renderStepRentProps = makeListStepRenderer('rentProps', {
   ]
 });
 
-const renderStepLiabilities = makeListStepRenderer('liabilities', {
-  addLabel: 'Add liability',
-  hint: 'Loans, credit cards, other debts.',
-  valueKey: 'balance',
-  fields: [
-    { key: 'name', label: 'Name', type: 'text' },
-    { key: 'balance', label: 'Balance', type: 'currency', default: 0 },
-    { key: 'rate', label: 'Rate', type: 'percent' }
-  ]
-});
+function renderStepLiabilities(container){
+  const s = getStore();
+  const D = s.liabilities || (s.liabilities = {
+    mortgageHome:{balance:0,rate:0}, mortgageRental:{balance:0,rate:0},
+    creditCard:{balance:0,rate:0}, personalLoan:{balance:0,rate:0},
+    carFinance:{balance:0,rate:0}, studentLoan:{balance:0,rate:0},
+    taxOwed:{balance:0,rate:0}, otherDebt:{balance:0,rate:0}
+  });
 
-// ───────────────────────────────────────────────────────────────
+  container.innerHTML = '';
+  const form = document.createElement('div'); form.className='form';
+
+  const rows = [
+    ['Mortgage (home)', 'mortgageHome'],
+    ['Mortgage (rental)', 'mortgageRental'],
+    ['Credit cards', 'creditCard'],
+    ['Personal loans', 'personalLoan'],
+    ['Car finance', 'carFinance'],
+    ['Student loan', 'studentLoan'],
+    ['Tax owed', 'taxOwed'],
+    ['Other debt', 'otherDebt']
+  ];
+
+  rows.forEach(([label, key]) => form.appendChild(debtRow(label, key)));
+
+  const help = document.createElement('div'); help.className='help';
+  help.textContent = 'Enter balances. Interest rate is optional; add it if you know it.';
+  form.appendChild(help);
+
+  container.appendChild(form);
+
+  function debtRow(label, key){
+    const grp = document.createElement('div'); grp.className='form-group card-like';
+
+    const title = document.createElement('div'); title.textContent = label;
+    title.style.fontWeight='700'; title.style.marginBottom='.35rem';
+    grp.appendChild(title);
+
+    const balWrap = currencyInput({ id:`debt-${key}-bal`, value: D[key].balance || '' });
+    const balEl = balWrap.querySelector('input');
+    balEl.addEventListener('input', e => { D[key].balance = Math.max(0, numFromInput(e.target) ?? 0); queueSave(); });
+    grp.appendChild(formGroup(`debt-${key}-bal`, 'Balance (€)', balWrap));
+
+    const rateWrap = percentInput({ id:`debt-${key}-rate`, value: D[key].rate || '' });
+    const rateEl = rateWrap.querySelector('input');
+    rateEl.addEventListener('input', e => { D[key].rate = clampPercent(numFromInput(e.target) ?? 0); queueSave(); });
+    grp.appendChild(formGroup(`debt-${key}-rate`, 'Interest rate (%)', rateWrap));
+
+    return grp;
+  }
+}
+renderStepLiabilities.validate = () => {
+  const D = getStore().liabilities;
+  Object.values(D).forEach(d => {
+    d.balance = Math.max(0, +d.balance || 0);
+    d.rate = clampPercent(+d.rate || 0);
+  });
+  setStore({ liabilities: D });
+  return { ok:true };
+};
+
 // Step engine
 // ----------------------------------------------------------------
 
@@ -783,37 +873,66 @@ addKeyboardNav(modal, { back, next, close: () => modal.classList.add('hidden'), 
 // Run handler & auto classification
 // ----------------------------------------------------------------
 
-function getResolvedTotalRent() {
+function getResolvedTotalRent(){
   const s = getStore();
 
-  // Sum per-property rents from rental properties
+  const homesRent = ['familyHome','holidayHome'].reduce((sum,k)=>{
+    const h = s.homes?.[k]; if(!h) return sum;
+    return sum + (h.hasRent ? ( +h.rentAmount || 0 ) : 0);
+  }, 0);
+
   const rentPropsSum = (s.rentProps || [])
     .map(p => +p.grossRent || 0)
     .filter(v => v > 0)
-    .reduce((a, b) => a + b, 0);
+    .reduce((a,b)=>a+b, 0);
 
-  // Sum optional rents on homes
-  const homesRentSum = (s.homes || [])
-    .filter(h => h.hasRent)
-    .map(h => +h.rentAmount || 0)
-    .filter(v => v > 0)
-    .reduce((a, b) => a + b, 0);
-
-  return rentPropsSum + homesRentSum;
+  return homesRent + rentPropsSum;
 }
 
 function buildBalanceSheet() {
-  const lifestyle = fullMontyStore.homes.filter(r => r.value > 0);
-  const liquidity = fullMontyStore.cashLike.filter(r => r.value > 0);
-  const longevity = fullMontyStore.investments.filter(r => r.value > 0);
-  const legacy = [
-    ...fullMontyStore.rentProps.filter(r => r.value > 0).map(({ name, value }) => ({ name, value })),
-    ...fullMontyStore.valuables.filter(r => r.value > 0)
-  ];
+  const s = fullMontyStore;
+  const lifestyle = [
+    { name: 'Family home', value: s.homes.familyHome.value },
+    { name: 'Holiday home', value: s.homes.holidayHome.value }
+  ].filter(r => r.value > 0);
+
+  const liquidity = [
+    ['Cash in current account', s.liquidity.currentAccount],
+    ['Cash savings', s.liquidity.cashSavings],
+    ['Money-market funds', s.liquidity.moneyMarket],
+    ['100% bond portfolios', s.liquidity.bond100],
+    ['Other instantly-available assets', s.liquidity.otherInstant]
+  ].map(([name, value]) => ({ name, value })).filter(r => r.value > 0);
+
+  const longevity = [
+    ['ETF / Index funds', s.investments.etfIndexFunds],
+    ['Mixed / equity funds (non-pension)', s.investments.mixedEquityFunds],
+    ['Brokerage cash', s.investments.brokerageCash],
+    ['Other investments', s.investments.otherInvestments]
+  ].map(([name, value]) => ({ name, value })).filter(r => r.value > 0);
+
+  const legacy = (s.rentProps || [])
+    .filter(r => r.value > 0)
+    .map(({ name, value }) => ({ name, value }));
+
   const liabs = [
-    ...fullMontyStore.liabilities.filter(r => r.balance > 0).map(({ name, balance }) => ({ name, balance })),
-    ...fullMontyStore.rentProps.filter(r => r.mortgageBalance > 0).map(({ name, mortgageBalance }) => ({ name: name + ' mortgage', balance: mortgageBalance }))
+    ...Object.entries(s.liabilities || {}).map(([key, val]) => {
+      const names = {
+        mortgageHome: 'Mortgage (home)',
+        mortgageRental: 'Mortgage (rental)',
+        creditCard: 'Credit cards',
+        personalLoan: 'Personal loans',
+        carFinance: 'Car finance',
+        studentLoan: 'Student loan',
+        taxOwed: 'Tax owed',
+        otherDebt: 'Other debt'
+      };
+      return { name: names[key], balance: val.balance };
+    }).filter(r => r.balance > 0),
+    ...(s.rentProps || []).filter(r => r.mortgageBalance > 0)
+      .map(r => ({ name: r.name + ' mortgage', balance: r.mortgageBalance }))
   ];
+
   return { lifestyle, liquidity, longevity, legacy, liabilities: liabs };
 }
 
