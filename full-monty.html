@@ -13,6 +13,12 @@
       --accent:#c000ff;
       --glow:#00ff88;
       --danger:#ff5c5c;
+      --surface-2:#353535;
+      --surface-3:#404040;
+      --surface-4:rgba(255,255,255,.08);
+      --text-1:#fff;
+      --text-2:#aaa;
+      --shadow-sm:0 2px 4px rgba(0,0,0,.2);
     }
     *{box-sizing:border-box}
     body{font-family:'Inter',sans-serif;background:#1a1a1a;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:1rem;margin:0;}
@@ -74,30 +80,34 @@
       border-radius:12px; padding:.8rem; margin-bottom:.8rem;
     }
 
-    #holidayHomeList{ display:grid; gap:1rem; }
-    #addHolidayHomeBtn{ margin-top:.75rem; }
-
     .subsection{ margin-top:1.25rem; }
     .stack{ display:grid; gap:1rem; }
     .prop-card{
       padding:1rem;
       border-radius:1rem;
-      background:#353535;
-      border:1px solid rgba(255,255,255,.08);
-      box-shadow:0 2px 4px rgba(0,0,0,.2);
+      background:var(--surface-2);
+      box-shadow:var(--shadow-sm);
+    }
+    .field-label{ display:block; margin:.25rem 0 .25rem; font-weight:600; }
+    .text-input, .money-input{
+      width:100%;
+      border-radius:.75rem;
+      padding:.6rem .8rem;
+      background:var(--surface-3);
+      border:1px solid var(--surface-4);
+      color:var(--text-1);
     }
     .btn-secondary{
-      margin-top:.75rem;
-      display:flex;justify-content:center;align-items:center;width:100%;
-      background:#555;color:#fff;font-weight:700;border-radius:12px;
-      padding:.9rem 1rem;cursor:pointer;border:none;
-      transition:transform .2s,box-shadow .2s,filter .2s;
+      display:block;
+      width:100%;
+      padding:.8rem 1rem;
+      border-radius:1rem;
+      background:var(--surface-3);
+      border:1px solid var(--surface-4);
+      color:var(--text-2);
+      cursor:pointer;
     }
-    .btn-secondary:hover, .btn-secondary:focus-visible{
-      transform:translateY(-1px);
-      box-shadow:0 0 16px rgba(255,255,255,.08);
-      outline:2px solid transparent;
-    }
+    .btn-secondary[disabled]{ opacity:.5; cursor:not-allowed; }
 
     /* Checkbox row */
     .control.control-switch{
