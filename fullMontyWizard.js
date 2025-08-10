@@ -283,14 +283,14 @@ function makeListStepRenderer(
         let fieldEl;
 
         if (f.type === 'currency') {
-          fieldEl = currencyInput({ id, value: row[f.key] ?? '' });
+          fieldEl = currencyInput({ id, value: row[f.key] ?? '', placeholder: f.placeholder });
           const input = fieldEl.querySelector('input');
           input.addEventListener('input', () => {
             row[f.key] = numFromInput(input) || 0;
             queueSave();
           });
         } else if (f.type === 'percent') {
-          fieldEl = percentInput({ id, value: row[f.key] ?? '' });
+          fieldEl = percentInput({ id, value: row[f.key] ?? '', placeholder: f.placeholder });
           const input = fieldEl.querySelector('input');
           input.addEventListener('input', () => {
             const v = clampPercent(numFromInput(input));
@@ -303,10 +303,18 @@ function makeListStepRenderer(
           fieldEl.type = 'text';
           fieldEl.id = id;
           fieldEl.value = row[f.key] ?? '';
+          if (f.placeholder) fieldEl.placeholder = f.placeholder;
           fieldEl.addEventListener('input', () => { row[f.key] = fieldEl.value; queueSave(); });
         }
 
-        wrap.appendChild(formGroup(id, f.label, fieldEl));
+        const group = formGroup(id, f.label, fieldEl);
+        if (f.help) {
+          const h = document.createElement('div');
+          h.className = 'help';
+          h.textContent = f.help;
+          group.appendChild(h);
+        }
+        wrap.appendChild(group);
       });
 
       const rm = document.createElement('button');
@@ -489,9 +497,13 @@ function renderStepHomes(container){
     });
     wrap.appendChild(formGroup(`${key}-value`, 'Value (€)', valWrap));
 
-    const mortWrap = currencyInput({ id: `${key}-mortgage`, value: obj.mortgage || '' });
+    const mortWrap = currencyInput({ id: `${key}-mortgage`, value: obj.mortgage || '', placeholder: 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).' });
     const mortEl = mortWrap.querySelector('input');
-    const mortGroup = formGroup(`${key}-mortgage`, 'Mortgage (€)', mortWrap);
+    const mortGroup = formGroup(`${key}-mortgage`, 'Remaining mortgage balance (€)', mortWrap);
+    const help = document.createElement('div');
+    help.className = 'help';
+    help.textContent = 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).';
+    mortGroup.appendChild(help);
     const warn = document.createElement('div');
     warn.textContent = 'Mortgage exceeds value.';
     warn.style.color = '#ffb74d';
@@ -557,9 +569,13 @@ function renderStepHomes(container){
     });
     wrap.appendChild(formGroup(`hh-${hh.id}-value`, 'Value (€)', valWrap));
 
-    const mortWrap = currencyInput({ id: `hh-${hh.id}-mortgage`, value: hh.mortgage || '' });
+    const mortWrap = currencyInput({ id: `hh-${hh.id}-mortgage`, value: hh.mortgage || '', placeholder: 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).' });
     const mortEl = mortWrap.querySelector('input');
-    const mortGroup = formGroup(`hh-${hh.id}-mortgage`, 'Mortgage (€)', mortWrap);
+    const mortGroup = formGroup(`hh-${hh.id}-mortgage`, 'Remaining mortgage balance (€)', mortWrap);
+    const help = document.createElement('div');
+    help.className = 'help';
+    help.textContent = 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).';
+    mortGroup.appendChild(help);
     const warn = document.createElement('div');
     warn.textContent = 'Mortgage exceeds value.';
     warn.style.color = '#ffb74d';
@@ -716,11 +732,11 @@ renderStepInvest.validate = () => { setStore({ investments: getStore().investmen
 
 const renderStepRentProps = makeListStepRenderer('rentProps', {
   addLabel: 'Add property',
-  hint: 'Properties you rent out (include mortgage balance and gross rent).',
+  hint: 'Properties you rent out (include the remaining mortgage balance—i.e., the amount you still owe today—and gross rent).',
   fields: [
     { key: 'name', label: 'Name', type: 'text' },
     { key: 'value', label: 'Value', type: 'currency', default: 0 },
-    { key: 'mortgageBalance', label: 'Mortgage balance', type: 'currency', default: 0 },
+    { key: 'mortgageBalance', label: 'Remaining mortgage balance (€)', type: 'currency', default: 0, placeholder: 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).', help: 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).' },
     { key: 'grossRent', label: 'Gross rent', type: 'currency' }
   ]
 });
@@ -762,10 +778,17 @@ function renderStepLiabilities(container){
     title.style.fontWeight='700'; title.style.marginBottom='.35rem';
     grp.appendChild(title);
 
-    const balWrap = currencyInput({ id:`debt-${key}-bal`, value: D[key].balance || '' });
+    const balWrap = currencyInput({ id:`debt-${key}-bal`, value: D[key].balance || '', placeholder: label === 'Mortgage (rental)' ? 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).' : '' });
     const balEl = balWrap.querySelector('input');
     balEl.addEventListener('input', e => { D[key].balance = Math.max(0, numFromInput(e.target) ?? 0); queueSave(); });
-    grp.appendChild(formGroup(`debt-${key}-bal`, 'Balance (€)', balWrap));
+    const balGroup = formGroup(`debt-${key}-bal`, label === 'Mortgage (rental)' ? 'Remaining mortgage balance (€)' : 'Balance (€)', balWrap);
+    if (label === 'Mortgage (rental)') {
+      const h = document.createElement('div');
+      h.className = 'help';
+      h.textContent = 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).';
+      balGroup.appendChild(h);
+    }
+    grp.appendChild(balGroup);
 
     const rateWrap = percentInput({ id:`debt-${key}-rate`, value: D[key].rate || '' });
     const rateEl = rateWrap.querySelector('input');

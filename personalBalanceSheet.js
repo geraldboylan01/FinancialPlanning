@@ -96,7 +96,7 @@ const wizardSteps = [
     fields:[
       {id:'ownsHome', label:'Do you own your primary home?', type:'select', options:['Yes','No']},
       {id:'homeValue', label:'Market value (€)', type:'number', showIf:d=>d.ownsHome==='Yes'},
-      {id:'homeMortgage', label:'Outstanding mortgage (€)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes'},
+      {id:'homeMortgage', label:'Remaining mortgage balance (€)', placeholder:'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes', help:'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).'},
       {id:'rentRoom', label:'Renting a room?', type:'select', options:['No','Yes occasional','Yes regular'], showIf:d=>d.ownsHome==='Yes'},
       {id:'optionalNotice', type:'note', text:'The following details are optional.', showIf:d=>d.ownsHome==='Yes'},
       {id:'rentalIncome', label:'Annual rental income (€ gross)', type:'number', optional:true, showIf:d=>d.ownsHome==='Yes' && d.rentRoom && d.rentRoom!=='No'},
@@ -112,7 +112,7 @@ const wizardSteps = [
     fields:[
       {id:'nick', label:'Nickname / location', type:'text'},
       {id:'value', label:'Market value (€)', type:'number'},
-      {id:'mortgage', label:'Mortgage (€)', type:'number', optional:true},
+      {id:'mortgage', label:'Remaining mortgage balance (€)', placeholder:'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).', type:'number', optional:true, help:'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).'},
       {id:'rented', label:'Is it rented?', type:'select', options:['No','Yes']},
       {id:'optionalNotice', type:'note', text:'The following details are optional.'},
       {id:'rentalIncome', label:'Annual rental income (€ gross)', type:'number', optional:true, showIf:d=>d.rented==='Yes'},
@@ -165,7 +165,7 @@ const wizardSteps = [
     fields:[
       {id:'nick', label:'Nickname', type:'text'},
       {id:'value', label:'Market value (€)', type:'number'},
-      {id:'mortgage', label:'Mortgage (€)', type:'number', optional:true},
+      {id:'mortgage', label:'Remaining mortgage balance (€)', placeholder:'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).', type:'number', optional:true, help:'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).'},
       {id:'rented', label:'Is it rented?', type:'select', options:['No','Yes']},
       {id:'optionalNotice', type:'note', text:'The following details are optional.'},
       {id:'rentalIncome', label:'Annual rental income (€ gross)', type:'number', optional:true, showIf:d=>d.rented==='Yes'},
@@ -235,23 +235,23 @@ function createInput(field,id,value,labelTxt){
   }
   if(field.type==='number'){
     if(labelTxt && labelTxt.includes('%')){
-      const wrap=percentInput({id,value});
+      const wrap=percentInput({id,value,placeholder:field.placeholder});
       const inp=wrap.querySelector('input');
       if(!field.optional) inp.required=true;
       inp.addEventListener('input',e=>{const v=clampPercent(numFromInput(e.target)); e.target.value = v ?? '';});
       return wrap;
     }
     if(labelTxt && labelTxt.includes('€')){
-      const wrap=currencyInput({id,value});
+      const wrap=currencyInput({id,value,placeholder:field.placeholder});
       const inp=wrap.querySelector('input');
       if(!field.optional) inp.required=true;
       return wrap;
     }
-    const inp=el('input',{id,type:'number',value:value||''});
+    const inp=el('input',{id,type:'number',value:value||'',placeholder:field.placeholder||''});
     if(!field.optional) inp.required=true;
     return inp;
   }
-  const inp=el('input',{id,type:'text',value:value||''});
+  const inp=el('input',{id,type:'text',value:value||'',placeholder:field.placeholder||''});
   if(!field.optional) inp.required=true;
   return inp;
 }
