@@ -152,94 +152,83 @@
     /* Accessibility focus */
     a:focus-visible,.btn-primary:focus-visible{outline:2px solid var(--accentA);outline-offset:3px;box-shadow:0 0 0 3px rgba(0,255,136,.25)}
 
-    /* ========== YouTube Short card ========== */
-    .yt-card{
-      position: relative;
-      width: 100%;
-      max-width: 420px; /* keeps Short elegant on desktop */
-      margin: clamp(.6rem, 2vw, 1rem) 0 0;
-      border-radius: 16px;
+    /* Small CTA chip under hero text */
+    .hero-video-cta{
+      margin-top: .6rem;
+    }
+    .chip-watch{
+      appearance:none; border:1px solid rgba(255,255,255,.15);
+      background: rgba(255,255,255,.06);
+      color:#eee; font-weight:700; font-size:.9rem;
+      padding:.5rem .8rem; border-radius:999px; cursor:pointer;
+      transition: transform .15s, box-shadow .15s, background .15s;
+    }
+    .chip-watch:hover,.chip-watch:focus-visible{
+      outline:2px solid var(--pmag2);
+      outline-offset:2px;
+      background: rgba(255,255,255,.08);
+      box-shadow:0 0 18px rgba(127,0,255,.35);
+    }
+
+    /* Accessible modal */
+    .modal[hidden]{ display:none !important; }
+    .modal{
+      position: fixed; inset: 0; z-index: 1000;
+    }
+    .modal__backdrop{
+      position:absolute; inset:0;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(2px);
+    }
+    .modal__dialog{
+      position:relative; z-index:1;
+      width: min(96vw, 720px);
+      margin: 6vh auto;
       background: var(--card);
+      color: var(--ink);
+      border-radius: 16px;
       box-shadow: var(--shadow);
       overflow: hidden;
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
+      animation: modalIn .18s ease-out;
     }
-    /* Maintain 9:16 aspect */
-    .yt-card::before{
-      content:"";
-      display:block;
-      width:100%;
-      aspect-ratio: 9 / 16;
+    @keyframes modalIn{
+      from{ transform: translateY(6px); opacity: 0 }
+      to  { transform: translateY(0);  opacity: 1 }
     }
-
-    /* Poster button */
-    .yt-poster{
-      position:absolute; inset:0;
-      display:grid; place-items:center;
-      border:0; background:transparent; cursor:pointer;
-      padding:0; outline:none;
+    .modal__header{
+      display:flex; align-items:center; justify-content:space-between;
+      padding: .8rem 1rem; border-bottom: 1px solid rgba(255,255,255,.08);
     }
-
-    /* Poster gets a background image via JS */
-    .yt-poster.has-thumb{
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
+    .modal__header h3{ margin:0; font-size:1.05rem; color:#fff; }
+    .modal__close{
+      appearance:none; border:0; background:transparent; color:#fff; font-size:1.1rem;
+      cursor:pointer; padding:.25rem .4rem; border-radius:8px;
+    }
+    .modal__close:hover,.modal__close:focus-visible{
+      outline:2px solid var(--pmag2); outline-offset:2px;
     }
 
-    /* Readability overlay */
-    .yt-poster::after{
-      content:"";
-      position:absolute; inset:0;
-      background: linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,.1));
-      pointer-events:none;
+    .modal__body{ padding: .9rem 1rem 1rem; }
+
+    /* 9:16 responsive box for the Short */
+    .modal__video{
+      position: relative; width: 100%;
+      border-radius: 12px; overflow:hidden;
+      background: #000;
+    }
+    .modal__video::before{
+      content:""; display:block; width:100%; aspect-ratio: 9 / 16;
+    }
+    .modal__video iframe{
+      position:absolute; inset:0; width:100%; height:100%; border:0;
+    }
+    .modal__caption{
+      margin:.65rem 0 0; color: var(--muted); font-size:.95rem;
     }
 
-    /* Play affordance using your magenta accent ring */
-    .yt-poster__play{
-      display:inline-grid; place-items:center;
-      width:72px; height:72px; border-radius:50%;
-      background: rgba(0,0,0,.55);
-      border: 2px solid var(--pmag2);
-      box-shadow: 0 0 22px rgba(127,0,255,.45);
-      font-size:28px; line-height:1; color:#fff;
-    }
-
-    .yt-poster__badge{
-      position:absolute; top:10px; left:10px;
-      font-size:12px; color:#fff;
-      background: rgba(0,0,0,.55);
-      padding:6px 10px; border-radius:999px;
-      border:1px solid rgba(255,255,255,.12);
-    }
-
-    /* Focus/hover states fit existing aesthetic */
-    .yt-card:focus-within,
-    .yt-poster:focus-visible{
-      outline:2px solid var(--pmag2);
-      outline-offset:3px;
-      box-shadow: 0 0 28px rgba(127,0,255,.45);
-    }
-
-    .yt-caption{
-      padding: 10px 12px 14px;
-      font-size: 14px; color: var(--muted);
-      border-top:1px solid rgba(255,255,255,.06);
-    }
-
-    /* Slight tightening for very small phones */
-    @media (max-width: 360px){
-      .yt-card{ max-width: 100%; }
-    }
-
-    /* Keep hero grid as-is; the Short stacks under right-column text naturally */
-
-    .tiny-link{
-      display:inline-block;
-      margin-top:.5rem;
-      font-size:.8rem;
-      color:var(--muted);
+    /* Tight margins on small phones */
+    @media (max-width: 420px){
+      .modal__dialog{ margin: 4vh auto; width: 94vw; }
     }
   </style>
 </head>
@@ -266,15 +255,10 @@
           <li>Your investments grow tax‑free (no 8‑year deemed disposal)</li>
           <li>You can take a portion tax‑free at retirement</li>
         </ul>
-        <!-- YouTube Short (click-to-play) -->
-        <div id="why-video" class="yt-card" data-video-id="ZA58vuPH4CY">
-          <button class="yt-poster" type="button" aria-label="Play video: Why I built these tools">
-            <span class="yt-poster__badge">Short • ~1 min</span>
-            <span class="yt-poster__play" aria-hidden="true">►</span>
+        <div class="hero-video-cta">
+          <button class="chip-watch" type="button" data-video-id="ZA58vuPH4CY" aria-haspopup="dialog" aria-controls="videoModal" aria-label="Watch a 60-second intro video">
+            ▶ Watch 60s intro
           </button>
-          <div class="yt-caption">
-            <strong>Watch:</strong> Why these tools matter in Ireland—and how to use them.
-          </div>
         </div>
       </div>
     </div>
@@ -303,7 +287,6 @@
         <a href="full-monty.html" class="btn-primary" aria-label="Launch Full Monty wizard">Start Full Monty</a>
         <span class="hint">Takes about 2–4 minutes</span>
       </div>
-      <a href="#why-video" class="tiny-link">Watch 60s intro</a>
     </div>
   </section>
 
@@ -331,78 +314,101 @@
     </div>
   </div>
 
-</main>
-<script>
-(function initYouTubeShort(){
-  const card = document.querySelector('.yt-card[data-video-id]');
-  if(!card) return;
+ </main>
 
-  const id = card.getAttribute('data-video-id');
-  const poster = card.querySelector('.yt-poster');
-  const caption = card.querySelector('.yt-caption');
+ <div id="videoModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="videoModalTitle" hidden>
+   <div class="modal__backdrop" data-close></div>
 
-  const thumbs = [
-    `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
-    `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
-  ];
+   <div class="modal__dialog" role="document">
+     <header class="modal__header">
+       <h3 id="videoModalTitle">Why I built these tools</h3>
+       <button class="modal__close" type="button" aria-label="Close video" data-close>✕</button>
+     </header>
 
-  function setPoster(bg){
-    poster.style.backgroundImage = `url("${bg}")`;
-    poster.classList.add('has-thumb');
-  }
+     <div class="modal__body">
+       <!-- Aspect box; iframe is injected here on open -->
+       <div class="modal__video" data-video-mount data-video-id="ZA58vuPH4CY" aria-label="YouTube Short container"></div>
+       <p class="modal__caption">A quick look at Ireland’s investing reality, why pensions are the lever, and how to get value from these tools.</p>
+     </div>
+   </div>
+ </div>
 
-  // progressive preload for best thumb available
-  (function loadThumb(i=0){
-    if(i>=thumbs.length) return;
-    const img = new Image();
-    img.onload = () => setPoster(thumbs[i]);
-    img.onerror = () => loadThumb(i+1);
-    img.src = thumbs[i];
-  })();
+ <script>
+(function videoModal(){
+  const openBtn = document.querySelector('.chip-watch[data-video-id]');
+  const modal = document.getElementById('videoModal');
+  if(!openBtn || !modal) return;
 
-  function makeIframe(autoplay=true){
+  const mount = modal.querySelector('[data-video-mount]');
+  const videoId = mount?.getAttribute('data-video-id');
+  let lastFocus = null;
+  let iframeInjected = false;
+
+  function injectIframe(){
+    if(iframeInjected || !mount || !videoId) return;
     const params = new URLSearchParams({
-      modestbranding:'1',
-      rel:'0',
-      playsinline:'1',
-      enablejsapi:'1',
-      origin: window.location.origin
+      modestbranding:'1', rel:'0', playsinline:'1', enablejsapi:'1',
+      autoplay:'1', mute:'1', origin: window.location.origin
     });
-    if(autoplay){
-      params.set('autoplay','1');
-      params.set('mute','1'); // autoplay consistency
-    }
-
     const iframe = document.createElement('iframe');
-    iframe.src = `https://www.youtube-nocookie.com/embed/${id}?` + params.toString();
-    iframe.setAttribute('title','Why I built these tools');
-    iframe.setAttribute('allowfullscreen','');
-    iframe.setAttribute('loading','lazy');
+    iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?` + params.toString();
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-
-    // Fill the aspect box
-    iframe.style.position = 'absolute';
-    iframe.style.inset = '0';
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.style.border = '0';
-    return iframe;
+    iframe.setAttribute('allowfullscreen','');
+    iframe.setAttribute('title','Why I built these tools');
+    mount.appendChild(iframe);
+    iframeInjected = true;
   }
 
-  function play(){
-    poster.replaceWith(makeIframe(true));
-    caption && (caption.style.opacity = '1');
+  function open(){
+    lastFocus = document.activeElement;
+    modal.hidden = false;
+    document.documentElement.style.overflow = 'hidden'; // scroll lock
+    injectIframe();
+
+    // focus the close button for accessibility
+    const closeBtn = modal.querySelector('.modal__close');
+    if(closeBtn) closeBtn.focus();
+
+    // trap focus inside modal
+    document.addEventListener('focus', trap, true);
+    document.addEventListener('keydown', onKey);
+  }
+
+  function close(){
+    modal.hidden = true;
+    document.documentElement.style.overflow = ''; // release scroll lock
+
+    // remove iframe to stop playback + free memory
+    if(mount){ mount.innerHTML = ''; iframeInjected = false; }
+
+    document.removeEventListener('focus', trap, true);
+    document.removeEventListener('keydown', onKey);
+
+    if(lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
   }
 
   function onKey(e){
-    if(e.key === 'Enter' || e.key === ' '){
-      e.preventDefault();
-      play();
-    }
+    if(e.key === 'Escape'){ close(); }
+    if(e.key === 'Tab'){ keepFocusInModal(e); }
   }
 
-  poster.addEventListener('click', play);
-  poster.addEventListener('keydown', onKey);
+  function trap(e){
+    if(!modal.contains(e.target)){ e.stopPropagation(); modal.querySelector('.modal__close')?.focus(); }
+  }
+
+  function keepFocusInModal(e){
+    const focusables = modal.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])');
+    if(!focusables.length) return;
+    const first = focusables[0];
+    const last  = focusables[focusables.length - 1];
+    if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+  }
+
+  // open/close bindings
+  openBtn.addEventListener('click', open);
+  modal.addEventListener('click', (e)=>{ if(e.target.closest('[data-close]')) close(); });
+
 })();
 </script>
 </body>
