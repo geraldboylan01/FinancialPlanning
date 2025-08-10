@@ -735,6 +735,191 @@ renderStepHomes.validate = () => {
   return { ok: Object.keys(errs).length === 0, errors: errs };
 };
 
+function renderStepProperties(container){
+  const s = getStore();
+  const H = s.homes || (s.homes = {
+    familyHome:{ name:'', value:0, mortgage:0, hasRent:false, annualRent:0 },
+    holidayHomes: []
+  });
+  const R = s.rentProps || (s.rentProps = []);
+
+  container.innerHTML = `\
+<section id="propertiesStep" data-step="properties">\
+  <div id="familyHomeSection" class="subsection">\
+    <h3>Family home</h3>\
+    <div id="familyHomeCard" class="prop-card">\
+      <label class="field-label">Property name</label>\
+      <input class="text-input" name="fh_name" placeholder="e.g., Dublin Apartment" />\
+      <label class="field-label">Value (€)</label>\
+      <input class="money-input" name="fh_value" inputmode="decimal" />\
+      <label class="field-label">Remaining mortgage balance (€)</label>\
+      <input class="money-input" name="fh_mortgage" inputmode="decimal" />\
+    </div>\
+  </div>\
+  <div id="holidayHomesSection" class="subsection">\
+    <h3>Holiday homes</h3>\
+    <div id="holidayHomeList" class="stack"></div>\
+    <button id="addHolidayHomeBtn" type="button" class="btn-secondary">+ Add holiday home</button>\
+  </div>\
+  <div id="investmentPropsSection" class="subsection">\
+    <h3>Properties you rent out</h3>\
+    <div id="investmentList" class="stack"></div>\
+    <button id="addInvestmentBtn" type="button" class="btn-secondary">+ Add investment property</button>\
+  </div>\
+</section>\
+<template id="holidayHomeTpl">\
+  <div class="prop-card">\
+    <label class="field-label">Property name</label>\
+    <input class="text-input" name="hh_name[]" placeholder="e.g., Dublin Apartment" />\
+    <label class="field-label">Value (€)</label>\
+    <input class="money-input" name="hh_value[]" inputmode="decimal" />\
+    <label class="field-label">Remaining mortgage balance (€)</label>\
+    <input class="money-input" name="hh_mortgage[]" inputmode="decimal" />\
+  </div>\
+</template>\
+<template id="investmentTpl">\
+  <div class="prop-card">\
+    <label class="field-label">Property name</label>\
+    <input class="text-input" name="ip_name[]" placeholder="e.g., Dublin Apartment" />\
+    <label class="field-label">Value (€)</label>\
+    <input class="money-input" name="ip_value[]" inputmode="decimal" />\
+    <label class="field-label">Remaining mortgage balance (€)</label>\
+    <input class="money-input" name="ip_mortgage[]" inputmode="decimal" />\
+    <label class="field-label">Gross rent (€ per year)</label>\
+    <input class="money-input" name="ip_rent[]" inputmode="decimal" />\
+  </div>\
+</template>`;
+
+  function attachMoneyFormatting(nodes){
+    nodes.forEach(inp => {
+      inp.addEventListener('input', () => {
+        const v = inp.value.replace(/[^\d.]/g,'');
+        if (inp.value !== v) inp.value = v;
+      });
+    });
+  }
+
+  function normalizeMortgageFields(step){
+    if(!step) return;
+    step.querySelectorAll('label').forEach(l=>{
+      if(/Remaining mortgage/i.test(l.textContent)) l.textContent = 'Remaining mortgage balance (€)';
+    });
+    step.querySelectorAll('input.money-input[name$="mortgage"], input[name*="mortgage"]').forEach(inp=>{
+      inp.placeholder='';
+      const helper = inp.closest('.prop-card')?.querySelector('.helper-text');
+      if(helper) helper.remove();
+    });
+  }
+
+  const stepEl = container.querySelector('#propertiesStep');
+
+  const fhName = stepEl.querySelector('input[name="fh_name"]');
+  const fhValue = stepEl.querySelector('input[name="fh_value"]');
+  const fhMort = stepEl.querySelector('input[name="fh_mortgage"]');
+  fhName.value = H.familyHome.name || '';
+  fhValue.value = H.familyHome.value || '';
+  fhMort.value = H.familyHome.mortgage || '';
+  fhName.addEventListener('input',()=>{ H.familyHome.name = fhName.value; queueSave(); });
+  fhValue.addEventListener('input',()=>{ H.familyHome.value = Math.max(0, numFromInput(fhValue) ?? 0); queueSave(); });
+  fhMort.addEventListener('input',()=>{ H.familyHome.mortgage = Math.max(0, numFromInput(fhMort) ?? 0); queueSave(); });
+  attachMoneyFormatting([fhValue, fhMort]);
+
+  const hhList = stepEl.querySelector('#holidayHomeList');
+  const hhBtn = stepEl.querySelector('#addHolidayHomeBtn');
+  const hhTpl = stepEl.querySelector('#holidayHomeTpl');
+
+  function addHolidayCard(hh){
+    const obj = hh || { id: uuid(), name:'', value:0, mortgage:0, hasRent:false, annualRent:0 };
+    if(!hh){ H.holidayHomes.push(obj); queueSave(); }
+    const node = hhTpl.content.firstElementChild.cloneNode(true);
+    node.dataset.id = obj.id;
+    const nameEl = node.querySelector('input[name="hh_name[]"]');
+    const valEl = node.querySelector('input[name="hh_value[]"]');
+    const mortEl = node.querySelector('input[name="hh_mortgage[]"]');
+    nameEl.value = obj.name || '';
+    valEl.value = obj.value || '';
+    mortEl.value = obj.mortgage || '';
+    nameEl.addEventListener('input',()=>{ obj.name = nameEl.value; queueSave(); });
+    valEl.addEventListener('input',()=>{ obj.value = Math.max(0, numFromInput(valEl) ?? 0); queueSave(); });
+    mortEl.addEventListener('input',()=>{ obj.mortgage = Math.max(0, numFromInput(mortEl) ?? 0); queueSave(); });
+    attachMoneyFormatting([valEl, mortEl]);
+    hhList.appendChild(node);
+    hhBtn.remove();
+    hhList.insertAdjacentElement('afterend', hhBtn);
+    node.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+
+  H.holidayHomes.forEach(h=>addHolidayCard(h));
+  hhBtn.addEventListener('click',()=>addHolidayCard());
+
+  const ipList = stepEl.querySelector('#investmentList');
+  const ipBtn = stepEl.querySelector('#addInvestmentBtn');
+  const ipTpl = stepEl.querySelector('#investmentTpl');
+
+  function addInvestmentCard(p){
+    const obj = p || { id: uuid(), name:'', value:0, mortgageBalance:0, grossRent:0 };
+    if(!p){ R.push(obj); queueSave(); }
+    const node = ipTpl.content.firstElementChild.cloneNode(true);
+    node.dataset.id = obj.id;
+    const nameEl = node.querySelector('input[name="ip_name[]"]');
+    const valEl = node.querySelector('input[name="ip_value[]"]');
+    const mortEl = node.querySelector('input[name="ip_mortgage[]"]');
+    const rentEl = node.querySelector('input[name="ip_rent[]"]');
+    nameEl.value = obj.name || '';
+    valEl.value = obj.value || '';
+    mortEl.value = obj.mortgageBalance || '';
+    rentEl.value = obj.grossRent || '';
+    nameEl.addEventListener('input',()=>{ obj.name = nameEl.value; queueSave(); });
+    valEl.addEventListener('input',()=>{ obj.value = Math.max(0, numFromInput(valEl) ?? 0); queueSave(); });
+    mortEl.addEventListener('input',()=>{ obj.mortgageBalance = Math.max(0, numFromInput(mortEl) ?? 0); queueSave(); });
+    rentEl.addEventListener('input',()=>{ obj.grossRent = Math.max(0, numFromInput(rentEl) ?? 0); queueSave(); });
+    attachMoneyFormatting([valEl, mortEl, rentEl]);
+    ipList.appendChild(node);
+    ipBtn.remove();
+    ipList.insertAdjacentElement('afterend', ipBtn);
+    node.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+
+  R.forEach(p=>addInvestmentCard(p));
+  ipBtn.addEventListener('click',()=>addInvestmentCard());
+
+  normalizeMortgageFields(stepEl);
+}
+
+renderStepProperties.validate = () => {
+  const H = getStore().homes;
+  const R = getStore().rentProps || [];
+  const errs = {};
+
+  const fv = +H.familyHome.value;
+  if(!Number.isFinite(fv) || fv < 0) errs['fh_value'] = 'Enter a non-negative amount.';
+  H.familyHome.value = Math.max(0, fv || 0);
+  const fm = +H.familyHome.mortgage;
+  if(!Number.isFinite(fm) || fm < 0) errs['fh_mortgage'] = 'Enter a non-negative amount.';
+  H.familyHome.mortgage = Math.max(0, fm || 0);
+
+  (H.holidayHomes||[]).forEach((h,i)=>{
+    const v = +h.value; const m = +h.mortgage;
+    if(!Number.isFinite(v) || v < 0) errs[`hh_value_${i}`] = 'Enter a non-negative amount.';
+    if(!Number.isFinite(m) || m < 0) errs[`hh_mortgage_${i}`] = 'Enter a non-negative amount.';
+    h.value = Math.max(0, v || 0);
+    h.mortgage = Math.max(0, m || 0);
+  });
+
+  R.forEach((p,i)=>{
+    const v = +p.value; const m = +p.mortgageBalance; const r = +p.grossRent;
+    if(!Number.isFinite(v) || v < 0) errs[`ip_value_${i}`] = 'Enter a non-negative amount.';
+    if(!Number.isFinite(m) || m < 0) errs[`ip_mortgage_${i}`] = 'Enter a non-negative amount.';
+    if(!Number.isFinite(r) || r < 0) errs[`ip_rent_${i}`] = 'Enter a non-negative amount.';
+    p.value = Math.max(0, v || 0);
+    p.mortgageBalance = Math.max(0, m || 0);
+    p.grossRent = Math.max(0, r || 0);
+  });
+
+  setStore({ homes:H, rentProps:R });
+  return { ok: Object.keys(errs).length === 0, errors: errs };
+};
+
 function renderStepCash(container){
   const s = getStore();
   const L = s.liquidity || (s.liquidity = { currentAccount:0, cashSavings:0, moneyMarket:0, bond100:0 });
@@ -1329,10 +1514,10 @@ const baseSteps = [
   },
 
   {
-    id: 'homes',
-    title: 'Homes / holiday homes',
-    render: renderStepHomes,
-    validate: renderStepHomes.validate
+    id: 'properties',
+    title: 'Properties',
+    render: renderStepProperties,
+    validate: renderStepProperties.validate
   },
 
   {
@@ -1349,12 +1534,6 @@ const baseSteps = [
     validate: renderStepInvest.validate
   },
 
-  {
-    id: 'rentProps',
-    title: 'Properties you rent out',
-    render: renderStepRentProps,
-    validate: renderStepRentProps.validate
-  },
 
   {
     id: 'debts',
@@ -1458,17 +1637,11 @@ addKeyboardNav(modal, { back, next, close: () => modal.classList.add('hidden'), 
 
 function getResolvedTotalRent(){
   const s = getStore();
-  const family = s.homes?.familyHome;
-  const famRent = family && family.hasRent ? (+family.annualRent || 0) : 0;
-  const hhRent = (s.homes?.holidayHomes || []).reduce((sum, h) => sum + (h.hasRent ? (+h.annualRent || 0) : 0), 0);
-  const homesRent = famRent + hhRent;
-
   const rentPropsSum = (s.rentProps || [])
     .map(p => +p.grossRent || 0)
     .filter(v => v > 0)
     .reduce((a,b)=>a+b, 0);
-
-  return homesRent + rentPropsSum;
+  return rentPropsSum;
 }
 
 export function buildBalanceSheet() {
