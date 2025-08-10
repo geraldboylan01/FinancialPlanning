@@ -15,30 +15,110 @@
     body{font-family:'Inter',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1.5rem;padding:clamp(1rem,4vw,2.5rem) 1rem;background:var(--bg);color:var(--ink)}
     @media (min-width:960px){body{justify-content:center}}
     /* ========== Tokens ========== */
-    :root{--bg:#1a1a1a;--card:#2a2a2a;--ink:#fff;--muted:#bbb;--gold:#bfa571;--accentA:#00ff88;--accentB:#0099ff;--pmag1:#c000ff;--pmag2:#7f00ff;--shadow:0 0 25px rgba(0,255,136,.25)}
+    :root{
+      --bg:#1a1a1a; --card:#2a2a2a; --ink:#fff; --muted:#bbb; --gold:#bfa571;
+      --accentA:#00ff88; --accentB:#0099ff; --pmag1:#c000ff; --pmag2:#7f00ff;
+      --shadow:0 0 25px rgba(0,255,136,.25);
+    }
     /* ========== Page layout tweaks ========== */
     main{display:grid;gap:clamp(1rem,3vw,2rem);width:100%;max-width:1100px}
-    /* ========== Brand hero ========== */
-    .brand-hero{position:relative;isolation:isolate;background:radial-gradient(1200px 600px at 10% -20%,rgba(0,255,136,.06),transparent 60%),radial-gradient(800px 600px at 90% 120%,rgba(127,0,255,.08),transparent 60%),var(--card);border-radius:16px;padding:clamp(1rem,3vw,1.5rem);box-shadow:var(--shadow);max-width:1100px;width:100%}
-    .brand-hero::before{content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;background:conic-gradient(from 0deg,rgba(0,255,136,.25),rgba(127,0,255,.22),rgba(0,255,136,.25));mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;-webkit-mask-composite:xor;padding:1px;animation:rimspin 12s linear infinite;opacity:.55}
-    @keyframes rimspin{to{transform:rotate(360deg)}}
-    @media (prefers-reduced-motion:reduce){.brand-hero::before{animation:none;opacity:.35}}
-    .brand-hero__content{display:grid;gap:clamp(.8rem,2vw,1.2rem);grid-template-columns:1fr}
-    @media (min-width:900px){.brand-hero__content{grid-template-columns:.9fr 1.1fr;align-items:center}}
-    .brand-hero__lockup{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
-    .brand-hero__logo{width:40px;height:40px;filter:drop-shadow(0 0 6px rgba(191,165,113,.35))}
-    .brand-hero__title{font-family:'Cormorant Garamond',serif;font-weight:700;font-size:clamp(1.8rem,4vw,2.6rem);color:var(--gold);letter-spacing:.2px;margin:0}
-    .brand-hero__tag{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:999px;padding:.25rem .6rem;font-weight:700;font-size:.85rem;color:#eee}
-    .brand-hero__text .lede{font-weight:700;color:#eaeaea;margin:.4rem 0 .5rem}
-    .brand-hero__text p{line-height:1.5;color:#e6e6e6;margin:.35rem 0}
-    .brand-hero__list{margin:.5rem 0 0 1.1rem;line-height:1.35}
-    .brand-hero__list li+li{margin-top:.25rem}
-    .brand-hero__cta{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.9rem}
+    /* ========== Brand hero (balanced without CTAs) ========== */
+    .brand-hero{
+      position:relative; isolation:isolate;
+      background:
+        radial-gradient(1100px 600px at 10% -20%, rgba(0,255,136,.06), transparent 60%),
+        radial-gradient(800px 600px at 90% 110%, rgba(127,0,255,.08), transparent 60%),
+        var(--card);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: clamp(1rem, 3.5vw, 1.8rem);
+      max-width: 1100px; width: 100%;
+      /* Height tuned for visual weight since buttons are gone */
+      min-height: clamp(220px, 36vh, 340px);
+      display: grid; place-items: center;
+    }
+
+    /* animated rim-light (subtle) */
+    .brand-hero::before{
+      content:""; position:absolute; inset:0; border-radius:18px; pointer-events:none;
+      background: conic-gradient(from 0deg, rgba(0,255,136,.24), rgba(127,0,255,.22), rgba(0,255,136,.24));
+      mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      mask-composite: exclude; -webkit-mask-composite: xor;
+      padding: 1px;
+      animation: rimspin 14s linear infinite;
+      opacity:.52;
+    }
+    @keyframes rimspin{ to{ transform: rotate(360deg) } }
+    @media (prefers-reduced-motion: reduce){ .brand-hero::before{ animation:none; opacity:.35 }}
+
+    /* Layout: left lockup, right text */
+    .brand-hero__content{
+      width: 100%;
+      display: grid;
+      gap: clamp(.8rem, 2vw, 1.4rem);
+      grid-template-columns: 1fr;
+      align-items: center;
+    }
+    @media (min-width: 900px){
+      .brand-hero__content{
+        grid-template-columns: .9fr 1.1fr;
+      }
+    }
+
+    /* Brand lockup */
+    .brand-hero__lockup{
+      display:flex; align-items:center; gap:.75rem; flex-wrap:wrap;
+    }
+    .brand-hero__logo{
+      width: 42px; height: 42px; filter: drop-shadow(0 0 6px rgba(191,165,113,.35));
+    }
+    .brand-hero__title{
+      font-family:'Cormorant Garamond', serif;
+      font-weight:700; letter-spacing:.2px; margin:0;
+      font-size: clamp(1.9rem, 4vw, 2.7rem);
+      color: var(--gold);
+    }
+    .brand-hero__tag{
+      background: rgba(255,255,255,.06);
+      border:1px solid rgba(255,255,255,.15);
+      border-radius:999px; padding:.28rem .6rem; font-weight:700; font-size:.85rem; color:#eee;
+    }
+
+    /* Right column content */
+    .brand-hero__kicker{
+      margin:0 0 .25rem 0;
+      font-weight: 800; color:#eaeaea;
+      font-size: clamp(1.05rem, 2.2vw, 1.2rem);
+    }
+    .brand-hero__lede{
+      margin:.2rem 0 .5rem 0;
+      color:#e6e6e6; line-height:1.55;
+      max-width: 60ch;
+    }
+
+    /* Bullets: custom markers for rhythm */
+    .brand-hero__list{
+      margin:.35rem 0 0 0;
+      padding:0; list-style: none;
+    }
+    .brand-hero__list li{
+      position:relative; padding-left: 1.15rem; line-height:1.45;
+    }
+    .brand-hero__list li + li{ margin-top:.25rem; }
+    .brand-hero__list li::before{
+      content:"•"; position:absolute; left:0; top:0; color:#cfe; opacity:.9;
+    }
+
+    /* Tighten on small phones */
+    @media (max-width: 360px){
+      .brand-hero{ min-height: 220px; }
+      .brand-hero__title{ letter-spacing: 0; }
+      .brand-hero__list li{ padding-left: 1rem; }
+    }
+
     .btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.85rem 1.35rem;border-radius:14px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--accentA),var(--accentB));color:#111;font-weight:800;text-decoration:none;box-shadow:0 0 22px rgba(0,255,136,.6);transition:transform .2s,box-shadow .2s,filter .2s}
     .btn-primary:hover,.btn-primary:focus-visible{transform:scale(1.03);box-shadow:0 0 28px rgba(0,255,136,.85);outline:none}
-    .btn-ghost{display:inline-flex;align-items:center;justify-content:center;padding:.85rem 1.1rem;border-radius:12px;text-decoration:none;cursor:pointer;color:#f3f3f3;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);font-weight:700;transition:background .2s,border-color .2s,transform .2s}
-    .btn-ghost:hover,.btn-ghost:focus-visible{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);transform:translateY(-1px);outline:none}
-    @media (max-width:360px){.brand-hero__list{margin-left:.9rem}.brand-hero__title{letter-spacing:0}.brand-hero__cta{gap:.6rem}}
     /* ========== HERO (Full Monty) ========== */
     .hero{display:grid;gap:1rem;align-items:center;grid-template-columns:1fr}
     @media (min-width:960px){.hero{grid-template-columns:1.1fr .9fr}}
@@ -70,7 +150,7 @@
     .bubble span{font-weight:700;text-align:center;font-size:16px}
     @media (max-width:480px){.bubble{width:100%;max-width:280px;aspect-ratio:1}}
     /* Accessibility focus */
-    a:focus-visible,.btn-primary:focus-visible,.btn-ghost:focus-visible{outline:2px solid var(--accentA);outline-offset:3px;box-shadow:0 0 0 3px rgba(0,255,136,.25)}
+    a:focus-visible,.btn-primary:focus-visible{outline:2px solid var(--accentA);outline-offset:3px;box-shadow:0 0 0 3px rgba(0,255,136,.25)}
   </style>
 </head>
 <body>
@@ -78,25 +158,24 @@
 
   <section class="brand-hero" aria-label="About Planéir">
     <div class="brand-hero__content">
+      <!-- Left: brand lockup -->
       <div class="brand-hero__lockup">
         <img src="favicon.png" class="brand-hero__logo" alt="" aria-hidden="true" />
         <h1 class="brand-hero__title">Planéir</h1>
         <span class="brand-hero__tag">Irish Pension Planning</span>
       </div>
 
+      <!-- Right: message -->
       <div class="brand-hero__text">
-        <p class="lede">🇮🇪 Built for Irish Pensions</p>
-        <p>All of our tools are designed specifically for Irish pension rules — because pensions are the most tax‑efficient way to invest in Ireland.</p>
+        <h2 class="brand-hero__kicker">🇮🇪 Built for Irish Pensions</h2>
+        <p class="brand-hero__lede">
+          All of our tools are designed specifically for Irish pension rules — because pensions are the most tax‑efficient way to invest in Ireland.
+        </p>
         <ul class="brand-hero__list">
           <li>You don’t pay income tax on the money you contribute</li>
           <li>Your investments grow tax‑free (no 8‑year deemed disposal)</li>
           <li>You can take a portion tax‑free at retirement</li>
         </ul>
-
-        <div class="brand-hero__cta">
-          <a href="full-monty.html" class="btn-primary" aria-label="Start Full Monty">Start Full Monty</a>
-          <a href="#tools" class="btn-ghost" aria-label="See individual tools">See tools</a>
-        </div>
       </div>
     </div>
   </section>
