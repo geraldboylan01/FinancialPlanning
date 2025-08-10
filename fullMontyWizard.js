@@ -745,8 +745,9 @@ function renderStepProperties(container){
 
   container.innerHTML = `\
 <section id="propertiesStep" data-step="properties">\
+  <!-- FAMILY HOME (single, always visible) -->\
   <div id="familyHomeSection" class="subsection">\
-    <h3>Family home</h3>\
+    <h3>Properties</h3>\
     <div id="familyHomeCard" class="prop-card">\
       <label class="field-label">Property name</label>\
       <input class="text-input" name="fh_name" placeholder="e.g., Dublin Apartment" />\
@@ -756,17 +757,21 @@ function renderStepProperties(container){
       <input class="money-input" name="fh_mortgage" inputmode="decimal" />\
     </div>\
   </div>\
+  <!-- HOLIDAY HOMES (add-many) -->\
   <div id="holidayHomesSection" class="subsection">\
     <h3>Holiday homes</h3>\
     <div id="holidayHomeList" class="stack"></div>\
     <button id="addHolidayHomeBtn" type="button" class="btn-secondary">+ Add holiday home</button>\
   </div>\
+
+  <!-- INVESTMENT PROPERTIES (add-many) -->\
   <div id="investmentPropsSection" class="subsection">\
     <h3>Properties you rent out</h3>\
     <div id="investmentList" class="stack"></div>\
     <button id="addInvestmentBtn" type="button" class="btn-secondary">+ Add investment property</button>\
   </div>\
 </section>\
+\n+<!-- TEMPLATES -->\
 <template id="holidayHomeTpl">\
   <div class="prop-card">\
     <label class="field-label">Property name</label>\
@@ -813,6 +818,10 @@ function renderStepProperties(container){
 
   const stepEl = container.querySelector('#propertiesStep');
 
+  ['#hhTotals', '#ipTotals', '.inline-totals'].forEach(sel => {
+    stepEl.querySelectorAll(sel).forEach(el => el.remove());
+  });
+
   const fhName = stepEl.querySelector('input[name="fh_name"]');
   const fhValue = stepEl.querySelector('input[name="fh_value"]');
   const fhMort = stepEl.querySelector('input[name="fh_mortgage"]');
@@ -825,8 +834,22 @@ function renderStepProperties(container){
   attachMoneyFormatting([fhValue, fhMort]);
 
   const hhList = stepEl.querySelector('#holidayHomeList');
-  const hhBtn = stepEl.querySelector('#addHolidayHomeBtn');
-  const hhTpl = stepEl.querySelector('#holidayHomeTpl');
+  const hhBtn  = stepEl.querySelector('#addHolidayHomeBtn');
+  const hhTpl  = document.getElementById('holidayHomeTpl');
+
+  const ipList = stepEl.querySelector('#investmentList');
+  const ipBtn  = stepEl.querySelector('#addInvestmentBtn');
+  const ipTpl  = document.getElementById('investmentTpl');
+
+  if (!hhList || !hhBtn || !hhTpl || !ipList || !ipBtn || !ipTpl) {
+    console.warn('[Properties] Missing list/button/template element(s).', { hhList, hhBtn, hhTpl, ipList, ipBtn, ipTpl });
+    return;
+  }
+
+  hhBtn.replaceWith(hhBtn.cloneNode(true));
+  ipBtn.replaceWith(ipBtn.cloneNode(true));
+  const newHhBtn = stepEl.querySelector('#addHolidayHomeBtn');
+  const newIpBtn = stepEl.querySelector('#addInvestmentBtn');
 
   function addHolidayCard(hh){
     const obj = hh || { id: uuid(), name:'', value:0, mortgage:0, hasRent:false, annualRent:0 };
@@ -844,17 +867,13 @@ function renderStepProperties(container){
     mortEl.addEventListener('input',()=>{ obj.mortgage = Math.max(0, numFromInput(mortEl) ?? 0); queueSave(); });
     attachMoneyFormatting([valEl, mortEl]);
     hhList.appendChild(node);
-    hhBtn.remove();
-    hhList.insertAdjacentElement('afterend', hhBtn);
+    newHhBtn.remove();
+    hhList.insertAdjacentElement('afterend', newHhBtn);
     node.scrollIntoView({behavior:'smooth', block:'nearest'});
   }
 
   H.holidayHomes.forEach(h=>addHolidayCard(h));
-  hhBtn.addEventListener('click',()=>addHolidayCard());
-
-  const ipList = stepEl.querySelector('#investmentList');
-  const ipBtn = stepEl.querySelector('#addInvestmentBtn');
-  const ipTpl = stepEl.querySelector('#investmentTpl');
+  newHhBtn.addEventListener('click',()=>addHolidayCard());
 
   function addInvestmentCard(p){
     const obj = p || { id: uuid(), name:'', value:0, mortgageBalance:0, grossRent:0 };
@@ -875,13 +894,13 @@ function renderStepProperties(container){
     rentEl.addEventListener('input',()=>{ obj.grossRent = Math.max(0, numFromInput(rentEl) ?? 0); queueSave(); });
     attachMoneyFormatting([valEl, mortEl, rentEl]);
     ipList.appendChild(node);
-    ipBtn.remove();
-    ipList.insertAdjacentElement('afterend', ipBtn);
+    newIpBtn.remove();
+    ipList.insertAdjacentElement('afterend', newIpBtn);
     node.scrollIntoView({behavior:'smooth', block:'nearest'});
   }
 
   R.forEach(p=>addInvestmentCard(p));
-  ipBtn.addEventListener('click',()=>addInvestmentCard());
+  newIpBtn.addEventListener('click',()=>addInvestmentCard());
 
   normalizeMortgageFields(stepEl);
 }
@@ -919,6 +938,13 @@ renderStepProperties.validate = () => {
   setStore({ homes:H, rentProps:R });
   return { ok: Object.keys(errs).length === 0, errors: errs };
 };
+
+document.addEventListener('click', (e) => {
+  const t = e.target;
+  if (t && (t.id === 'addHolidayHomeBtn' || t.id === 'addInvestmentBtn')) {
+    e.preventDefault();
+  }
+});
 
 function renderStepCash(container){
   const s = getStore();
