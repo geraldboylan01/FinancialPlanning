@@ -10,6 +10,7 @@
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
     rel="stylesheet"
   />
+  <link rel="stylesheet" href="styles/inputs.css">
 
   <style>
     * { box-sizing: border-box }
@@ -59,15 +60,10 @@
       font-weight: 700;
       font-size: 1rem;
       border: none;
-      border-radius: 50px;
+      border-radius: 8px;
       cursor: pointer;
-      color: #1a1a1a;
-      background: linear-gradient(135deg, #00ff88, #0099ff);
-      transition: transform .25s, box-shadow .25s;
-    }
-    button:hover {
-      transform: scale(1.03);
-      box-shadow: 0 0 22px rgba(0, 255, 136, .8);
+      color: #fff;
+      background: #555;
     }
 
     #results {
@@ -84,12 +80,6 @@
     }
 
     .error { color: #ff5c5c; margin-top: .5rem }
-    .input-wrap { position: relative; display: inline-block; }
-    .input-wrap.prefix  input { padding-left: 1.6rem; }
-    .input-wrap.suffix  input { padding-right: 1.6rem; }
-    .input-wrap .unit { position: absolute; top: 50%; transform: translateY(-50%); color: #bbb; font-size: 0.9em; pointer-events: none; }
-    .input-wrap.prefix  .unit { left: 0.5rem; }
-    .input-wrap.suffix  .unit { right: 0.5rem; }
 
     .warning-block {
       background: #444;
@@ -192,23 +182,6 @@
       gap: 8px;                   /* even spacing */
     }
 
-    /* one dot / step selector */
-    button.wizDot {
-      width: 14px;
-      height: 14px;
-      padding: 0;
-      line-height: 0;
-      border: none;
-      border-radius: 50%;
-      background: #888;
-      background-image: none !important;     /* cancel global gradient */
-      cursor: pointer;
-    }
-    button.wizDot.active,
-    button.wizDot:focus-visible {
-      background: #00aaff;
-    }
-
     /* FOOTER ============================================= */
     .wizard-controls {
       display: flex;
@@ -285,11 +258,17 @@ canvas {
         <input type="hidden" id="partnerExists" name="partnerExists" />
         <div class="form-group">
           <label for="grossIncome">Gross annual income (€)</label>
-          <input type="number" id="grossIncome" required />
+          <div class="input-wrap prefix">
+            <span class="unit">€</span>
+            <input type="number" id="grossIncome" required />
+          </div>
         </div>
         <div class="form-group">
           <label for="incomePercent">% of income needed in retirement</label>
-          <input type="number" id="incomePercent" step="0.1" min="0" max="100" value="70" required />
+          <div class="input-wrap suffix">
+            <input type="number" id="incomePercent" min="0" max="100" step="0.1" value="70" required />
+            <span class="unit">%</span>
+          </div>
         </div>
         <div class="form-group checkbox-group">
           <div>
@@ -365,7 +344,10 @@ canvas {
 
         <div class="form-group">
           <label for="rentalIncome">Annual rental income today (€)</label>
-          <input type="number" id="rentalIncome" placeholder="e.g. 12000" />
+          <div class="input-wrap prefix">
+            <span class="unit">€</span>
+            <input type="number" id="rentalIncome" placeholder="e.g. 12000" />
+          </div>
         </div>
         <div class="form-group checkbox-group">
           <div>
@@ -375,7 +357,10 @@ canvas {
         </div>
        <div id="db-group" class="form-group" style="display:none;">
          <label for="dbPension">DB pension annual amount at retirement (€)</label>
-         <input type="number" id="dbPension" placeholder="e.g. 20000" />
+         <div class="input-wrap prefix">
+           <span class="unit">€</span>
+           <input type="number" id="dbPension" placeholder="e.g. 20000" />
+         </div>
           <!-- When DB pension box is ticked we need to know when it kicks in -->
           <label for="dbStartAge" style="margin-top:.8rem;">DB pension starts at age</label>
           <input type="number" id="dbStartAge"

@@ -4,6 +4,7 @@
 // and Personal Balance Sheet).
 
 import { animate, addKeyboardNav } from './wizardCore.js';
+import { currencyInput, percentInput, numFromInput, clampPercent } from './ui-inputs.js';
 
 // ───────────────────────────────────────────────────────────────
 // Data store and helpers
@@ -93,50 +94,6 @@ export function removeRow(listKey, id) {
 
 function q(id) { return document.getElementById(id); }
 
-function numFromInput(inp) {
-  const v = inp.value.trim();
-  if (v === '') return null;
-  const n = +v.replace(/[^0-9.-]/g, '');
-  return isNaN(n) ? null : n;
-}
-
-function percentInput({ id, value = '', min = 0, max = 100 }) {
-  const wrap = document.createElement('div');
-  wrap.className = 'input-wrap suffix';
-  const inp = document.createElement('input');
-  inp.type = 'number';
-  inp.id = id;
-  inp.min = min;
-  inp.max = max;
-  inp.step = '0.1';
-  inp.value = value;
-  inp.addEventListener('input', () => {
-    inp.value = inp.value.replace(/[^0-9.-]/g, '');
-  });
-  const span = document.createElement('span');
-  span.textContent = '%';
-  span.className = 'unit';
-  wrap.append(inp, span);
-  return wrap;
-}
-
-function currencyInput({ id, value = '', min = 0 }) {
-  const wrap = document.createElement('div');
-  wrap.className = 'input-wrap prefix';
-  const inp = document.createElement('input');
-  inp.type = 'number';
-  inp.id = id;
-  if (min != null) inp.min = min;
-  inp.value = value;
-  inp.addEventListener('input', () => {
-    inp.value = inp.value.replace(/[^0-9.-]/g, '');
-  });
-  const span = document.createElement('span');
-  span.textContent = '€';
-  span.className = 'unit';
-  wrap.append(span, inp);
-  return wrap;
-}
 
 function formGroup(id, labelText, input) {
   const g = document.createElement('div');
@@ -214,7 +171,9 @@ function makeListStepRenderer(
           fieldEl = percentInput({ id, value: row[f.key] ?? '' });
           const input = fieldEl.querySelector('input');
           input.addEventListener('input', () => {
-            row[f.key] = numFromInput(input) || 0;
+            const v = clampPercent(numFromInput(input));
+            input.value = v ?? '';
+            row[f.key] = v ?? 0;
           });
         } else {
           fieldEl = document.createElement('input');
@@ -282,34 +241,26 @@ function makeListStepRenderer(
 // Step 3 – percent-only goal
 function renderStepGoal(container){
   const s = getStore();
-  setStore({ goalType: 'percent' }); // hard lock
+  setStore({ goalType: 'percent' });
 
-  container.innerHTML = `
-    <div class="form">
-      <div class="form-group">
-        <label for="incomePercent">Income you will need at retirement</label>
-        <div class="input-wrap suffix">
-          <input id="incomePercent" type="number" inputmode="decimal" min="0" max="100" step="0.1"
-                 value="${s.incomePercent ?? 70}">
-          <span class="unit">%</span>
-        </div>
-        <div class="help">We’ll target this share of your gross income.</div>
-      </div>
-    </div>
-  `;
-  const pct = container.querySelector('#incomePercent');
-  pct.addEventListener('input', () => {
-    let v = parseFloat(pct.value);
-    if (Number.isNaN(v)) v = 0;
-    if (v < 0) v = 0; if (v > 100) v = 100;
-    pct.value = v;
-    setStore({ incomePercent: v, goalType: 'percent' });
+  container.innerHTML = '';
+  const form = document.createElement('div'); form.className='form';
+
+  const pctWrap = percentInput({ id:'incomePercent', value: s.incomePercent ?? 70 });
+  pctWrap.querySelector('input').addEventListener('input', (e)=>{
+    const v = clampPercent(numFromInput(e.target)) ?? 0;
+    e.target.value = v; // clamp visually
+    setStore({ incomePercent: v, goalType: 'percent', retireSpend: null });
   });
+
+  form.appendChild(formGroup('incomePercent', 'Income you will need at retirement', pctWrap));
+  const help = document.createElement('div'); help.className='help'; help.textContent='We’ll target this share of your gross income.';
+  form.appendChild(help);
+  container.appendChild(form);
 }
 renderStepGoal.validate = () => {
   const v = getStore().incomePercent;
-  return (typeof v === 'number' && v >= 0 && v <= 100)
-    ? { ok: true } : { ok: false, message: 'Enter a % between 0 and 100.' };
+  return (typeof v === 'number' && v >= 0 && v <= 100) ? { ok:true } : { ok:false, message:'Enter a % between 0 and 100.' };
 };
 // Step 5–9 renderers
 // Step 5 — Homes you live in / holiday places
