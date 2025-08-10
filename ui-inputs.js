@@ -42,7 +42,8 @@ export function percentInput({ id, value = '', placeholder = '' } = {}){
   return wrap;
 }
 export function numFromInput(inputEl){
-  const v = parseFloat(inputEl.value);
+  const raw = String(inputEl.value).replace(/[^0-9.\-]/g, '');
+  const v = parseFloat(raw);
   return Number.isNaN(v) ? null : v;
 }
 export function clampPercent(n){
