@@ -440,24 +440,22 @@ function renderStepHomes(container){
   const addBtn = document.createElement('button');
   addBtn.type = 'button';
   addBtn.className = 'btn-list-add';
+  addBtn.id = 'addHolidayHomeBtn';
   addBtn.textContent = '+ Add holiday home';
 
   const listWrap = document.createElement('div');
   listWrap.className = 'list-wrap';
   const list = document.createElement('div');
   list.className = 'list';
+  list.id = 'holidayHomeList';
   listWrap.appendChild(list);
-
-  const totals = document.createElement('div');
-  totals.className = 'help';
 
   const help = document.createElement('div');
   help.className = 'help';
   help.textContent = 'Enter estimated current values. If a property generates rent (e.g., holiday‑let), toggle and enter yearly rent.';
 
-  form.appendChild(addBtn);
   form.appendChild(listWrap);
-  form.appendChild(totals);
+  form.appendChild(addBtn);
   form.appendChild(help);
 
   container.appendChild(form);
@@ -467,15 +465,6 @@ function renderStepHomes(container){
     (H.holidayHomes || []).forEach((hh, i) => {
       list.appendChild(holidayBlock(hh, i));
     });
-    updateTotals();
-  }
-
-  function updateTotals(){
-    const fmt = n => `€${(+n).toLocaleString()}`;
-    const vSum = (H.holidayHomes || []).reduce((a,h)=>a+(+h.value||0),0);
-    const mSum = (H.holidayHomes || []).reduce((a,h)=>a+(+h.mortgage||0),0);
-    const net = vSum - mSum;
-    totals.textContent = `Holiday homes total: ${fmt(vSum)} | Mortgages total: ${fmt(mSum)} | Net: ${fmt(net)}`;
   }
 
   addBtn.addEventListener('click', () => {
@@ -589,19 +578,16 @@ function renderStepHomes(container){
     valEl.addEventListener('input', () => {
       hh.value = Math.max(0, numFromInput(valEl) ?? 0);
       queueSave();
-      updateTotals();
       warn.style.display = hh.mortgage > hh.value ? '' : 'none';
       validateStep();
     });
     wrap.appendChild(formGroup(`hh-${hh.id}-value`, 'Value (€)', valWrap));
 
-    const mortWrap = currencyInput({ id: `hh-${hh.id}-mortgage`, value: hh.mortgage || '', placeholder: 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).' });
+    const mortWrap = currencyInput({ id: `hh-${hh.id}-mortgage`, value: hh.mortgage || '' });
     const mortEl = mortWrap.querySelector('input');
+    mortEl.placeholder = '';
+    mortEl.setAttribute('aria-describedby', '');
     const mortGroup = formGroup(`hh-${hh.id}-mortgage`, 'Remaining mortgage balance (€)', mortWrap);
-    const help = document.createElement('div');
-    help.className = 'help';
-    help.textContent = 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).';
-    mortGroup.appendChild(help);
     const warn = document.createElement('div');
     warn.textContent = 'Mortgage exceeds value.';
     warn.style.color = '#ffb74d';
@@ -611,7 +597,6 @@ function renderStepHomes(container){
     mortEl.addEventListener('input', () => {
       hh.mortgage = Math.max(0, numFromInput(mortEl) ?? 0);
       queueSave();
-      updateTotals();
       warn.style.display = hh.mortgage > hh.value ? '' : 'none';
       validateStep();
     });
@@ -629,7 +614,6 @@ function renderStepHomes(container){
     rentEl.addEventListener('input', () => {
       hh.annualRent = Math.max(0, numFromInput(rentEl) ?? 0);
       queueSave();
-      updateTotals();
       validateStep();
     });
     rentGrpWrap.appendChild(formGroup(`hh-${hh.id}-rent`, 'Yearly rent (€)', rentWrap));
