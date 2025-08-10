@@ -6,6 +6,26 @@
 import { animate, addKeyboardNav } from './wizardCore.js';
 import { currencyInput, percentInput, numFromInput, clampPercent } from './ui-inputs.js';
 
+const LS_KEY = 'fullMonty.store.v1';
+const SCHEMA = 1;
+
+function loadStore(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(parsed?.__schema !== SCHEMA) return null;
+    return parsed.data || null;
+  }catch{ return null; }
+}
+function saveStore(){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify({ __schema: SCHEMA, data: fullMontyStore }));
+  }catch{}
+}
+let saveTimer = null;
+function queueSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveStore, 150); }
+
 // ───────────────────────────────────────────────────────────────
 // Data store and helpers
 // ----------------------------------------------------------------
@@ -64,6 +84,12 @@ const fullMontyStore = {
   sftAwareness: true    // fixed, not user-editable
 };
 
+const boot = loadStore();
+if(boot && typeof boot === 'object'){
+  Object.assign(fullMontyStore, boot);
+}
+window.addEventListener('beforeunload', saveStore);
+
 function uuid() {
   if (crypto?.randomUUID) return crypto.randomUUID();
   return 'id-' + Math.random().toString(36).slice(2);
@@ -75,17 +101,20 @@ export function getStore() {
 
 export function setStore(patch) {
   Object.assign(fullMontyStore, patch);
+  queueSave();
 }
 
 export function pushRow(listKey, row) {
   if (!fullMontyStore[listKey]) fullMontyStore[listKey] = [];
   if (!row.id) row.id = uuid();
   fullMontyStore[listKey].push(row);
+  queueSave();
 }
 
 export function removeRow(listKey, id) {
   if (!Array.isArray(fullMontyStore[listKey])) return;
   fullMontyStore[listKey] = fullMontyStore[listKey].filter(r => r.id !== id);
+  queueSave();
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -139,7 +168,7 @@ function makeListStepRenderer(
   listKey,
   { addLabel = 'Add item', hint = '', fields = [], valueKey = 'value' }
 ) {
-  return (cont) => {
+  const renderer = (cont) => {
     cont.innerHTML = '';
 
     const form = document.createElement('div');
@@ -166,6 +195,7 @@ function makeListStepRenderer(
           const input = fieldEl.querySelector('input');
           input.addEventListener('input', () => {
             row[f.key] = numFromInput(input) || 0;
+            queueSave();
           });
         } else if (f.type === 'percent') {
           fieldEl = percentInput({ id, value: row[f.key] ?? '' });
@@ -174,13 +204,14 @@ function makeListStepRenderer(
             const v = clampPercent(numFromInput(input));
             input.value = v ?? '';
             row[f.key] = v ?? 0;
+            queueSave();
           });
         } else {
           fieldEl = document.createElement('input');
           fieldEl.type = 'text';
           fieldEl.id = id;
           fieldEl.value = row[f.key] ?? '';
-          fieldEl.addEventListener('input', () => { row[f.key] = fieldEl.value; });
+          fieldEl.addEventListener('input', () => { row[f.key] = fieldEl.value; queueSave(); });
         }
 
         wrap.appendChild(formGroup(id, f.label, fieldEl));
@@ -236,6 +267,22 @@ function makeListStepRenderer(
 
     cont.appendChild(form);
   };
+
+  renderer.validate = () => {
+    const arr = getStore()[listKey] || [];
+    arr.forEach(r => {
+      Object.keys(r).forEach(k => {
+        if (/_amount|value|balance|mortgage|rent|rate/i.test(k) && r[k] != null) {
+          const n = +r[k];
+          if (!Number.isFinite(n) || n < 0) r[k] = 0;
+        }
+      });
+    });
+    setStore({ [listKey]: arr });
+    return { ok: true };
+  };
+
+  return renderer;
 }
 
 // Step 3 – percent-only goal
@@ -246,7 +293,7 @@ function renderStepGoal(container){
   container.innerHTML = '';
   const form = document.createElement('div'); form.className='form';
 
-  const pctWrap = percentInput({ id:'incomePercent', value: s.incomePercent ?? 70 });
+  const pctWrap = percentInput({ id:'incomePercent', value: s.incomePercent ?? '' });
   pctWrap.querySelector('input').addEventListener('input', (e)=>{
     const v = clampPercent(numFromInput(e.target)) ?? 0;
     e.target.value = v; // clamp visually
@@ -308,14 +355,14 @@ function renderStepHomes(container) {
     nameInp.id = `home-name-${row.id}`;
     nameInp.value = row.name ?? '';
     nameInp.placeholder = 'e.g., Family home';
-    nameInp.addEventListener('input', () => { row.name = nameInp.value; });
+    nameInp.addEventListener('input', () => { row.name = nameInp.value; queueSave(); });
 
     wrap.appendChild(formGroup(nameInp.id, 'Name', nameInp));
 
     // Value €
     const valueWrap = currencyInput({ id: `home-val-${row.id}`, value: row.value ?? '' });
     const valueEl = valueWrap.querySelector('input');
-    valueEl.addEventListener('input', () => { row.value = Math.max(0, numFromInput(valueEl) ?? 0); });
+    valueEl.addEventListener('input', () => { row.value = Math.max(0, numFromInput(valueEl) ?? 0); queueSave(); });
 
     wrap.appendChild(formGroup(`home-val-${row.id}`, 'Value', valueWrap));
 
@@ -335,7 +382,7 @@ function renderStepHomes(container) {
     // Rent amount input (hidden unless checked)
     const rentWrap = currencyInput({ id: `home-rent-${row.id}`, value: row.rentAmount ?? '' });
     const rentEl = rentWrap.querySelector('input');
-    rentEl.addEventListener('input', () => { row.rentAmount = Math.max(0, numFromInput(rentEl) ?? 0); });
+    rentEl.addEventListener('input', () => { row.rentAmount = Math.max(0, numFromInput(rentEl) ?? 0); queueSave(); });
 
     const rentFormGrp = formGroup(`home-rent-${row.id}`, 'Rental income (yearly)', rentWrap);
     rentFormGrp.classList.add('condensed');
@@ -345,6 +392,7 @@ function renderStepHomes(container) {
       row.hasRent = toggle.checked;
       if (!row.hasRent) row.rentAmount = 0;
       rentFormGrp.style.display = row.hasRent ? '' : 'none';
+      queueSave();
     });
 
     wrap.append(toggleGrp, rentFormGrp);
@@ -365,13 +413,12 @@ function renderStepHomes(container) {
 }
 renderStepHomes.validate = () => {
   const arr = getStore().homes || [];
-  // keep only positive-value homes; if hasRent false, force rentAmount to 0
   arr.forEach(r => {
     r.value = Math.max(0, +r.value || 0);
     if (!r.hasRent) r.rentAmount = 0;
     else r.rentAmount = Math.max(0, +r.rentAmount || 0);
   });
-  setStore({ homes: arr.filter(r => r.value > 0) });
+  setStore({ homes: arr });
   return { ok: true };
 };
 
@@ -383,11 +430,6 @@ const renderStepCash = makeListStepRenderer('cashLike', {
     { key: 'value', label: 'Value', type: 'currency', default: 0 }
   ]
 });
-renderStepCash.validate = () => {
-  const arr = getStore().cashLike || [];
-  setStore({ cashLike: arr.filter(r => (r.value || 0) > 0) });
-  return { ok: true };
-};
 
 const renderStepInvest = makeListStepRenderer('investments', {
   addLabel: 'Add investment',
@@ -397,11 +439,6 @@ const renderStepInvest = makeListStepRenderer('investments', {
     { key: 'value', label: 'Value', type: 'currency', default: 0 }
   ]
 });
-renderStepInvest.validate = () => {
-  const arr = getStore().investments || [];
-  setStore({ investments: arr.filter(r => (r.value || 0) > 0) });
-  return { ok: true };
-};
 
 const renderStepRentProps = makeListStepRenderer('rentProps', {
   addLabel: 'Add property',
@@ -413,11 +450,6 @@ const renderStepRentProps = makeListStepRenderer('rentProps', {
     { key: 'grossRent', label: 'Gross rent', type: 'currency' }
   ]
 });
-renderStepRentProps.validate = () => {
-  const arr = getStore().rentProps || [];
-  setStore({ rentProps: arr.filter(r => (r.value || 0) > 0) });
-  return { ok: true };
-};
 
 const renderStepLiabilities = makeListStepRenderer('liabilities', {
   addLabel: 'Add liability',
@@ -429,11 +461,6 @@ const renderStepLiabilities = makeListStepRenderer('liabilities', {
     { key: 'rate', label: 'Rate', type: 'percent' }
   ]
 });
-renderStepLiabilities.validate = () => {
-  const arr = getStore().liabilities || [];
-  setStore({ liabilities: arr.filter(r => (r.balance || 0) > 0) });
-  return { ok: true };
-};
 
 // ───────────────────────────────────────────────────────────────
 // Step engine
@@ -446,8 +473,20 @@ const btnNext = q('fmNext');
 const dots = q('fmDots');
 const progEl = q('fmProgress');
 const progFill = q('fmProgressFill');
+const titleEl = q('fmTitle');
 
 let cur = 0;
+
+function paintProgress(){
+  const total = steps.length;
+  progEl.textContent = `Step ${cur + 1} of ${total}`;
+  progFill.style.width = `${((cur + 1) / total) * 100}%`;
+  dots.innerHTML = steps.map((_, i) => `<button class="wizDot${i === cur ? ' active' : ''}" data-idx="${i}"></button>`).join('');
+  dots.querySelectorAll('button').forEach((b, i) => {
+    b.addEventListener('click', () => { if (i <= cur) { cur = i; render(); } });
+  });
+  titleEl.textContent = steps[cur].title || '';
+}
 
 // Helper: focus first input after render
 function focusFirst() {
@@ -460,7 +499,7 @@ function focusFirst() {
 const steps = [
   {
     id: 'household',
-    title: 'Household',
+    title: 'About you',
     render(cont) {
       cont.innerHTML = '';
       const form = document.createElement('div');
@@ -523,7 +562,7 @@ const steps = [
 
   {
     id: 'income',
-    title: 'Income today',
+    title: 'Your income today',
     render(cont) {
       cont.innerHTML = '';
       const form = document.createElement('div');
@@ -555,14 +594,14 @@ const steps = [
 
   {
     id: 'goal',
-    title: 'Retirement goal (percent-only)',
+    title: 'Retirement income target',
     render: renderStepGoal,
     validate: renderStepGoal.validate
   },
 
   {
     id: 'pensions',
-    title: 'Pensions (DC/DB/State)',
+    title: 'Pensions & entitlements',
     render(cont) {
       cont.innerHTML = '';
       const form = document.createElement('div');
@@ -652,21 +691,21 @@ const steps = [
 
   {
     id: 'homes',
-    title: 'Homes you live in / holiday places',
+    title: 'Homes / holiday homes',
     render: renderStepHomes,
     validate: renderStepHomes.validate
   },
 
   {
     id: 'cash',
-    title: 'Cash & easy-access savings (incl. 100% bonds)',
+    title: 'Cash & easy-access savings',
     render: renderStepCash,
     validate: renderStepCash.validate
   },
 
   {
     id: 'investments',
-    title: 'Investments (funds/accounts, not pensions)',
+    title: 'Investments (non-pension)',
     render: renderStepInvest,
     validate: renderStepInvest.validate
   },
@@ -697,18 +736,9 @@ function yearsFrom(dobStr) {
 
 function render() {
   const step = steps[cur];
-  const total = steps.length;
-  progEl.textContent = `Step ${cur + 1} of ${total}`;
-  progFill.style.width = ((cur + 1) / total * 100) + '%';
+  paintProgress();
   container.innerHTML = '';
-  const h = document.createElement('h3');
-  h.textContent = step.title;
-  container.appendChild(h);
   step.render(container);
-  dots.innerHTML = steps.map((_, i) => `<button class="wizDot${i === cur ? ' active' : ''}" data-idx="${i}"></button>`).join('');
-  dots.querySelectorAll('button').forEach((b, i) => {
-    b.addEventListener('click', () => { if (i <= cur) { cur = i; render(); } });
-  });
   container.querySelectorAll('input, select, textarea, button').forEach(el => {
     el.addEventListener('blur', () => validateStep(true));
     el.addEventListener('input', () => validateStep());
@@ -716,7 +746,7 @@ function render() {
   });
   validateStep();
   btnBack.style.display = cur === 0 ? 'none' : '';
-  btnNext.textContent = cur === total - 1 ? 'Finish' : 'Next';
+  btnNext.textContent = cur === steps.length - 1 ? 'Finish' : 'Next';
   focusFirst();
 }
 
