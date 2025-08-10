@@ -151,6 +151,96 @@
     @media (max-width:480px){.bubble{width:100%;max-width:280px;aspect-ratio:1}}
     /* Accessibility focus */
     a:focus-visible,.btn-primary:focus-visible{outline:2px solid var(--accentA);outline-offset:3px;box-shadow:0 0 0 3px rgba(0,255,136,.25)}
+
+    /* ========== YouTube Short card ========== */
+    .yt-card{
+      position: relative;
+      width: 100%;
+      max-width: 420px; /* keeps Short elegant on desktop */
+      margin: clamp(.6rem, 2vw, 1rem) 0 0;
+      border-radius: 16px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+    }
+    /* Maintain 9:16 aspect */
+    .yt-card::before{
+      content:"";
+      display:block;
+      width:100%;
+      aspect-ratio: 9 / 16;
+    }
+
+    /* Poster button */
+    .yt-poster{
+      position:absolute; inset:0;
+      display:grid; place-items:center;
+      border:0; background:transparent; cursor:pointer;
+      padding:0; outline:none;
+    }
+
+    /* Poster gets a background image via JS */
+    .yt-poster.has-thumb{
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    /* Readability overlay */
+    .yt-poster::after{
+      content:"";
+      position:absolute; inset:0;
+      background: linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,.1));
+      pointer-events:none;
+    }
+
+    /* Play affordance using your magenta accent ring */
+    .yt-poster__play{
+      display:inline-grid; place-items:center;
+      width:72px; height:72px; border-radius:50%;
+      background: rgba(0,0,0,.55);
+      border: 2px solid var(--pmag2);
+      box-shadow: 0 0 22px rgba(127,0,255,.45);
+      font-size:28px; line-height:1; color:#fff;
+    }
+
+    .yt-poster__badge{
+      position:absolute; top:10px; left:10px;
+      font-size:12px; color:#fff;
+      background: rgba(0,0,0,.55);
+      padding:6px 10px; border-radius:999px;
+      border:1px solid rgba(255,255,255,.12);
+    }
+
+    /* Focus/hover states fit existing aesthetic */
+    .yt-card:focus-within,
+    .yt-poster:focus-visible{
+      outline:2px solid var(--pmag2);
+      outline-offset:3px;
+      box-shadow: 0 0 28px rgba(127,0,255,.45);
+    }
+
+    .yt-caption{
+      padding: 10px 12px 14px;
+      font-size: 14px; color: var(--muted);
+      border-top:1px solid rgba(255,255,255,.06);
+    }
+
+    /* Slight tightening for very small phones */
+    @media (max-width: 360px){
+      .yt-card{ max-width: 100%; }
+    }
+
+    /* Keep hero grid as-is; the Short stacks under right-column text naturally */
+
+    .tiny-link{
+      display:inline-block;
+      margin-top:.5rem;
+      font-size:.8rem;
+      color:var(--muted);
+    }
   </style>
 </head>
 <body>
@@ -176,6 +266,16 @@
           <li>Your investments grow tax‑free (no 8‑year deemed disposal)</li>
           <li>You can take a portion tax‑free at retirement</li>
         </ul>
+        <!-- YouTube Short (click-to-play) -->
+        <div id="why-video" class="yt-card" data-video-id="ZA58vuPH4CY">
+          <button class="yt-poster" type="button" aria-label="Play video: Why I built these tools">
+            <span class="yt-poster__badge">Short • ~1 min</span>
+            <span class="yt-poster__play" aria-hidden="true">►</span>
+          </button>
+          <div class="yt-caption">
+            <strong>Watch:</strong> Why these tools matter in Ireland—and how to use them.
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -203,6 +303,7 @@
         <a href="full-monty.html" class="btn-primary" aria-label="Launch Full Monty wizard">Start Full Monty</a>
         <span class="hint">Takes about 2–4 minutes</span>
       </div>
+      <a href="#why-video" class="tiny-link">Watch 60s intro</a>
     </div>
   </section>
 
@@ -231,5 +332,78 @@
   </div>
 
 </main>
+<script>
+(function initYouTubeShort(){
+  const card = document.querySelector('.yt-card[data-video-id]');
+  if(!card) return;
+
+  const id = card.getAttribute('data-video-id');
+  const poster = card.querySelector('.yt-poster');
+  const caption = card.querySelector('.yt-caption');
+
+  const thumbs = [
+    `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
+    `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
+  ];
+
+  function setPoster(bg){
+    poster.style.backgroundImage = `url("${bg}")`;
+    poster.classList.add('has-thumb');
+  }
+
+  // progressive preload for best thumb available
+  (function loadThumb(i=0){
+    if(i>=thumbs.length) return;
+    const img = new Image();
+    img.onload = () => setPoster(thumbs[i]);
+    img.onerror = () => loadThumb(i+1);
+    img.src = thumbs[i];
+  })();
+
+  function makeIframe(autoplay=true){
+    const params = new URLSearchParams({
+      modestbranding:'1',
+      rel:'0',
+      playsinline:'1',
+      enablejsapi:'1',
+      origin: window.location.origin
+    });
+    if(autoplay){
+      params.set('autoplay','1');
+      params.set('mute','1'); // autoplay consistency
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.src = `https://www.youtube-nocookie.com/embed/${id}?` + params.toString();
+    iframe.setAttribute('title','Why I built these tools');
+    iframe.setAttribute('allowfullscreen','');
+    iframe.setAttribute('loading','lazy');
+    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+
+    // Fill the aspect box
+    iframe.style.position = 'absolute';
+    iframe.style.inset = '0';
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = '0';
+    return iframe;
+  }
+
+  function play(){
+    poster.replaceWith(makeIframe(true));
+    caption && (caption.style.opacity = '1');
+  }
+
+  function onKey(e){
+    if(e.key === 'Enter' || e.key === ' '){
+      e.preventDefault();
+      play();
+    }
+  }
+
+  poster.addEventListener('click', play);
+  poster.addEventListener('keydown', onKey);
+})();
+</script>
 </body>
 </html>
