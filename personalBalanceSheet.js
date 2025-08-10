@@ -46,6 +46,19 @@ const defaultData = {
 };
 
 let personalBalanceSheet = JSON.parse(localStorage.getItem('personalBalanceSheet') || 'null') || {};
+
+// ---------------------------- migrate old saved data ------------------------
+if (personalBalanceSheet.liquidity) {
+  const saved = personalBalanceSheet.liquidity;
+  if ('bondPercent' in saved && !('bondAmount' in saved)) {
+    saved.bondAmount = Number(saved.bondPercent) || 0;
+    delete saved.bondPercent;
+  }
+  if ('bonds' in saved && !('bondAmount' in saved)) {
+    saved.bondAmount = Number(saved.bonds) || 0;
+    delete saved.bonds;
+  }
+}
 function mergeDefaults(def, obj){
   for(const k in def){
     if(obj[k]==null) obj[k] = JSON.parse(JSON.stringify(def[k]));
@@ -121,8 +134,8 @@ const wizardSteps = [
     id:'liquidityFunds', title:'Do you have any low-risk funds like money-markets or bond portfolios?', tooltip:'Money-market and bonds',
     store:'liquidity',
     fields:[
-      {id:'mmf', label:'Money-market funds (€)', type:'number'},
-      {id:'bonds', label:'100 % bond portfolios (€)', type:'number'},
+      {id:'mmf', label:'Money-market funds (€)', type:'number', optional:true},
+      {id:'bondAmount', label:'100% bond portfolios (€)', type:'number', optional:true},
       {id:'other', label:'Other instantly-available assets (€)', type:'number', optional:true}
     ]
   },
@@ -360,17 +373,16 @@ function validateStep(show){
   for(const el of container.querySelectorAll('input,select')){
     if(el.type==='number'){
       if(el.required && el.value===''){ if(show){displayError(el);} return false; }
-      if(el.value!=='' && +el.value<0){ if(show){displayError(el);} return false; }
+      if(el.value!=='' && +el.value<0){ if(show){displayError(el,'Enter a non-negative amount.');} return false; }
     }
     if(!el.checkValidity()){ if(show){displayError(el);} return false; }
   }
   return true;
 }
 
-function displayError(el){
-  const p=el.parentNode;
-  const msg=el.closest('.error')?null:document.createElement('p');
-  if(msg){ msg.className='error'; msg.textContent='Please complete or correct the highlighted field.'; el.after(msg); }
+function displayError(el, msg='Please complete or correct the highlighted field.'){
+  const existing = el.closest('.error') ? null : document.createElement('p');
+  if(existing){ existing.className='error'; existing.textContent=msg; el.after(existing); }
   el.focus();
 }
 
@@ -448,7 +460,7 @@ function computeTotals(data) {
     (+pick(data, ['lifestyle', 'primaryHome', 'homeValue']) || 0) +
     sumVals((data.lifestyle.holidayHomes || []).map(h => +h.value || 0));
 
-  const liquidity = ['cash', 'cashSavings', 'mmf', 'bonds', 'other']
+  const liquidity = ['cash', 'cashSavings', 'mmf', 'bondAmount', 'other']
     .map(k => +pick(data, ['liquidity', k]) || 0)
     .reduce((a, b) => a + b, 0);
 
@@ -584,7 +596,7 @@ function renderBalanceSheet(data) {
     row('Cash',       pick(data,['liquidity','cash'])),
     row('Savings',    pick(data,['liquidity','cashSavings'])),
     row('M-market',   pick(data,['liquidity','mmf'])),
-    row('Bond funds', pick(data,['liquidity','bonds'])),
+    row('100% bond portfolios (€)', pick(data,['liquidity','bondAmount'])),
     row('Other',      pick(data,['liquidity','other']))
   ].filter(Boolean);
 
