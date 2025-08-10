@@ -87,12 +87,11 @@ const fullMontyStore = {
     bond100: 0
   },
 
-  // Non-pension investments (all € amounts)
+  // Non-pension investments
   investments: {
-    etfIndexFunds: 0,
-    mixedEquityFunds: 0,
-    brokerageCash: 0,
-    otherInvestments: 0
+    nonPension: {
+      diversifiedFunds: []
+    }
   },
 
   // Properties for rent (can still be a compact table)
@@ -136,8 +135,16 @@ window.addEventListener('beforeunload', saveStore);
   }
   if (Array.isArray(s.investments)) {
     const sum = s.investments.reduce((a,r)=>a+(+r.value||0),0);
-    s.investments = { etfIndexFunds: sum, mixedEquityFunds: 0, brokerageCash: 0, otherInvestments: 0 };
+    s.investments = { nonPension: { diversifiedFunds: sum ? [{ label:'', provider:'', amount: sum }] : [] } };
     queueSave();
+  } else if (s.investments && !s.investments.nonPension) {
+    const legacySum = ['etfIndexFunds','mixedEquityFunds','brokerageCash','otherInvestments']
+      .map(k => +s.investments[k] || 0)
+      .reduce((a,b)=>a+b,0);
+    s.investments = { nonPension: { diversifiedFunds: legacySum ? [{ label:'', provider:'', amount: legacySum }] : [] } };
+    queueSave();
+  } else if (s.investments && !Array.isArray(s.investments.nonPension?.diversifiedFunds)) {
+    s.investments.nonPension.diversifiedFunds = [];
   }
   if (Array.isArray(s.homes)) {
     const total = s.homes.reduce((a,r)=>a+(+r.value||0),0);
@@ -749,31 +756,167 @@ function renderStepCash(container){
 }
 renderStepCash.validate = () => { setStore({ liquidity: getStore().liquidity }); return { ok:true }; };
 
+let step7Funds = [];
+let fundListEl = null;
+
+function persistFunds(){
+  try{ localStorage.setItem('fm_step7_funds', JSON.stringify(step7Funds)); }catch{}
+}
+
+function createFundRow(fund, index){
+  const row = document.createElement('div');
+  row.className = 'fund-row';
+
+  const label = document.createElement('input');
+  label.name = 'label';
+  label.placeholder = 'e.g., Global Balanced A';
+  label.setAttribute('aria-label','Fund label (nickname)');
+  label.required = true;
+  label.value = fund.label || '';
+
+  const provider = document.createElement('input');
+  provider.name = 'provider';
+  provider.placeholder = 'e.g., Vanguard / iShares / Irish Life';
+  provider.setAttribute('aria-label','Provider');
+  provider.required = true;
+  provider.value = fund.provider || '';
+
+  const amtWrap = document.createElement('div');
+  amtWrap.className = 'currency';
+  const prefix = document.createElement('span'); prefix.className = 'prefix'; prefix.textContent = '€';
+  const amount = document.createElement('input');
+  amount.name = 'amount';
+  amount.inputMode = 'decimal';
+  amount.setAttribute('aria-label','Amount in euro');
+  amount.required = true;
+  amount.value = fund.amount || '';
+  amtWrap.append(prefix, amount);
+
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'btn-row-remove remove';
+  remove.setAttribute('aria-label','Remove fund');
+  remove.textContent = '✕';
+
+  const errors = document.createElement('div');
+  errors.className = 'errors';
+  errors.setAttribute('aria-live','polite');
+
+  row.append(label, provider, amtWrap, remove, errors);
+
+  function onInput(){
+    step7Funds[index] = { label: label.value, provider: provider.value, amount: amount.value };
+    validateFundRow(index);
+    persistFunds();
+    validateStep();
+  }
+
+  label.addEventListener('input', onInput);
+  provider.addEventListener('input', onInput);
+  amount.addEventListener('input', onInput);
+  label.addEventListener('blur', () => { validateFundRow(index); });
+  provider.addEventListener('blur', () => { validateFundRow(index); });
+  amount.addEventListener('blur', () => { validateFundRow(index); });
+
+  remove.addEventListener('click', () => {
+    step7Funds.splice(index,1);
+    renderFunds();
+    persistFunds();
+    validateStep();
+  });
+
+  return row;
+}
+
+function renderFunds(){
+  if(!fundListEl) return;
+  fundListEl.innerHTML = '';
+  step7Funds.forEach((f,i) => {
+    fundListEl.appendChild(createFundRow(f,i));
+  });
+}
+
+function validateFundRow(i){
+  if(!fundListEl) return true;
+  const fund = step7Funds[i];
+  const row = fundListEl.children[i];
+  if(!row) return true;
+  const errs = [];
+  if(!fund.label.trim()) errs.push('Enter a label');
+  if(!fund.provider.trim()) errs.push('Enter a provider');
+  const amt = parseFloat(String(fund.amount).replace(/[^\d.]/g,''));
+  if(!Number.isFinite(amt) || amt < 0) errs.push('Enter a non-negative amount');
+  const errDiv = row.querySelector('.errors');
+  errDiv.innerHTML = '';
+  errs.forEach(msg => { const d = document.createElement('div'); d.textContent = msg; errDiv.appendChild(d); });
+  return errs.length === 0;
+}
+
 function renderStepInvest(container){
-  const s = getStore();
-  const I = s.investments || (s.investments = { etfIndexFunds:0, mixedEquityFunds:0, brokerageCash:0, otherInvestments:0 });
+  try{ step7Funds = JSON.parse(localStorage.getItem('fm_step7_funds')) || []; }
+  catch{ step7Funds = []; }
+  if(!Array.isArray(step7Funds) || step7Funds.length === 0){
+    step7Funds = [{ label:'', provider:'', amount:'' }];
+  }
 
   container.innerHTML = '';
   const form = document.createElement('div'); form.className='form';
 
-  form.appendChild(currencyRow('ETF / Index funds (€)', 'etfIndexFunds'));
-  form.appendChild(currencyRow('Mixed / equity funds (non‑pension) (€)', 'mixedEquityFunds'));
-  form.appendChild(currencyRow('Brokerage cash (€)', 'brokerageCash'));
-  form.appendChild(currencyRow('Other investments (€)', 'otherInvestments'));
-
   const help = document.createElement('div'); help.className='help';
-  help.textContent = 'Exclude pensions (we captured those earlier).';
+  help.innerHTML = 'This section is for <strong>diversified investment funds</strong> you hold outside pensions (e.g., multi‑asset funds or broad index funds). These are pooled funds spread across many holdings, not single shares or crypto.';
   form.appendChild(help);
+
+  fundListEl = document.createElement('div');
+  fundListEl.id = 'fund-list';
+  fundListEl.className = 'stack';
+  form.appendChild(fundListEl);
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.id = 'add-fund';
+  addBtn.className = 'btn-list-add';
+  addBtn.textContent = 'Add another fund';
+  addBtn.addEventListener('click', () => {
+    step7Funds.push({ label:'', provider:'', amount:'' });
+    renderFunds();
+    persistFunds();
+    const els = fundListEl.querySelectorAll('input[name="label"]');
+    els[els.length-1]?.focus();
+    validateStep();
+  });
+  form.appendChild(addBtn);
 
   container.appendChild(form);
 
-  function currencyRow(label, key){
-    const w = currencyInput({ id:`inv-${key}`, value: I[key] || '' });
-    w.querySelector('input').addEventListener('input', e => { I[key] = Math.max(0, numFromInput(e.target) ?? 0); queueSave(); });
-    return formGroup(`inv-${key}`, label, w);
-  }
+  renderFunds();
+  validateStep();
 }
-renderStepInvest.validate = () => { setStore({ investments: getStore().investments }); return { ok:true }; };
+
+renderStepInvest.validate = () => {
+  let allValid = step7Funds.length > 0;
+  let firstInvalid = null;
+  step7Funds.forEach((_,i)=>{
+    const ok = validateFundRow(i);
+    if(!ok && firstInvalid === null) firstInvalid = i;
+    if(!ok) allValid = false;
+  });
+  if(allValid){
+    const clean = v => String(v).replace(/[^\d.]/g,'');
+    const fundsForSubmit = step7Funds.map(f => ({ ...f, amount: parseFloat(clean(f.amount)) || 0 }));
+    const s = getStore();
+    if(!s.investments) s.investments = {};
+    if(!s.investments.nonPension) s.investments.nonPension = {};
+    s.investments.nonPension.diversifiedFunds = fundsForSubmit;
+    setStore({ investments: s.investments });
+    queueSave();
+  } else if(firstInvalid != null) {
+    const row = fundListEl.children[firstInvalid];
+    row?.scrollIntoView({behavior:'smooth', block:'center'});
+    const inp = row?.querySelector('input');
+    inp?.focus();
+  }
+  return { ok: allValid };
+};
 
 const renderStepRentProps = makeListStepRenderer('rentProps', {
   addLabel: 'Add property',
@@ -1247,12 +1390,9 @@ export function buildBalanceSheet() {
     ['100% bond portfolios', s.liquidity.bond100]
   ].map(([name, value]) => ({ name, value })).filter(r => r.value > 0);
 
-  const longevity = [
-    ['ETF / Index funds', s.investments.etfIndexFunds],
-    ['Mixed / equity funds (non-pension)', s.investments.mixedEquityFunds],
-    ['Brokerage cash', s.investments.brokerageCash],
-    ['Other investments', s.investments.otherInvestments]
-  ].map(([name, value]) => ({ name, value })).filter(r => r.value > 0);
+  const longevity = (s.investments?.nonPension?.diversifiedFunds || [])
+    .map(f => ({ name: f.label || 'Investment fund', value: f.amount }))
+    .filter(r => r.value > 0);
 
   const legacy = (s.rentProps || [])
     .filter(r => (r.value > 0) || (r.mortgageBalance > 0))
