@@ -84,8 +84,7 @@ const fullMontyStore = {
     currentAccount: 0,
     cashSavings: 0,
     moneyMarket: 0,
-    bond100: 0,
-    otherInstant: 0
+    bond100: 0
   },
 
   // Non-pension investments (all € amounts)
@@ -131,8 +130,8 @@ window.addEventListener('beforeunload', saveStore);
   const s = fullMontyStore;
 
   if (Array.isArray(s.cashLike) && !s.liquidity){
-    s.liquidity = { currentAccount:0, cashSavings:0, moneyMarket:0, bond100:0, otherInstant:0 };
-    s.cashLike.forEach(r => { const v = +r.value || 0; s.liquidity.otherInstant += v; });
+    s.liquidity = { currentAccount:0, cashSavings:0, moneyMarket:0, bond100:0 };
+    s.cashLike.forEach(r => { const v = +r.value || 0; s.liquidity.cashSavings += v; });
     delete s.cashLike; queueSave();
   }
   if (Array.isArray(s.investments)) {
@@ -726,7 +725,7 @@ renderStepHomes.validate = () => {
 
 function renderStepCash(container){
   const s = getStore();
-  const L = s.liquidity || (s.liquidity = { currentAccount:0, cashSavings:0, moneyMarket:0, bond100:0, otherInstant:0 });
+  const L = s.liquidity || (s.liquidity = { currentAccount:0, cashSavings:0, moneyMarket:0, bond100:0 });
 
   container.innerHTML = '';
   const form = document.createElement('div'); form.className = 'form';
@@ -735,10 +734,9 @@ function renderStepCash(container){
   form.appendChild(currencyRow('Cash savings (€)', 'cashSavings'));
   form.appendChild(currencyRow('Money‑market funds (€)', 'moneyMarket'));
   form.appendChild(currencyRow('100% bond portfolios (€)', 'bond100'));
-  form.appendChild(currencyRow('Other instantly‑available assets (€)', 'otherInstant'));
 
   const help = document.createElement('div'); help.className='help';
-  help.textContent = 'Instant or near‑instant access assets.';
+  help.textContent = 'These are instantly accessible, very low-risk assets.';
   form.appendChild(help);
 
   container.appendChild(form);
@@ -1246,8 +1244,7 @@ export function buildBalanceSheet() {
     ['Cash in current account', s.liquidity.currentAccount],
     ['Cash savings', s.liquidity.cashSavings],
     ['Money-market funds', s.liquidity.moneyMarket],
-    ['100% bond portfolios', s.liquidity.bond100],
-    ['Other instantly-available assets', s.liquidity.otherInstant]
+    ['100% bond portfolios', s.liquidity.bond100]
   ].map(([name, value]) => ({ name, value })).filter(r => r.value > 0);
 
   const longevity = [
