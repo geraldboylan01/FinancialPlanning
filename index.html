@@ -12,17 +12,33 @@
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{min-height:100vh;overflow-x:hidden}
-    body{font-family:'Inter',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1.5rem;padding:calc(env(safe-area-inset-top,0)+3rem) 1rem calc(env(safe-area-inset-bottom,0)+3rem);background:var(--bg);color:var(--ink)}
+    body{font-family:'Inter',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1.5rem;padding:clamp(1rem,4vw,2.5rem) 1rem;background:var(--bg);color:var(--ink)}
     @media (min-width:960px){body{justify-content:center}}
     /* ========== Tokens ========== */
     :root{--bg:#1a1a1a;--card:#2a2a2a;--ink:#fff;--muted:#bbb;--gold:#bfa571;--accentA:#00ff88;--accentB:#0099ff;--pmag1:#c000ff;--pmag2:#7f00ff;--shadow:0 0 25px rgba(0,255,136,.25)}
     /* ========== Page layout tweaks ========== */
-    main{display:grid;gap:1.5rem;width:100%;max-width:1100px}
-    @media (min-width:960px){main{gap:2rem}}
-    /* Info band stays, but narrower and cleaner */
-    .info-box{background:var(--card);border-radius:16px;box-shadow:var(--shadow);padding:1rem 1.25rem;max-width:none}
-    .info-title{font-size:2rem;font-family:'Cormorant Garamond',serif;font-weight:700;text-align:center;color:var(--gold);margin-bottom:.5rem}
-    .title-logo{width:1.6em;height:auto;vertical-align:middle;margin-right:.4rem}
+    main{display:grid;gap:clamp(1rem,3vw,2rem);width:100%;max-width:1100px}
+    /* ========== Brand hero ========== */
+    .brand-hero{position:relative;isolation:isolate;background:radial-gradient(1200px 600px at 10% -20%,rgba(0,255,136,.06),transparent 60%),radial-gradient(800px 600px at 90% 120%,rgba(127,0,255,.08),transparent 60%),var(--card);border-radius:16px;padding:clamp(1rem,3vw,1.5rem);box-shadow:var(--shadow);max-width:1100px;width:100%}
+    .brand-hero::before{content:"";position:absolute;inset:0;border-radius:16px;pointer-events:none;background:conic-gradient(from 0deg,rgba(0,255,136,.25),rgba(127,0,255,.22),rgba(0,255,136,.25));mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);mask-composite:exclude;-webkit-mask-composite:xor;padding:1px;animation:rimspin 12s linear infinite;opacity:.55}
+    @keyframes rimspin{to{transform:rotate(360deg)}}
+    @media (prefers-reduced-motion:reduce){.brand-hero::before{animation:none;opacity:.35}}
+    .brand-hero__content{display:grid;gap:clamp(.8rem,2vw,1.2rem);grid-template-columns:1fr}
+    @media (min-width:900px){.brand-hero__content{grid-template-columns:.9fr 1.1fr;align-items:center}}
+    .brand-hero__lockup{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+    .brand-hero__logo{width:40px;height:40px;filter:drop-shadow(0 0 6px rgba(191,165,113,.35))}
+    .brand-hero__title{font-family:'Cormorant Garamond',serif;font-weight:700;font-size:clamp(1.8rem,4vw,2.6rem);color:var(--gold);letter-spacing:.2px;margin:0}
+    .brand-hero__tag{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:999px;padding:.25rem .6rem;font-weight:700;font-size:.85rem;color:#eee}
+    .brand-hero__text .lede{font-weight:700;color:#eaeaea;margin:.4rem 0 .5rem}
+    .brand-hero__text p{line-height:1.5;color:#e6e6e6;margin:.35rem 0}
+    .brand-hero__list{margin:.5rem 0 0 1.1rem;line-height:1.35}
+    .brand-hero__list li+li{margin-top:.25rem}
+    .brand-hero__cta{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.9rem}
+    .btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.85rem 1.35rem;border-radius:14px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--accentA),var(--accentB));color:#111;font-weight:800;text-decoration:none;box-shadow:0 0 22px rgba(0,255,136,.6);transition:transform .2s,box-shadow .2s,filter .2s}
+    .btn-primary:hover,.btn-primary:focus-visible{transform:scale(1.03);box-shadow:0 0 28px rgba(0,255,136,.85);outline:none}
+    .btn-ghost{display:inline-flex;align-items:center;justify-content:center;padding:.85rem 1.1rem;border-radius:12px;text-decoration:none;cursor:pointer;color:#f3f3f3;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);font-weight:700;transition:background .2s,border-color .2s,transform .2s}
+    .btn-ghost:hover,.btn-ghost:focus-visible{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);transform:translateY(-1px);outline:none}
+    @media (max-width:360px){.brand-hero__list{margin-left:.9rem}.brand-hero__title{letter-spacing:0}.brand-hero__cta{gap:.6rem}}
     /* ========== HERO (Full Monty) ========== */
     .hero{display:grid;gap:1rem;align-items:center;grid-template-columns:1fr}
     @media (min-width:960px){.hero{grid-template-columns:1.1fr .9fr}}
@@ -48,33 +64,42 @@
     .tools-head .rule{flex:1;height:1px;background:linear-gradient(90deg,#444,transparent)}
     .tools-head .label{color:#ccc;font-weight:700;font-size:.95rem;text-transform:uppercase;letter-spacing:.08em}
     .container{display:flex;flex-wrap:wrap;justify-content:center;gap:1rem}
-    .bubble{width:36vw;max-width:200px;height:36vw;max-height:200px;border-radius:50%;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:pointer;transition:transform .25s,box-shadow .25s,filter .25s;background:linear-gradient(135deg,#2e2e2e,#3a3a3a);box-shadow:0 0 16px rgba(0,0,0,.35);filter:saturate(.65) brightness(.95)}
-    .bubble:hover{transform:translateY(-2px) scale(1.03);background:linear-gradient(135deg,var(--accentA),var(--accentB));box-shadow:0 0 28px rgba(0,255,136,.55);filter:none}
+    .bubble{width:36vw;max-width:200px;height:36vw;max-height:200px;border-radius:50%;display:flex;flex-direction:column;justify-content:center;align-items:center;cursor:pointer;transition:transform .25s,box-shadow .25s,filter .25s;background:linear-gradient(135deg,#2e2e2e,#3a3a3a);box-shadow:0 0 16px rgba(0,0,0,.35);filter:saturate(.7) brightness(.95)}
+    .bubble:hover,.bubble:focus-visible{transform:translateY(-2px) scale(1.03);background:linear-gradient(135deg,var(--accentA),var(--accentB));box-shadow:0 0 28px rgba(0,255,136,.55);filter:none;outline:2px solid var(--accentA);outline-offset:4px}
     .bubble-icon{font-size:44px;line-height:1;margin-bottom:.4rem}
     .bubble span{font-weight:700;text-align:center;font-size:16px}
+    @media (max-width:480px){.bubble{width:100%;max-width:280px;aspect-ratio:1}}
     /* Accessibility focus */
-    a:focus-visible,.bubble:focus-visible,.btn-primary:focus-visible{outline:2px solid var(--accentA);outline-offset:4px;box-shadow:0 0 0 3px rgba(0,255,136,.25)}
+    a:focus-visible,.btn-primary:focus-visible,.btn-ghost:focus-visible{outline:2px solid var(--accentA);outline-offset:3px;box-shadow:0 0 0 3px rgba(0,255,136,.25)}
   </style>
 </head>
 <body>
 <main>
 
-  <!-- Info band stays -->
-  <div class="info-box">
-    <div>
-      <h1 class="info-title">
-        <img src="favicon.png" class="title-logo" alt="Planéir logo">
-        Planéir
-      </h1>
-      <p>🇮🇪 Built for Irish Pensions</p>
-      <p>All of our tools are designed specifically for Irish pension rules — because pensions are the most tax‑efficient way to invest in Ireland.</p>
-      <ul>
-        <li>You don’t pay income tax on the money you contribute</li>
-        <li>Your investments grow tax‑free (no 8‑year deemed disposal)</li>
-        <li>You can take a portion tax‑free at retirement</li>
-      </ul>
+  <section class="brand-hero" aria-label="About Planéir">
+    <div class="brand-hero__content">
+      <div class="brand-hero__lockup">
+        <img src="favicon.png" class="brand-hero__logo" alt="" aria-hidden="true" />
+        <h1 class="brand-hero__title">Planéir</h1>
+        <span class="brand-hero__tag">Irish Pension Planning</span>
+      </div>
+
+      <div class="brand-hero__text">
+        <p class="lede">🇮🇪 Built for Irish Pensions</p>
+        <p>All of our tools are designed specifically for Irish pension rules — because pensions are the most tax‑efficient way to invest in Ireland.</p>
+        <ul class="brand-hero__list">
+          <li>You don’t pay income tax on the money you contribute</li>
+          <li>Your investments grow tax‑free (no 8‑year deemed disposal)</li>
+          <li>You can take a portion tax‑free at retirement</li>
+        </ul>
+
+        <div class="brand-hero__cta">
+          <a href="full-monty.html" class="btn-primary" aria-label="Start Full Monty">Start Full Monty</a>
+          <a href="#tools" class="btn-ghost" aria-label="See individual tools">See tools</a>
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
 
   <!-- HERO: Full Monty spotlight -->
   <section class="hero" aria-label="All-in-one planner">
@@ -103,7 +128,7 @@
   </section>
 
   <!-- SECONDARY: single tools -->
-  <div class="tools-head" aria-hidden="true">
+  <div id="tools" class="tools-head" aria-hidden="true">
     <span class="rule"></span>
     <span class="label">Or pick a specific tool</span>
     <span class="rule"></span>
