@@ -75,7 +75,7 @@ const fullMontyStore = {
   // ASSETS (split into mini-steps)
   // Homes you live in / holiday places
   homes: {
-    familyHome: { value: 0, mortgage: 0, hasRent: false, annualRent: 0 },
+    familyHome: { name: '', value: 0, mortgage: 0, hasRent: false, annualRent: 0 },
     holidayHomes: []
   },
 
@@ -142,7 +142,7 @@ window.addEventListener('beforeunload', saveStore);
   }
   if (Array.isArray(s.homes)) {
     const total = s.homes.reduce((a,r)=>a+(+r.value||0),0);
-    s.homes = { familyHome:{value:total,mortgage:0,hasRent:false,annualRent:0}, holidayHomes: [] };
+    s.homes = { familyHome:{name:'', value:total,mortgage:0,hasRent:false,annualRent:0}, holidayHomes: [] };
     queueSave();
   }
   if (s.homes && s.homes.familyHome) {
@@ -153,6 +153,7 @@ window.addEventListener('beforeunload', saveStore);
     if (fh.mortgage == null) fh.mortgage = 0;
     if (fh.hasRent == null) fh.hasRent = false;
     if (fh.value == null) fh.value = 0;
+    if (fh.name == null) fh.name = '';
   }
   if (s.homes && s.homes.holidayHome && !Array.isArray(s.homes.holidayHomes)) {
     const old = s.homes.holidayHome;
@@ -162,7 +163,7 @@ window.addEventListener('beforeunload', saveStore);
     if (val || rent) {
       arr.push({
         id: uuid(),
-        label: 'Holiday home #1',
+        name: 'Holiday home #1',
         value: val,
         mortgage: 0,
         hasRent: !!old.hasRent,
@@ -172,6 +173,16 @@ window.addEventListener('beforeunload', saveStore);
     s.homes.holidayHomes = arr;
     delete s.homes.holidayHome;
     queueSave();
+  }
+  if (s.homes && Array.isArray(s.homes.holidayHomes)) {
+    s.homes.holidayHomes.forEach((h, i) => {
+      if (h.label && !h.name) { h.name = h.label; delete h.label; }
+      if (h.name == null) h.name = '';
+      if (h.mortgage == null) h.mortgage = 0;
+      if (h.hasRent == null) h.hasRent = false;
+      if (h.value == null) h.value = 0;
+      if (h.annualRent == null) h.annualRent = 0;
+    });
   }
   if (s.liabilities && s.liabilities.mortgageHome) {
     if (!s.homes.familyHome.mortgage) {
@@ -454,7 +465,6 @@ function renderStepHomes(container){
   function refresh(){
     list.innerHTML = '';
     (H.holidayHomes || []).forEach((hh, i) => {
-      if (!hh.label || /^Holiday home #\d+$/.test(hh.label)) hh.label = `Holiday home #${i+1}`;
       list.appendChild(holidayBlock(hh, i));
     });
     updateTotals();
@@ -469,7 +479,7 @@ function renderStepHomes(container){
   }
 
   addBtn.addEventListener('click', () => {
-    const hh = { id: uuid(), label: `Holiday home #${H.holidayHomes.length+1}`, value: 0, mortgage: 0, hasRent: false, annualRent: 0 };
+    const hh = { id: uuid(), name: '', value: 0, mortgage: 0, hasRent: false, annualRent: 0 };
     H.holidayHomes.push(hh);
     queueSave();
     refresh();
@@ -486,6 +496,14 @@ function renderStepHomes(container){
     nameLabel.textContent = label; nameLabel.style.fontWeight = '700';
     nameLabel.style.marginBottom = '.4rem';
     wrap.appendChild(nameLabel);
+
+    const propName = document.createElement('input');
+    propName.type = 'text';
+    propName.id = `${key}-name`;
+    propName.value = obj.name || '';
+    propName.placeholder = 'Property name (optional, e.g., Dublin Apartment)';
+    propName.addEventListener('input', () => { obj.name = propName.value; queueSave(); });
+    wrap.appendChild(formGroup(`${key}-name`, 'Property name (optional, e.g., Dublin Apartment)', propName));
 
     const valWrap = currencyInput({ id: `${key}-value`, value: obj.value || '' });
     const valEl = valWrap.querySelector('input');
@@ -553,10 +571,18 @@ function renderStepHomes(container){
     wrap.setAttribute('aria-label', `Holiday home #${idx+1}`);
 
     const title = document.createElement('label');
-    title.textContent = hh.label;
+    title.textContent = `Holiday home #${idx+1}`;
     title.style.fontWeight = '700';
     title.style.marginBottom = '.4rem';
     wrap.appendChild(title);
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.id = `hh-${hh.id}-name`;
+    nameInput.value = hh.name || '';
+    nameInput.placeholder = 'Property name (optional, e.g., Dublin Apartment)';
+    nameInput.addEventListener('input', () => { hh.name = nameInput.value; queueSave(); });
+    wrap.appendChild(formGroup(`hh-${hh.id}-name`, 'Property name (optional, e.g., Dublin Apartment)', nameInput));
 
     const valWrap = currencyInput({ id: `hh-${hh.id}-value`, value: hh.value || '' });
     const valEl = valWrap.querySelector('input');
@@ -734,7 +760,7 @@ const renderStepRentProps = makeListStepRenderer('rentProps', {
   addLabel: 'Add property',
   hint: 'Properties you rent out (include the remaining mortgage balance—i.e., the amount you still owe today—and gross rent).',
   fields: [
-    { key: 'name', label: 'Name', type: 'text' },
+    { key: 'name', label: 'Property name (optional, e.g., Dublin Apartment)', type: 'text' },
     { key: 'value', label: 'Value', type: 'currency', default: 0 },
     { key: 'mortgageBalance', label: 'Remaining mortgage balance (€)', type: 'currency', default: 0, placeholder: 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).', help: 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).' },
     { key: 'grossRent', label: 'Gross rent', type: 'currency' }
@@ -1178,16 +1204,21 @@ function getResolvedTotalRent(){
   return homesRent + rentPropsSum;
 }
 
-function buildBalanceSheet() {
+export function buildBalanceSheet() {
   const s = fullMontyStore;
   const lifestyle = [
     {
-      name: 'Family home',
+      name: s.homes.familyHome.name || 'Family home',
       value: s.homes.familyHome.value,
       mortgage: s.homes.familyHome.mortgage,
       net: s.homes.familyHome.value - s.homes.familyHome.mortgage
     },
-    ...(s.homes.holidayHomes || []).map((h, i) => ({ name: h.label || `Holiday home #${i+1}`, value: h.value }))
+    ...(s.homes.holidayHomes || []).map((h, i) => ({
+      name: h.name || `Holiday home #${i+1}`,
+      value: h.value,
+      mortgage: h.mortgage,
+      net: h.value - h.mortgage
+    }))
   ].filter(r => (r.value > 0) || (r.mortgage > 0));
 
   const liquidity = [
@@ -1206,8 +1237,13 @@ function buildBalanceSheet() {
   ].map(([name, value]) => ({ name, value })).filter(r => r.value > 0);
 
   const legacy = (s.rentProps || [])
-    .filter(r => r.value > 0)
-    .map(({ name, value }) => ({ name, value }));
+    .filter(r => (r.value > 0) || (r.mortgageBalance > 0))
+    .map(({ name, value, mortgageBalance }) => ({
+      name: name || 'Investment property',
+      value,
+      mortgage: mortgageBalance,
+      net: value - mortgageBalance
+    }));
 
   const liabs = [
     ...Object.entries(s.liabilities || {}).map(([key, val]) => {
@@ -1221,12 +1257,7 @@ function buildBalanceSheet() {
         otherDebt: 'Other debt'
       };
       return { name: names[key], balance: val.balance };
-    }).filter(r => r.balance > 0),
-    ...(s.homes.familyHome.mortgage > 0 ? [{ name: 'Family home mortgage', balance: s.homes.familyHome.mortgage }] : []),
-    ...(s.homes.holidayHomes || []).filter(h => h.mortgage > 0)
-      .map((h, i) => ({ name: (h.label || `Holiday home #${i+1}`) + ' mortgage', balance: h.mortgage })),
-    ...(s.rentProps || []).filter(r => r.mortgageBalance > 0)
-      .map(r => ({ name: r.name + ' mortgage', balance: r.mortgageBalance }))
+    }).filter(r => r.balance > 0)
   ];
 
   const income = {
