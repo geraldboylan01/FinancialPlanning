@@ -250,7 +250,7 @@
 }
 @media (min-width: 720px){ .learn__grid{ grid-template-columns: repeat(3, 1fr); }}
 
-/* ——— Portrait card with full-media look ——— */
+/* ========== Card base ========== */
 .learn-card{
   background: var(--card);
   border: 1px solid rgba(255,255,255,.08);
@@ -258,32 +258,61 @@
   box-shadow: var(--shadow);
   overflow: hidden;
   min-height: 100%;
+  transition: transform .25s ease, box-shadow .25s ease;
 }
+
+/* Lift the entire card slightly on hover/focus of the thumb */
+.learn-card:hover,
+.learn-card:has(.yt-thumb:focus-visible){
+  transform: translateY(-2px);
+  box-shadow: 0 0 28px rgba(127,0,255,.35), var(--shadow);
+}
+
+/* ========== Portrait thumb ========== */
 .learn-card--portrait .yt-thumb{
   position: relative;
   display: block;
   width: 100%;
-  aspect-ratio: 9 / 16;     /* portrait matches Shorts */
-  background: #000;         /* JS sets poster for live video */
-  background-size: cover;   /* fills the card */
+  aspect-ratio: 9 / 16;
+  background: #000;
+  background-size: cover;
   background-position: center;
   border: 0;
   cursor: pointer;
-}
-.yt-thumb::after{
-  content:""; position:absolute; inset:0;
-  background: linear-gradient(to top, rgba(0,0,0,.45), rgba(0,0,0,.08));
-  pointer-events:none;
-}
-.yt-thumb:hover,
-.yt-thumb:focus-visible{
-  outline: 2px solid var(--pmag2);
-  outline-offset: -2px;
-  filter: brightness(1.03);
-  box-shadow: 0 0 16px rgba(127,0,255,.35) inset;
+  overflow: hidden;
+  /* Smooth poster zoom + tone shift */
+  transition: transform .35s ease, filter .35s ease;
 }
 
-/* Play affordance */
+/* Focus vignette + poster zoom layers */
+.yt-thumb::before, .yt-thumb::after{
+  content:""; position:absolute; inset:0;
+  pointer-events:none;
+  transition: opacity .35s ease;
+}
+
+/* ::before = subtle vignette that intensifies on hover */
+.yt-thumb::before{
+  background: radial-gradient(120% 100% at 50% 60%, rgba(0,0,0,0) 40%, rgba(0,0,0,.45) 100%);
+  opacity: .35;  /* base */
+}
+/* ::after = soft top/bottom gradient for readability */
+.yt-thumb::after{
+  background: linear-gradient(to bottom, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,.35) 100%);
+  opacity: .55;  /* base */
+}
+
+.yt-thumb:hover,
+.yt-thumb:focus-visible{
+  transform: scale(1.015);
+  filter: saturate(1.05) contrast(1.02);
+}
+.yt-thumb:hover::before,
+.yt-thumb:focus-visible::before{ opacity: .6; }
+.yt-thumb:hover::after,
+.yt-thumb:focus-visible::after{ opacity: .75; }
+
+/* ========== Play button: brighten + glow on hover/focus ========== */
 .yt-thumb__play{
   position: absolute; inset:auto auto 10px 10px;
   display: grid; place-items:center;
@@ -292,45 +321,82 @@
   border: 2px solid var(--pmag2);
   color:#fff; font-size: 20px; line-height: 1;
   box-shadow: 0 0 18px rgba(127,0,255,.45);
+  transition: transform .25s ease, box-shadow .25s ease, background .25s ease, border-color .25s ease;
 }
 .yt-thumb__play::before{
   content:""; position:absolute; inset:-6px;
-  border-radius:50%; border: 2px solid rgba(127,0,255,.4);
+  border-radius:50%;
+  border: 2px solid rgba(127,0,255,.4);
   animation: pulse 1.8s ease-in-out infinite;
 }
 @keyframes pulse{
   0%,100%{ transform: scale(1); opacity: .6 }
   50%   { transform: scale(1.08); opacity: .2 }
 }
+.yt-thumb:hover .yt-thumb__play,
+.yt-thumb:focus-visible .yt-thumb__play{
+  background: rgba(0,0,0,.75);
+  border-color: #c083ff; /* brighter ring */
+  box-shadow: 0 0 28px rgba(192,131,255,.65), 0 0 0 2px rgba(192,131,255,.25) inset;
+  transform: scale(1.06);
+}
+
+/* Keyboard focus outline on the thumb itself */
+.yt-thumb:focus-visible{
+  outline: 2px solid var(--pmag2);
+  outline-offset: -2px;
+}
+
+/* ========== Top-centered title + description ========== */
+.learn-card__overlay{
+  position: absolute; left: 0; right: 0; top: 0;
+  /* Use grid to center text block at the top with padding */
+  display: grid; place-items: start center;
+  padding: 12px 12px 24px;
+  text-align: center;
+  /* Top gradient scrim for readability over video */
+  background: linear-gradient(to bottom, rgba(0,0,0,.65) 0%, rgba(0,0,0,.0) 85%);
+  pointer-events: none; /* overlay shouldn’t block clicks on the button */
+}
+.learn-card__title{
+  margin: 0 0 4px;
+  color: #fff; font-weight: 800; font-size: 1.05rem;
+  text-shadow: 0 1px 2px rgba(0,0,0,.6);
+}
+.learn-card__text{
+  margin: 0;
+  color: #e6e6e6; font-size: .95rem; line-height: 1.35;
+  text-shadow: 0 1px 2px rgba(0,0,0,.5);
+  /* keep to 2 lines for consistency */
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* ========== Badge stays top-left, above overlay ========== */
 .yt-thumb__badge{
   position: absolute; top: 8px; left: 8px;
+  z-index: 2;
   font-size: 11px; color:#fff;
   background: rgba(0,0,0,.55);
   padding: 5px 8px; border-radius: 999px;
   border: 1px solid rgba(255,255,255,.12);
 }
 
-/* Bottom overlay (title/desc over the video) */
-.learn-card__overlay{
-  position: absolute; left: 0; right: 0; bottom: 0;
-  padding: 10px 12px 12px;
-  background: linear-gradient(to top, rgba(0,0,0,.75) 0%, rgba(0,0,0,.0) 80%);
-}
-.learn-card__title{
-  margin: 0 0 4px; color: #fff; font-weight: 800; font-size: 1.05rem;
-  text-shadow: 0 1px 2px rgba(0,0,0,.6);
-}
-.learn-card__text{
-  margin: 0; color: #e6e6e6; font-size: .95rem; line-height: 1.4;
-}
-
-/* Placeholders: muted look, no pointer cursor */
-.yt-thumb--placeholder{ 
+/* ========== Placeholder state (no click) ========== */
+.yt-thumb--placeholder{
   background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.1));
   cursor: default;
 }
 .yt-thumb--placeholder .yt-thumb__play{ opacity: .5; }
-.yt-thumb--placeholder::after{ background: none; }
+.yt-thumb--placeholder:hover,
+.yt-thumb--placeholder:focus-visible{
+  transform: none; filter: none;
+}
+.yt-thumb--placeholder::before,
+.yt-thumb--placeholder::after{ opacity: .35; } /* subtle vignette only */
+
+@media (max-width: 380px){
+  .learn-card__overlay{ padding-top: 16px; }
+}
   </style>
 </head>
 <body>
