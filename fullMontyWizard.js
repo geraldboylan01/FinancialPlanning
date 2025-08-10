@@ -266,6 +266,41 @@ function showErrors(errs = {}) {
   });
 }
 
+// defensive helpers
+function normalizeFamilyHomeMortgageField(root) {
+  const container = root || document;
+  const input = container.querySelector('#familyHome-mortgage');
+  if (input) {
+    input.placeholder = '';
+    input.removeAttribute('aria-describedby');
+  }
+  const helper = container.querySelector('#familyHome-mortgage ~ .help');
+  if (helper) helper.remove();
+}
+
+function normalizePropertyNameFields(root) {
+  const container = root || document;
+  container.querySelectorAll('label').forEach(lab => {
+    const txt = lab.textContent.trim();
+    if (/^Property name/i.test(txt)) {
+      lab.textContent = 'Property name';
+    }
+  });
+
+  container.querySelectorAll('input[type="text"], input:not([type])').forEach(inp => {
+    const ph = (inp.getAttribute('placeholder') || '').trim();
+    const isNameByName = /\b(name|_name\[\]|propertyName)\b/i.test(inp.name || '');
+    const labelTxt = inp.closest('.field, div')?.querySelector('label')?.textContent?.trim();
+    const isNameByLabel = labelTxt === 'Property name';
+    if (isNameByName || isNameByLabel) {
+      inp.setAttribute('placeholder', 'e.g., Dublin Apartment');
+    }
+    if (/\(optional.*\)/i.test(ph)) {
+      inp.setAttribute('placeholder', 'e.g., Dublin Apartment');
+    }
+  });
+}
+
 // mini-list renderer for asset/debt steps
 function makeListStepRenderer(
   listKey,
@@ -344,6 +379,7 @@ function makeListStepRenderer(
     const refresh = () => {
       list.innerHTML = '';
       (fullMontyStore[listKey] || []).forEach(row => list.appendChild(rowEl(row)));
+      normalizePropertyNameFields(cont);
     };
 
     // initial paint of existing rows
@@ -354,17 +390,18 @@ function makeListStepRenderer(
     add.type = 'button';
     add.className = 'btn-list-add';
     add.textContent = addLabel;
-    add.addEventListener('click', () => {
-      const r = { id: uuid() };
-      fields.forEach(f => { r[f.key] = (f.default ?? (f.type === 'currency' || f.type === 'percent' ? 0 : '')); });
-      pushRow(listKey, r);
-      list.appendChild(rowEl(r));
-      // scroll to the new row
-      setTimeout(() => {
-        const last = list.lastElementChild;
-        if (last) last.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }, 0);
-    });
+      add.addEventListener('click', () => {
+        const r = { id: uuid() };
+        fields.forEach(f => { r[f.key] = (f.default ?? (f.type === 'currency' || f.type === 'percent' ? 0 : '')); });
+        pushRow(listKey, r);
+        list.appendChild(rowEl(r));
+        normalizePropertyNameFields(cont);
+        // scroll to the new row
+        setTimeout(() => {
+          const last = list.lastElementChild;
+          if (last) last.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }, 0);
+      });
 
     form.appendChild(listWrap);
     form.appendChild(add);
@@ -460,22 +497,24 @@ function renderStepHomes(container){
 
   container.appendChild(form);
 
-  function refresh(){
-    list.innerHTML = '';
-    (H.holidayHomes || []).forEach((hh, i) => {
-      list.appendChild(holidayBlock(hh, i));
+    function refresh(){
+      list.innerHTML = '';
+      (H.holidayHomes || []).forEach((hh, i) => {
+        list.appendChild(holidayBlock(hh, i));
+      });
+      normalizePropertyNameFields(container);
+    }
+
+    addBtn.addEventListener('click', () => {
+      const hh = { id: uuid(), name: '', value: 0, mortgage: 0, hasRent: false, annualRent: 0 };
+      H.holidayHomes.push(hh);
+      queueSave();
+      refresh();
+      validateStep();
     });
-  }
 
-  addBtn.addEventListener('click', () => {
-    const hh = { id: uuid(), name: '', value: 0, mortgage: 0, hasRent: false, annualRent: 0 };
-    H.holidayHomes.push(hh);
-    queueSave();
     refresh();
-    validateStep();
-  });
-
-  refresh();
+    normalizeFamilyHomeMortgageField(container);
 
   function homeBlock(label, obj, key){
     const wrap = document.createElement('div');
@@ -490,9 +529,9 @@ function renderStepHomes(container){
     propName.type = 'text';
     propName.id = `${key}-name`;
     propName.value = obj.name || '';
-    propName.placeholder = 'Property name (optional, e.g., Dublin Apartment)';
+    propName.placeholder = 'e.g., Dublin Apartment';
     propName.addEventListener('input', () => { obj.name = propName.value; queueSave(); });
-    wrap.appendChild(formGroup(`${key}-name`, 'Property name (optional, e.g., Dublin Apartment)', propName));
+    wrap.appendChild(formGroup(`${key}-name`, 'Property name', propName));
 
     const valWrap = currencyInput({ id: `${key}-value`, value: obj.value || '' });
     const valEl = valWrap.querySelector('input');
@@ -504,13 +543,11 @@ function renderStepHomes(container){
     });
     wrap.appendChild(formGroup(`${key}-value`, 'Value (€)', valWrap));
 
-    const mortWrap = currencyInput({ id: `${key}-mortgage`, value: obj.mortgage || '', placeholder: 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).' });
+    const mortWrap = currencyInput({ id: `${key}-mortgage`, value: obj.mortgage || '', placeholder: '' });
     const mortEl = mortWrap.querySelector('input');
+    mortEl.placeholder = '';
+    mortEl.setAttribute('aria-describedby', '');
     const mortGroup = formGroup(`${key}-mortgage`, 'Remaining mortgage balance (€)', mortWrap);
-    const help = document.createElement('div');
-    help.className = 'help';
-    help.textContent = 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).';
-    mortGroup.appendChild(help);
     const warn = document.createElement('div');
     warn.textContent = 'Mortgage exceeds value.';
     warn.style.color = '#ffb74d';
@@ -569,9 +606,9 @@ function renderStepHomes(container){
     nameInput.type = 'text';
     nameInput.id = `hh-${hh.id}-name`;
     nameInput.value = hh.name || '';
-    nameInput.placeholder = 'Property name (optional, e.g., Dublin Apartment)';
+    nameInput.placeholder = 'e.g., Dublin Apartment';
     nameInput.addEventListener('input', () => { hh.name = nameInput.value; queueSave(); });
-    wrap.appendChild(formGroup(`hh-${hh.id}-name`, 'Property name (optional, e.g., Dublin Apartment)', nameInput));
+    wrap.appendChild(formGroup(`hh-${hh.id}-name`, 'Property name', nameInput));
 
     const valWrap = currencyInput({ id: `hh-${hh.id}-value`, value: hh.value || '' });
     const valEl = valWrap.querySelector('input');
@@ -743,13 +780,13 @@ renderStepInvest.validate = () => { setStore({ investments: getStore().investmen
 const renderStepRentProps = makeListStepRenderer('rentProps', {
   addLabel: 'Add property',
   hint: 'Properties you rent out (include the remaining mortgage balance—i.e., the amount you still owe today—and gross rent).',
-  fields: [
-    { key: 'name', label: 'Property name (optional, e.g., Dublin Apartment)', type: 'text' },
-    { key: 'value', label: 'Value', type: 'currency', default: 0 },
-    { key: 'mortgageBalance', label: 'Remaining mortgage balance (€)', type: 'currency', default: 0, placeholder: 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).', help: 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).' },
-    { key: 'grossRent', label: 'Gross rent', type: 'currency' }
-  ]
-});
+    fields: [
+      { key: 'name', label: 'Property name', type: 'text', placeholder: 'e.g., Dublin Apartment' },
+      { key: 'value', label: 'Value', type: 'currency', default: 0 },
+      { key: 'mortgageBalance', label: 'Remaining mortgage balance (€)', type: 'currency', default: 0, placeholder: 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).', help: 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).' },
+      { key: 'grossRent', label: 'Gross rent', type: 'currency' }
+    ]
+  });
 
 function renderStepLiabilities(container){
   const s = getStore();
