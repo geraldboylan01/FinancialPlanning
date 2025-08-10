@@ -80,14 +80,67 @@ button.wizDot.active, button.wizDot:focus-visible{ background:#c000ff; outline:n
   outline:2px solid transparent;
 }
 
-/* fund list (step 7) */
-.stack{ display:flex; flex-direction:column; gap:1rem; }
-.fund-row{ display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:.5rem; align-items:center; }
-.fund-row .errors{ grid-column:1 / -1; color:var(--danger); font-size:.9rem; margin-top:.25rem; }
-.currency{ position:relative; display:flex; align-items:center; background:var(--field-bg); border:1px solid var(--field-border); border-radius:10px; }
-.currency input{ background:transparent; border:0; color:var(--field-ink); padding:.55rem .7rem .55rem 1.6rem; width:100%; }
-.currency .prefix{ position:absolute; left:.6rem; color:var(--field-muted); }
-.currency:focus-within{ border-color:var(--focus); box-shadow:var(--focus-ring); }
+/* Step 7 investments */
+#step-7 .helper { margin-bottom: 1rem; }
+#step-7 .helper .muted { opacity:.8; }
+
+.example-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: .5rem 1rem;
+  padding: .75rem 1rem;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.04);
+  margin-bottom: 1rem;
+}
+.example-row .label { opacity:.75; font-size:.85rem; }
+.example-row .value { font-weight:600; }
+
+.fund-list { display:grid; gap:1rem; }
+
+.fund-row {
+  display:grid;
+  grid-template-columns:1.2fr 1.2fr 0.8fr auto;
+  gap:1rem;
+  align-items:end;
+  padding:1rem;
+  border-radius:14px;
+  background:rgba(255,255,255,0.03);
+}
+@media (max-width: 767px) {
+  .fund-row { grid-template-columns:1fr; }
+  .fund-row .remove { justify-self:end; margin-top:.25rem; }
+}
+
+.field label { display:block; font-weight:600; margin-bottom:.35rem; }
+.field .sublabel { display:block; font-weight:400; opacity:.75; font-size:.85rem; }
+.field input { width:100%; }
+
+.currency { position:relative; }
+.currency .prefix {
+  position:absolute; left:.75rem; top:50%; transform:translateY(-50%);
+  pointer-events:none; opacity:.8;
+}
+.currency input { padding-left:1.75rem; width:100%; }
+
+.error { color:#ff6b6b; font-size:.85rem; min-height:1.1em; margin-top:.25rem; }
+
+.btn-icon.remove {
+  height:40px; width:40px; border-radius:10px;
+  display:grid; place-items:center;
+  background:rgba(255,255,255,0.06);
+}
+.btn-icon.remove:hover { background:rgba(255,255,255,0.12); }
+
+.actions-row {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-top:.75rem;
+}
+.total { font-size:1rem; gap:.5rem; display:flex; align-items:baseline; }
+.total strong { font-size:1.1rem; }
+
+.field input.invalid { border:1px solid #ff6b6b; }
+.currency input.invalid { border:1px solid #ff6b6b; }
 
 /* On wizard pages only */
 .wizard-controls > button{
