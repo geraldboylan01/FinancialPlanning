@@ -290,9 +290,95 @@
         top: 0;
         background: var(--card);
       }
-      .modal__body{ padding-bottom: env(safe-area-inset-bottom, 12px); }
-      .modal__video{ max-height: none; }
+    .modal__body{ padding-bottom: env(safe-area-inset-bottom, 12px); }
+    .modal__video{ max-height: none; }
     }
+
+    /* Learn row layout */
+    .learn{
+      margin: clamp(12px, 3vw, 20px) 0;
+    }
+    .learn__grid{
+      display: grid;
+      gap: clamp(12px, 2.5vw, 18px);
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 780px){
+      .learn__grid{ grid-template-columns: repeat(3, 1fr); }
+    }
+    .learn-card{
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+    .learn-card__body{
+      padding: 12px 14px 14px;
+    }
+    .learn-card__title{
+      margin: 0 0 4px; font-size: 1.05rem; color: #fff;
+    }
+    .learn-card__text{
+      margin: 0; color: var(--muted); line-height: 1.45;
+    }
+
+    /* Video thumbnail styles */
+    .yt-thumb{
+      position: relative;
+      display: block;
+      width: 100%;
+      border: 0;
+      cursor: pointer;
+      background: #000; /* JS sets poster for real videos */
+      background-size: cover;
+      background-position: center;
+      overflow: hidden;
+    }
+    .yt-thumb--wide{ aspect-ratio: 16 / 9; }
+    .yt-thumb::after{
+      content:""; position:absolute; inset:0;
+      background: linear-gradient(to top, rgba(0,0,0,.45), rgba(0,0,0,.08));
+      pointer-events:none;
+    }
+    .yt-thumb__play{
+      position: absolute; inset:auto auto 10px 10px;
+      display: grid; place-items:center;
+      width: 48px; height: 48px; border-radius: 50%;
+      background: rgba(0,0,0,.6);
+      border: 2px solid var(--pmag2);
+      color:#fff; font-size: 20px; line-height: 1;
+      box-shadow: 0 0 18px rgba(127,0,255,.45);
+    }
+    .yt-thumb__play::before{
+      content:""; position:absolute; inset:-6px;
+      border-radius:50%; border: 2px solid rgba(127,0,255,.4);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse{
+      0%,100%{ transform: scale(1); opacity: .6 }
+      50%   { transform: scale(1.08); opacity: .2 }
+    }
+    .yt-thumb__badge{
+      position: absolute; top: 8px; left: 8px;
+      font-size: 11px; color:#fff;
+      background: rgba(0,0,0,.55);
+      padding: 5px 8px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+    }
+
+    /* Placeholder state */
+    .yt-thumb--placeholder{
+      background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.1));
+      cursor: default;
+    }
+    .yt-thumb--placeholder .yt-thumb__play{
+      opacity: 0.5;
+    }
+    .yt-thumb--placeholder::after{ background: none; }
   </style>
 </head>
 <body>
@@ -354,6 +440,49 @@
     </div>
   </section>
 
+  <section class="learn" aria-label="Learn more about Planéir">
+    <div class="learn__grid">
+
+      <!-- Card 1: 60-second intro -->
+      <article class="learn-card">
+        <button class="yt-thumb yt-thumb--wide" type="button"
+          data-video-id="ZA58vuPH4CY"
+          aria-haspopup="dialog" aria-controls="videoModal"
+          aria-label="Watch a 60-second intro video">
+          <span class="yt-thumb__badge">Short • ~1 min</span>
+          <span class="yt-thumb__play" aria-hidden="true">►</span>
+        </button>
+        <div class="learn-card__body">
+          <h3 class="learn-card__title">60-second intro</h3>
+          <p class="learn-card__text">Why pensions are the lever in Ireland and how these tools help.</p>
+        </div>
+      </article>
+
+      <!-- Card 2: Full Monty explainer (placeholder) -->
+      <article class="learn-card">
+        <div class="yt-thumb yt-thumb--wide yt-thumb--placeholder" aria-label="Full Monty explainer coming soon">
+          <span class="yt-thumb__play" aria-hidden="true">▶</span>
+        </div>
+        <div class="learn-card__body">
+          <h3 class="learn-card__title">Full Monty explainer</h3>
+          <p class="learn-card__text">A walkthrough of our all-in-one financial planning tool. Coming soon.</p>
+        </div>
+      </article>
+
+      <!-- Card 3: Individual tools explainer (placeholder) -->
+      <article class="learn-card">
+        <div class="yt-thumb yt-thumb--wide yt-thumb--placeholder" aria-label="Individual tools explainer coming soon">
+          <span class="yt-thumb__play" aria-hidden="true">▶</span>
+        </div>
+        <div class="learn-card__body">
+          <h3 class="learn-card__title">Individual tools explainer</h3>
+          <p class="learn-card__text">An overview of each tool and when to use it. Coming soon.</p>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
   <!-- SECONDARY: single tools -->
   <div id="tools" class="tools-head" aria-hidden="true">
     <span class="rule"></span>
@@ -398,32 +527,38 @@
 
  <script>
 (function videoThumbAndModal(){
-  const thumbBtn = document.querySelector('.yt-thumb[data-video-id]');
+  const thumbBtns = document.querySelectorAll('.yt-thumb[data-video-id]');
   const modal     = document.getElementById('videoModal');
-  if(!thumbBtn || !modal) return;
+  if(!thumbBtns.length || !modal) return;
 
-  const id        = thumbBtn.getAttribute('data-video-id');
   const mount     = modal.querySelector('[data-video-mount]');
   let lastFocus   = null;
   let iframeInjected = false;
   let hintEl = null;
+  let currentId = null;
 
-  // Thumbnail poster from YouTube
-  const imgs = [
-    `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
-    `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
-  ];
-  (function loadThumb(i=0){
-    if(i >= imgs.length) return;
-    const img = new Image();
-    img.onload  = () => thumbBtn.style.backgroundImage = `url("${imgs[i]}")`;
-    img.onerror = () => loadThumb(i+1);
-    img.src = imgs[i];
-  })();
+  function loadThumb(btn){
+    const id = btn.getAttribute('data-video-id');
+    const imgs = [
+      `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
+      `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
+    ];
+    (function tryLoad(i=0){
+      if(i >= imgs.length) return;
+      const img = new Image();
+      img.onload  = () => btn.style.backgroundImage = `url("${imgs[i]}")`;
+      img.onerror = () => tryLoad(i+1);
+      img.src = imgs[i];
+    })();
+  }
 
-  // Build iframe on demand
+  thumbBtns.forEach(btn => {
+    loadThumb(btn);
+    btn.addEventListener('click', () => open(btn.getAttribute('data-video-id')));
+  });
+
   function injectIframe(){
-    if(iframeInjected || !mount) return;
+    if(iframeInjected || !mount || !currentId) return;
     const params = new URLSearchParams({
       modestbranding:'1', rel:'0', playsinline:'1', enablejsapi:'1',
       controls:'1',
@@ -431,7 +566,7 @@
       origin: window.location.origin
     });
     const iframe = document.createElement('iframe');
-    iframe.src = `https://www.youtube-nocookie.com/embed/${id}?` + params.toString();
+    iframe.src = `https://www.youtube-nocookie.com/embed/${currentId}?` + params.toString();
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
     iframe.setAttribute('allowfullscreen','');
     iframe.setAttribute('title','Why I built these tools');
@@ -450,7 +585,8 @@
   }
 
   // Modal controls
-  function open(){
+  function open(id){
+    currentId = id;
     lastFocus = document.activeElement;
     modal.hidden = false;
     document.documentElement.style.overflow = 'hidden';
@@ -486,10 +622,9 @@
   }
 
   // Events
-  thumbBtn.addEventListener('click', open);
   modal.addEventListener('click', (e)=>{ if(e.target.closest('[data-close]') || e.target.classList.contains('modal__backdrop')) close(); });
   window.addEventListener('hashchange', () => { if(!modal.hidden && location.hash !== '#video') close(); });
-  if(location.hash === '#video'){ open(); }
+  if(location.hash === '#video'){ open(thumbBtns[0].getAttribute('data-video-id')); }
 })();
 </script>
 </body>
