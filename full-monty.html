@@ -58,6 +58,16 @@
     input:focus,select:focus{outline:none;border-color:var(--glow);box-shadow:0 0 0 3px rgba(0,255,136,.25);}
     .error{color:var(--danger);margin-top:.5rem;}
 
+    /* Pension risk cards */
+    .risk-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem;}
+    @media(max-width:480px){.risk-grid{grid-template-columns:1fr;}}
+    .risk-card{background:#353535;border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:1rem;display:flex;flex-direction:column;gap:.35rem;cursor:pointer;}
+    .risk-card.selected{outline:2px solid var(--glow);box-shadow:0 0 8px var(--glow);}
+    .risk-title{font-weight:600;}
+    .risk-mix{font-size:.9rem;}
+    .risk-rate{font-size:.9rem;color:#aaa;}
+    .risk-footnote{font-size:.75rem;color:#aaa;margin-top:.75rem;}
+
     /* Optional: row grouping look */
     .list-wrap .asset-row{
       background:#353535; border:1px solid rgba(255,255,255,.08);
