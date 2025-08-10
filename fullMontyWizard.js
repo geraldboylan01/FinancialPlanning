@@ -5,6 +5,7 @@
 
 import { animate, addKeyboardNav } from './wizardCore.js';
 import { currencyInput, percentInput, numFromInput, clampPercent } from './ui-inputs.js';
+import { renderStepPensionRisk, RISK_OPTIONS } from './stepPensionRisk.js';
 
 const LS_KEY = 'fullMonty.store.v1';
 const SCHEMA = 1;
@@ -29,6 +30,11 @@ function queueSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveStore,
 // ───────────────────────────────────────────────────────────────
 // Data store and helpers
 // ----------------------------------------------------------------
+
+const storedRiskKey = localStorage.getItem('fm.pensionRiskKey');
+const storedRiskRate = parseFloat(localStorage.getItem('fm.pensionGrowthRate'));
+const defaultRiskKey = storedRiskKey && RISK_OPTIONS[storedRiskKey] ? storedRiskKey : 'balanced';
+const defaultRiskRate = !isNaN(storedRiskRate) ? storedRiskRate : RISK_OPTIONS[defaultRiskKey].rate;
 
 const fullMontyStore = {
   // household
@@ -106,7 +112,9 @@ const fullMontyStore = {
   },
 
   // risk profile
-  growthProfile: 0.05,
+  pensionRisk: RISK_OPTIONS[defaultRiskKey].label,
+  pensionRiskKey: defaultRiskKey,
+  pensionGrowthRate: defaultRiskRate,
 
   // assumptions (internal only)
   cpiRate: 2.3,         // fixed, not user-editable
@@ -566,6 +574,7 @@ const progFill = q('fmProgressFill');
 const titleEl = q('fmTitle');
 
 let cur = 0;
+let steps = [];
 
 function paintProgress(){
   const total = steps.length;
@@ -586,7 +595,7 @@ function focusFirst() {
 
 // Step definitions ------------------------------------------------
 
-const steps = [
+const baseSteps = [
   {
     id: 'household',
     title: 'About you',
@@ -812,8 +821,40 @@ const steps = [
     title: 'Loans & other debts',
     render: renderStepLiabilities,
     validate: renderStepLiabilities.validate
+  },
+  {
+    id: 'pensionRisk',
+    title: 'Select an investment-growth (risk) profile for your pension',
+    render(cont){ renderStepPensionRisk(cont, fullMontyStore, setStore, btnNext); },
+    validate(){ return renderStepPensionRisk.validate(); }
   }
 ];
+
+function hasDcPension(){
+  const s = fullMontyStore;
+  return (
+    (s.currentPensionValueSelf || 0) > 0 ||
+    (s.currentPensionValuePartner || 0) > 0 ||
+    (s.personalContribSelf || 0) > 0 ||
+    (s.personalPctSelf || 0) > 0 ||
+    (s.employerContribSelf || 0) > 0 ||
+    (s.employerPctSelf || 0) > 0 ||
+    (s.personalContribPartner || 0) > 0 ||
+    (s.personalPctPartner || 0) > 0 ||
+    (s.employerContribPartner || 0) > 0 ||
+    (s.employerPctPartner || 0) > 0
+  );
+}
+
+function refreshSteps(){
+  const showRisk = hasDcPension();
+  steps = baseSteps.filter(s => s.id !== 'pensionRisk' || showRisk);
+  if(!showRisk){
+    setStore({ pensionRisk: 'Not applicable (DB only)', pensionRiskKey: 'dbOnly', pensionGrowthRate: 0 });
+    localStorage.setItem('fm.pensionRiskKey','dbOnly');
+    localStorage.setItem('fm.pensionGrowthRate','0');
+  }
+}
 
 // Compute years difference helper
 function yearsFrom(dobStr) {
@@ -825,6 +866,8 @@ function yearsFrom(dobStr) {
 // Wizard navigation ------------------------------------------------
 
 function render() {
+  refreshSteps();
+  if (cur >= steps.length) cur = steps.length - 1;
   const step = steps[cur];
   paintProgress();
   container.innerHTML = '';
@@ -949,7 +992,8 @@ function runAll() {
     employerPct: fullMontyStore.employerPctSelf,
     dob: fullMontyStore.dobSelf,
     retireAge: Math.max(50, Math.min(70, fullMontyStore.retireAge || 0)),
-    growth: fullMontyStore.growthProfile,
+    growth: fullMontyStore.pensionGrowthRate,
+    pensionRisk: fullMontyStore.pensionRisk,
     sftAwareness: fullMontyStore.sftAwareness,
   };
   document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: pensionArgs }));
@@ -965,7 +1009,8 @@ function runAll() {
     dbPensionSelf: fullMontyStore.dbPensionSelf,
     dbStartAgeSelf: fullMontyStore.dbStartAgeSelf,
     rentalIncomeNow: rent,
-    growthRate: fullMontyStore.growthProfile,
+    growthRate: fullMontyStore.pensionGrowthRate,
+    pensionRisk: fullMontyStore.pensionRisk,
     statePensionPartner: fullMontyStore.statePensionPartner,
     hasPartner: fullMontyStore.hasPartner,
     hasDbPartner: fullMontyStore.hasDbPartner,
