@@ -46,7 +46,7 @@ const fullMontyStore = {
   statePensionPartner: false,
 
   // ASSETS (split into mini-steps)
-  homes: [],        // [{id,name,value,notes?}]
+  homes: [],        // [{ id, name, value, hasRent?: boolean, rentAmount?: number }]
   cashLike: [],     // [{id,name,value}]
   investments: [],  // [{id,name,value}]
   rentProps: [],    // [{id,name,value,mortgageBalance?,grossRent?}]
@@ -312,18 +312,115 @@ renderStepGoal.validate = () => {
     ? { ok: true } : { ok: false, message: 'Enter a % between 0 and 100.' };
 };
 // Step 5–9 renderers
-const renderStepHomes = makeListStepRenderer('homes', {
-  addLabel: 'Add home',
-  hint: 'Family home or holiday home you use yourself.',
-  fields: [
-    { key: 'name', label: 'Name', type: 'text' },
-    { key: 'value', label: 'Value', type: 'currency', default: 0 },
-    { key: 'notes', label: 'Notes', type: 'text' }
-  ]
-});
+// Step 5 — Homes you live in / holiday places
+function renderStepHomes(container) {
+  container.innerHTML = '';
+
+  const form = document.createElement('div');
+  form.className = 'form';
+
+  const list = document.createElement('div');
+  list.className = 'list-wrap';
+
+  // paint existing rows
+  (fullMontyStore.homes || []).forEach(row => list.appendChild(makeHomeRow(row)));
+
+  // Add button
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'btn-list-add';
+  add.textContent = 'Add home';
+  add.addEventListener('click', () => {
+    const r = { id: uuid(), name: '', value: 0, hasRent: false, rentAmount: 0 };
+    pushRow('homes', r);
+    const el = makeHomeRow(r);
+    list.appendChild(el);
+    setTimeout(() => el.scrollIntoView({ block:'nearest', behavior:'smooth' }), 0);
+  });
+
+  // Hint
+  const help = document.createElement('div');
+  help.className = 'help';
+  help.textContent = 'Family home or holiday home you use yourself.';
+
+  form.append(list, add, help);
+  container.appendChild(form);
+
+  // ——— row builder ———
+  function makeHomeRow(row) {
+    const wrap = document.createElement('div');
+    wrap.className = 'asset-row form-group card-like';
+
+    // Name
+    const nameInp = document.createElement('input');
+    nameInp.type = 'text';
+    nameInp.id = `home-name-${row.id}`;
+    nameInp.value = row.name ?? '';
+    nameInp.placeholder = 'e.g., Family home';
+    nameInp.addEventListener('input', () => { row.name = nameInp.value; });
+
+    wrap.appendChild(formGroup(nameInp.id, 'Name', nameInp));
+
+    // Value €
+    const valueWrap = currencyInput({ id: `home-val-${row.id}`, value: row.value ?? '' });
+    const valueEl = valueWrap.querySelector('input');
+    valueEl.addEventListener('input', () => { row.value = Math.max(0, numFromInput(valueEl) ?? 0); });
+
+    wrap.appendChild(formGroup(`home-val-${row.id}`, 'Value', valueWrap));
+
+    // Rent toggle + conditional rent amount
+    const toggleId = `home-hasRent-${row.id}`;
+    const toggleGrp = document.createElement('div');
+    toggleGrp.className = 'control control-switch';
+    const toggle = document.createElement('input');
+    toggle.type = 'checkbox';
+    toggle.id = toggleId;
+    toggle.checked = !!row.hasRent;
+    const toggleLab = document.createElement('label');
+    toggleLab.htmlFor = toggleId;
+    toggleLab.textContent = 'I get rental income from this property';
+    toggleGrp.append(toggle, toggleLab);
+
+    // Rent amount input (hidden unless checked)
+    const rentWrap = currencyInput({ id: `home-rent-${row.id}`, value: row.rentAmount ?? '' });
+    const rentEl = rentWrap.querySelector('input');
+    rentEl.addEventListener('input', () => { row.rentAmount = Math.max(0, numFromInput(rentEl) ?? 0); });
+
+    const rentFormGrp = formGroup(`home-rent-${row.id}`, 'Rental income (yearly)', rentWrap);
+    rentFormGrp.classList.add('condensed');
+    rentFormGrp.style.display = toggle.checked ? '' : 'none';
+
+    toggle.addEventListener('change', () => {
+      row.hasRent = toggle.checked;
+      if (!row.hasRent) row.rentAmount = 0;
+      rentFormGrp.style.display = row.hasRent ? '' : 'none';
+    });
+
+    wrap.append(toggleGrp, rentFormGrp);
+
+    // Remove row
+    const rm = document.createElement('button');
+    rm.type = 'button';
+    rm.className = 'btn-row-remove';
+    rm.textContent = 'Remove';
+    rm.addEventListener('click', () => {
+      removeRow('homes', row.id);
+      wrap.remove();
+    });
+    wrap.appendChild(rm);
+
+    return wrap;
+  }
+}
 renderStepHomes.validate = () => {
   const arr = getStore().homes || [];
-  setStore({ homes: arr.filter(r => (r.value || 0) > 0) });
+  // keep only positive-value homes; if hasRent false, force rentAmount to 0
+  arr.forEach(r => {
+    r.value = Math.max(0, +r.value || 0);
+    if (!r.hasRent) r.rentAmount = 0;
+    else r.rentAmount = Math.max(0, +r.rentAmount || 0);
+  });
+  setStore({ homes: arr.filter(r => r.value > 0) });
   return { ok: true };
 };
 
@@ -705,11 +802,23 @@ addKeyboardNav(modal, { back, next, close: () => modal.classList.add('hidden'), 
 // Run handler & auto classification
 // ----------------------------------------------------------------
 
-function computeResolvedRental() {
-  const rents = fullMontyStore.rentProps
-    .map(r => r.grossRent)
-    .filter(v => typeof v === 'number' && v > 0);
-  return rents.length ? rents.reduce((a, b) => a + b, 0) : 0;
+function getResolvedTotalRent() {
+  const s = getStore();
+
+  // Sum per-property rents from rental properties
+  const rentPropsSum = (s.rentProps || [])
+    .map(p => +p.grossRent || 0)
+    .filter(v => v > 0)
+    .reduce((a, b) => a + b, 0);
+
+  // Sum optional rents on homes
+  const homesRentSum = (s.homes || [])
+    .filter(h => h.hasRent)
+    .map(h => +h.rentAmount || 0)
+    .filter(v => v > 0)
+    .reduce((a, b) => a + b, 0);
+
+  return rentPropsSum + homesRentSum;
 }
 
 function buildBalanceSheet() {
@@ -728,7 +837,7 @@ function buildBalanceSheet() {
 }
 
 function runAll() {
-  const rent = computeResolvedRental();
+  const rent = getResolvedTotalRent();
 
   // dispatch events for external modules
   const pensionArgs = {

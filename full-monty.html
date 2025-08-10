@@ -81,6 +81,26 @@
       background:#353535; border:1px solid rgba(255,255,255,.08);
       border-radius:12px; padding:.8rem; margin-bottom:.8rem;
     }
+
+    /* Checkbox row */
+    .control.control-switch{
+      display:flex; align-items:center; gap:.6rem; margin:.3rem 0 .4rem;
+    }
+    .control.control-switch input[type="checkbox"]{
+      accent-color:#00aaff;
+    }
+
+    /* Optional: make the home row look like a soft card */
+    .card-like{
+      background:#353535;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:12px;
+      padding: .9rem;
+    }
+    .card-like .form-group + .form-group{ margin-top: .8rem; }
+
+    /* Slightly tighter spacing for the conditional rent input */
+    .form-group.condensed label{ margin-bottom: .25rem; }
     @keyframes slideInLeft{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
     @keyframes slideInRight{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
     #fmStepContainer.anim-left{animation:slideInLeft .25s ease-out both}
