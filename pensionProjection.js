@@ -1,4 +1,5 @@
 import { drawBanner, getBannerHeight } from './pdfWarningHelpers.js';
+import { numFromInput, clampPercent } from './ui-inputs.js';
 const MAX_SALARY_CAP = 115000;
 const AGE_BANDS = [
   { max: 29,  pct: 0.15 },
@@ -78,6 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const handlePct = () => {
+      const v = clampPercent(numFromInput(pct));
+      if(v != null) pct.value = v;
       if (pct.value !== '') {
         euro.value = '';
         euro.disabled = true;
@@ -379,14 +382,14 @@ document.getElementById('proj-form').addEventListener('submit', e => {
   try {
     document.getElementById('calcWarnings').innerHTML = '';
     // Inputs
-    const salaryRaw  = +document.getElementById('salary').value;
+    const salaryRaw  = numFromInput(document.getElementById('salary')) || 0;
     salaryCapped    = Math.min(salaryRaw, MAX_SALARY_CAP);
-    currentPv       = +document.getElementById('currentValue').value;
-    const personalRaw = +document.getElementById('personalContrib').value || 0;
-const personalPct = (+document.getElementById('personalPct').value || 0) / 100;
+    currentPv       = numFromInput(document.getElementById('currentValue')) || 0;
+    const personalRaw = numFromInput(document.getElementById('personalContrib')) || 0;
+const personalPct = (clampPercent(numFromInput(document.getElementById('personalPct'))) || 0) / 100;
 
-const employerRaw = +document.getElementById('employerContrib').value || 0;
-const employerPct = (+document.getElementById('employerPct').value || 0) / 100;
+const employerRaw = numFromInput(document.getElementById('employerContrib')) || 0;
+const employerPct = (clampPercent(numFromInput(document.getElementById('employerPct'))) || 0) / 100;
 employerCalc      = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
 
     retireAge       = +document.getElementById('retireAge').value;
@@ -557,12 +560,12 @@ if (projValue > sftLimit) {
 
     function gatherData(value, year, sftText, personalAnnual, employerAnnual, maxValue) {
       const inputs = {
-        salary: +document.getElementById('salary').value || 0,
-        currentValue: +document.getElementById('currentValue').value || 0,
-        personalContrib: +document.getElementById('personalContrib').value || 0,
-        personalPct: +document.getElementById('personalPct').value || 0,
-        employerContrib: +document.getElementById('employerContrib').value || 0,
-        employerPct: +document.getElementById('employerPct').value || 0,
+        salary: numFromInput(document.getElementById('salary')) || 0,
+        currentValue: numFromInput(document.getElementById('currentValue')) || 0,
+        personalContrib: numFromInput(document.getElementById('personalContrib')) || 0,
+        personalPct: clampPercent(numFromInput(document.getElementById('personalPct'))) || 0,
+        employerContrib: numFromInput(document.getElementById('employerContrib')) || 0,
+        employerPct: clampPercent(numFromInput(document.getElementById('employerPct'))) || 0,
         dob: document.getElementById('dob').value,
         retireAge: +document.getElementById('retireAge').value || 0,
         growth: +document.querySelector('input[name="growth"]:checked').value

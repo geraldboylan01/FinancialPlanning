@@ -1,4 +1,5 @@
 import { drawBanner, getBannerHeight } from './pdfWarningHelpers.js';
+import { numFromInput, clampPercent } from './ui-inputs.js';
 const setHTML = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
 const CPI = 0.023;
 const STATE_PENSION = 15044;
@@ -55,6 +56,10 @@ return (ref - d) / (1000 * 60 * 60 * 24 * 365.25);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+document.getElementById('incomePercent').addEventListener('input', e=>{
+  const v = clampPercent(numFromInput(e.target)) ?? 0;
+  e.target.value = v;
+});
 document.getElementById('partnerStatePension').addEventListener('change', e => {
   document.getElementById('partner-dob-group').style.display = e.target.checked ? 'block' : 'none';
 });
@@ -88,8 +93,8 @@ try {
   document.getElementById('sftModal').style.display = 'none';
   setHTML('calcWarnings', '');
   let sftWarningHTML = '';
-  const gross = +document.getElementById('grossIncome').value || 0;
-  const pctNeed = (+document.getElementById('incomePercent').value || 0) / 100;
+  const gross = numFromInput(document.getElementById('grossIncome')) || 0;
+  const pctNeed = (clampPercent(numFromInput(document.getElementById('incomePercent'))) || 0) / 100;
   const includeSP = document.getElementById('statePension').checked;
   const includePartnerSP = document.getElementById('partnerStatePension').checked;
   const dob = new Date(document.getElementById('dob').value);
@@ -100,9 +105,9 @@ try {
   // ← Read the selected growth-rate card
   const gRate = +document.querySelector('input[name="growthRate"]:checked').value;
 
- const rentalToday = +document.getElementById('rentalIncome').value || 0;
+ const rentalToday = numFromInput(document.getElementById('rentalIncome')) || 0;
  const hasDb = document.getElementById('hasDb').checked;
- const dbAnnual = hasDb ? (+document.getElementById('dbPension').value || 0) : 0;
+ const dbAnnual = hasDb ? (numFromInput(document.getElementById('dbPension')) || 0) : 0;
  const dbStartAge = hasDb
    ? (+document.getElementById('dbStartAge').value || retireAge)
    : Infinity;
@@ -532,12 +537,12 @@ danger : el.classList.contains('danger')
 }
 
 function gatherData(requiredPot, retirementYear, sftText) {
-const grossIncome = +document.getElementById('grossIncome').value || 0;
-const rentalIncome = +document.getElementById('rentalIncome').value || 0;
-const dbPension = +document.getElementById('dbPension').value || 0;
+const grossIncome = numFromInput(document.getElementById('grossIncome')) || 0;
+const rentalIncome = numFromInput(document.getElementById('rentalIncome')) || 0;
+const dbPension = numFromInput(document.getElementById('dbPension')) || 0;
 const inputs = {
   grossIncome,
-  incomePercent: +document.getElementById('incomePercent').value || 0,
+  incomePercent: clampPercent(numFromInput(document.getElementById('incomePercent'))) || 0,
   statePension: document.getElementById('statePension').checked,
   partnerStatePension: document.getElementById('partnerStatePension').checked,
   partnerExists: document.getElementById('partnerExists').value === 'true',

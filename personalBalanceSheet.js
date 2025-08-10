@@ -2,6 +2,7 @@
 import html2canvas from "./html2canvas.esm.js";
 // jsPDF is loaded globally via jspdf.umd.min.js
 import { formatDate, savePdfBlob } from "./pdf-utils.js";
+import { currencyInput, percentInput, numFromInput, clampPercent } from './ui-inputs.js';
 const { jsPDF } = window.jspdf;
 
 const origGetCtx = HTMLCanvasElement.prototype.getContext;
@@ -211,23 +212,34 @@ function el(tag, attrs){
   return e;
 }
 
-// Parse numeric inputs robustly by stripping commas or spaces
-function parseNum(val){
-  if(typeof val==='string') val=val.replace(/[,\s]/g,'');
-  return +val || 0;
-}
-
-function createInput(field,id,value){
-  let inp;
+function createInput(field,id,value,labelTxt){
   if(field.type==='select'){
-    inp=el('select',{id});
+    const inp=el('select',{id});
     field.options.forEach(o=>inp.appendChild(el('option',{value:o,textContent:o})));
     inp.value=value||'';
-  }else{
-    inp=el('input',{id,type:field.type==='number'?'number':'text',value:value||''});
-    if(field.type==='number') inp.classList.add('currency');
+    if(!field.optional) inp.required=true;
+    return inp;
   }
-  if(!field.optional && field.type!=='number') inp.required=true;
+  if(field.type==='number'){
+    if(labelTxt && labelTxt.includes('%')){
+      const wrap=percentInput({id,value});
+      const inp=wrap.querySelector('input');
+      if(!field.optional) inp.required=true;
+      inp.addEventListener('input',e=>{const v=clampPercent(numFromInput(e.target)); e.target.value = v ?? '';});
+      return wrap;
+    }
+    if(labelTxt && labelTxt.includes('€')){
+      const wrap=currencyInput({id,value});
+      const inp=wrap.querySelector('input');
+      if(!field.optional) inp.required=true;
+      return wrap;
+    }
+    const inp=el('input',{id,type:'number',value:value||''});
+    if(!field.optional) inp.required=true;
+    return inp;
+  }
+  const inp=el('input',{id,type:'text',value:value||''});
+  if(!field.optional) inp.required=true;
   return inp;
 }
 
@@ -259,7 +271,7 @@ function renderRepeat(container, field, values){
       }
       const wrap=f.group?el('div',{className:'either-field'}):el('div');
       wrap.appendChild(el('label',{htmlFor:inputId,textContent:labelTxt}));
-      const inp=createInput(f,inputId,val[f.id]);
+      const inp=createInput(f,inputId,val[f.id],labelTxt);
       wrap.appendChild(inp);
       if(f.help) wrap.appendChild(el('small',{textContent:f.help}));
       parent.appendChild(wrap);
@@ -267,7 +279,7 @@ function renderRepeat(container, field, values){
     container.appendChild(block);
   });
   const label=field.addLabel||('Add another');
-  const add=el('button',{type:'button',textContent:label});
+  const add=el('button',{type:'button',className:'btn-list-add',textContent:label});
   add.onclick=()=>{ values.push({}); renderStep(currentStep); };
   container.appendChild(add);
 }
@@ -324,7 +336,7 @@ function renderStep(i){
         }
         const wrap=field.group?el('div',{className:'either-field'}):el('div');
         wrap.appendChild(el('label',{htmlFor:id,textContent:labelTxt}));
-        const inp=createInput(field,id,data[id]);
+        const inp=createInput(field,id,data[id],labelTxt);
         wrap.appendChild(inp);
         if(field.help) wrap.appendChild(el('small',{textContent:field.help}));
         parent.appendChild(wrap);
@@ -370,7 +382,7 @@ function saveRepeatValues(arr, field){
     field.fields.forEach(f=>{
       const inp=block.querySelector(`#${field.id}-${idx}-${f.id}`);
       if(!inp) return;
-      obj[f.id]=f.type==='number'? parseNum(inp.value) : inp.value;
+      obj[f.id]=f.type==='number'? (numFromInput(inp) ?? 0) : inp.value;
     });
     arr.push(obj);
   });
@@ -392,7 +404,7 @@ function saveStepValues(){
         if(field.showIf && !field.showIf(dest)) { delete dest[field.id]; return; }
         const inp=container.querySelector('#'+field.id);
         if(!inp) return;
-        dest[field.id]=field.type==='number'? parseNum(inp.value) : inp.value;
+        dest[field.id]=field.type==='number'? (numFromInput(inp) ?? 0) : inp.value;
       }
     });
   }

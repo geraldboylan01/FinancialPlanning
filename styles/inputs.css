@@ -1,0 +1,93 @@
+:root{
+  --field-bg:#404040;
+  --field-ink:#fff;
+  --field-muted:#bbb;
+  --field-border:transparent;
+  --focus:#00ff88;
+  --focus-ring:0 0 0 3px rgba(0,255,136,.25);
+}
+
+/* Wrapper that visually binds unit + input into one control */
+.input-wrap{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  background: var(--field-bg);
+  color: var(--field-ink);
+  border: 1px solid var(--field-border);
+  border-radius: 10px;
+  padding: .55rem .7rem;
+  min-width: 8ch;
+}
+.input-wrap input{
+  border:0;
+  background:transparent;
+  color:inherit;
+  font: inherit;
+  outline: none;
+  min-width: 6ch;
+}
+.input-wrap:focus-within{
+  border-color: var(--focus);
+  box-shadow: var(--focus-ring);
+}
+.input-wrap input::placeholder{ color:#aaa; }
+
+/* Prefix € */
+.input-wrap.prefix{ padding-left: 1.8rem; }
+.input-wrap.prefix .unit{
+  position:absolute; left:.6rem; top:50%; transform: translateY(-50%);
+  color: var(--field-muted);
+}
+
+/* Suffix % */
+.input-wrap.suffix{ padding-right: 1.8rem; }
+.input-wrap.suffix .unit{
+  position:absolute; right:.6rem; top:50%; transform: translateY(-50%);
+  color: var(--field-muted);
+}
+
+/* Optional sizes */
+.input-sm input{ min-width:5ch; }
+.input-lg input{ min-width:10ch; }
+
+/* Wizard dots must remain true circles (avoid global button bleed) */
+button.wizDot{
+  padding:0 !important; margin:0; border:none; min-height:0 !important;
+  width:14px; height:14px; display:inline-block; border-radius:50%;
+  background:#888; cursor:pointer; line-height:0; background-image:none !important; aspect-ratio:1/1;
+}
+button.wizDot.active, button.wizDot:focus-visible{ background:#c000ff; outline:none; }
+
+/* Add/remove buttons inside list steps should not inherit big gradient */
+.btn-list-add{
+  display:flex; justify-content:center; align-items:center; width:100%;
+  background:#555; color:#fff; font-weight:700; border-radius:12px;
+  padding:.8rem 1rem; cursor:pointer; border:none;
+  transition: transform .2s, box-shadow .2s;
+}
+.btn-list-add:hover, .btn-list-add:focus-visible{
+  transform: scale(1.01);
+  box-shadow: 0 0 16px rgba(255,255,255,.08);
+  outline:2px solid transparent;
+}
+.btn-row-remove{
+  background:transparent; color:#ff8a8a; border:1px solid rgba(255,255,255,.15);
+  padding:.45rem .7rem; border-radius:10px; font-weight:700; cursor:pointer;
+}
+.btn-row-remove:hover, .btn-row-remove:focus-visible{
+  color:#fff; background:rgba(255,0,0,.12); border-color:rgba(255,0,0,.35);
+  outline:2px solid transparent;
+}
+
+/* On wizard pages only */
+.wizard-controls > button{
+  background:linear-gradient(135deg,#00ff88,#0099ff);
+  border-radius:50px;
+  transition:transform .25s,box-shadow .25s;
+  min-height:2.75rem;
+}
+.wizard-controls > button:hover{
+  transform:scale(1.03);
+  box-shadow:0 0 22px rgba(0,255,136,.8);
+}
