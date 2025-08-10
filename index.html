@@ -152,25 +152,66 @@
     /* Accessibility focus */
     a:focus-visible,.btn-primary:focus-visible{outline:2px solid var(--accentA);outline-offset:3px;box-shadow:0 0 0 3px rgba(0,255,136,.25)}
 
-    /* Small CTA chip under hero text */
+    /* Small CTA thumbnail container */
     .hero-video-cta{
       margin-top: .6rem;
     }
-    .chip-watch{
-      appearance:none; border:1px solid rgba(255,255,255,.15);
-      background: rgba(255,255,255,.06);
-      color:#eee; font-weight:700; font-size:.9rem;
-      padding:.5rem .8rem; border-radius:999px; cursor:pointer;
-      transition: transform .15s, box-shadow .15s, background .15s;
+
+    /* ——— Thumbnail Button ——— */
+    .yt-thumb{
+      position: relative;
+      width: 100%;
+      max-width: 220px;
+      aspect-ratio: 9 / 16;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      background: #000; /* JS sets poster */
+      background-size: cover;
+      background-position: center;
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
     }
-    .chip-watch:hover,.chip-watch:focus-visible{
-      outline:2px solid var(--pmag2);
-      outline-offset:2px;
-      background: rgba(255,255,255,.08);
-      box-shadow:0 0 18px rgba(127,0,255,.35);
+    .yt-thumb::after{
+      content:""; position:absolute; inset:0;
+      background: linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,.1));
+      pointer-events:none;
+    }
+    .yt-thumb:hover,
+    .yt-thumb:focus-visible{
+      transform: translateY(-3px);
+      border-color: var(--pmag2);
+      box-shadow: 0 0 20px rgba(127,0,255,.6);
+      outline: 2px solid var(--pmag2);
+      outline-offset: 2px;
+    }
+    .yt-thumb__play{
+      position: absolute; inset:auto auto 10px 10px;
+      display: grid; place-items:center;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: rgba(0,0,0,.6);
+      border: 2px solid var(--pmag2);
+      color:#fff; font-size: 22px; line-height: 1;
+      box-shadow: 0 0 20px rgba(127,0,255,.45);
+    }
+    .yt-thumb__play::before{
+      content:""; position:absolute; inset:-6px;
+      border-radius:50%; border: 2px solid rgba(127,0,255,.4);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse{
+      0%,100%{ transform: scale(1); opacity: .6 }
+      50%   { transform: scale(1.08); opacity: .2 }
+    }
+    .yt-thumb__badge{
+      position: absolute; top: 8px; left: 8px;
+      font-size: 11px; color:#fff;
+      background: rgba(0,0,0,.55);
+      padding: 5px 8px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
     }
 
-    /* Accessible modal */
+    /* ——— Modal Base ——— */
     .modal[hidden]{ display:none !important; }
     .modal{
       position: fixed; inset: 0; z-index: 1000;
@@ -179,21 +220,20 @@
       position:absolute; inset:0;
       background: rgba(0,0,0,.55);
       backdrop-filter: blur(2px);
+      cursor: pointer;
     }
     .modal__dialog{
       position:relative; z-index:1;
       width: min(96vw, 720px);
+      max-height: 92vh;
       margin: 6vh auto;
       background: var(--card);
       color: var(--ink);
       border-radius: 16px;
       box-shadow: var(--shadow);
       overflow: hidden;
-      animation: modalIn .18s ease-out;
-    }
-    @keyframes modalIn{
-      from{ transform: translateY(6px); opacity: 0 }
-      to  { transform: translateY(0);  opacity: 1 }
+      display: grid;
+      grid-template-rows: auto 1fr;
     }
     .modal__header{
       display:flex; align-items:center; justify-content:space-between;
@@ -207,14 +247,15 @@
     .modal__close:hover,.modal__close:focus-visible{
       outline:2px solid var(--pmag2); outline-offset:2px;
     }
-
-    .modal__body{ padding: .9rem 1rem 1rem; }
-
-    /* 9:16 responsive box for the Short */
+    .modal__body{
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: .9rem 1rem 1rem;
+    }
     .modal__video{
       position: relative; width: 100%;
-      border-radius: 12px; overflow:hidden;
-      background: #000;
+      border-radius: 12px; overflow:hidden; background:#000;
+      max-height: 80vh;
     }
     .modal__video::before{
       content:""; display:block; width:100%; aspect-ratio: 9 / 16;
@@ -225,10 +266,32 @@
     .modal__caption{
       margin:.65rem 0 0; color: var(--muted); font-size:.95rem;
     }
+    .unmute-hint{
+      margin-top: .55rem;
+      font-size: .9rem;
+      color: var(--muted);
+      opacity: .95;
+      transition: opacity .3s;
+    }
+    .unmute-hint[hidden]{ opacity: 0; height: 0; margin: 0; overflow: hidden; }
 
-    /* Tight margins on small phones */
-    @media (max-width: 420px){
-      .modal__dialog{ margin: 4vh auto; width: 94vw; }
+    /* ——— Full-screen mobile modal ——— */
+    @media (max-width: 720px){
+      .modal__dialog{
+        width: 100vw;
+        height: 100vh;
+        max-height: none;
+        margin: 0;
+        border-radius: 0;
+        grid-template-rows: auto 1fr;
+      }
+      .modal__header{
+        position: sticky;
+        top: 0;
+        background: var(--card);
+      }
+      .modal__body{ padding-bottom: env(safe-area-inset-bottom, 12px); }
+      .modal__video{ max-height: none; }
     }
   </style>
 </head>
@@ -256,8 +319,9 @@
           <li>You can take a portion tax‑free at retirement</li>
         </ul>
         <div class="hero-video-cta">
-          <button class="chip-watch" type="button" data-video-id="ZA58vuPH4CY" aria-haspopup="dialog" aria-controls="videoModal" aria-label="Watch a 60-second intro video">
-            ▶ Watch 60s intro
+          <button class="yt-thumb" type="button" data-video-id="ZA58vuPH4CY" aria-haspopup="dialog" aria-controls="videoModal" aria-label="Watch a 60-second intro video">
+            <span class="yt-thumb__badge">Short • ~1 min</span>
+            <span class="yt-thumb__play" aria-hidden="true">►</span>
           </button>
         </div>
       </div>
@@ -326,76 +390,92 @@
      </header>
 
      <div class="modal__body">
-       <!-- Aspect box; iframe is injected here on open -->
-       <div class="modal__video" data-video-mount data-video-id="ZA58vuPH4CY" aria-label="YouTube Short container"></div>
+       <div class="modal__video" data-video-mount data-video-id="ZA58vuPH4CY"></div>
        <p class="modal__caption">A quick look at Ireland’s investing reality, why pensions are the lever, and how to get value from these tools.</p>
      </div>
    </div>
  </div>
 
  <script>
-(function videoModal(){
-  const openBtn = document.querySelector('.chip-watch[data-video-id]');
-  const modal = document.getElementById('videoModal');
-  if(!openBtn || !modal) return;
+(function videoThumbAndModal(){
+  const thumbBtn = document.querySelector('.yt-thumb[data-video-id]');
+  const modal     = document.getElementById('videoModal');
+  if(!thumbBtn || !modal) return;
 
-  const mount = modal.querySelector('[data-video-mount]');
-  const videoId = mount?.getAttribute('data-video-id');
-  let lastFocus = null;
+  const id        = thumbBtn.getAttribute('data-video-id');
+  const mount     = modal.querySelector('[data-video-mount]');
+  let lastFocus   = null;
   let iframeInjected = false;
+  let hintEl = null;
 
+  // Thumbnail poster from YouTube
+  const imgs = [
+    `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
+    `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
+  ];
+  (function loadThumb(i=0){
+    if(i >= imgs.length) return;
+    const img = new Image();
+    img.onload  = () => thumbBtn.style.backgroundImage = `url("${imgs[i]}")`;
+    img.onerror = () => loadThumb(i+1);
+    img.src = imgs[i];
+  })();
+
+  // Build iframe on demand
   function injectIframe(){
-    if(iframeInjected || !mount || !videoId) return;
+    if(iframeInjected || !mount) return;
     const params = new URLSearchParams({
       modestbranding:'1', rel:'0', playsinline:'1', enablejsapi:'1',
-      autoplay:'1', mute:'1', origin: window.location.origin
+      controls:'1',
+      autoplay:'1', mute:'1',
+      origin: window.location.origin
     });
     const iframe = document.createElement('iframe');
-    iframe.src = `https://www.youtube-nocookie.com/embed/${videoId}?` + params.toString();
+    iframe.src = `https://www.youtube-nocookie.com/embed/${id}?` + params.toString();
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
     iframe.setAttribute('allowfullscreen','');
     iframe.setAttribute('title','Why I built these tools');
     mount.appendChild(iframe);
     iframeInjected = true;
+
+    // Unmute hint
+    hintEl = document.createElement('p');
+    hintEl.className = 'unmute-hint';
+    hintEl.textContent = 'Tip: use the player controls to unmute.';
+    mount.parentElement.appendChild(hintEl);
+    const hideHint = () => { hintEl && (hintEl.hidden = true); document.removeEventListener('mousedown', hideHint); document.removeEventListener('touchstart', hideHint); document.removeEventListener('keydown', hideHint); };
+    document.addEventListener('mousedown', hideHint);
+    document.addEventListener('touchstart', hideHint);
+    document.addEventListener('keydown', hideHint);
   }
 
+  // Modal controls
   function open(){
     lastFocus = document.activeElement;
     modal.hidden = false;
-    document.documentElement.style.overflow = 'hidden'; // scroll lock
+    document.documentElement.style.overflow = 'hidden';
     injectIframe();
-
-    // focus the close button for accessibility
-    const closeBtn = modal.querySelector('.modal__close');
-    if(closeBtn) closeBtn.focus();
-
-    // trap focus inside modal
-    document.addEventListener('focus', trap, true);
+    modal.querySelector('.modal__close')?.focus();
+    if(location.hash !== '#video') history.pushState(null, '', '#video');
     document.addEventListener('keydown', onKey);
   }
-
   function close(){
     modal.hidden = true;
-    document.documentElement.style.overflow = ''; // release scroll lock
-
-    // remove iframe to stop playback + free memory
-    if(mount){ mount.innerHTML = ''; iframeInjected = false; }
-
-    document.removeEventListener('focus', trap, true);
+    document.documentElement.style.overflow = '';
+    mount.innerHTML = '';
+    iframeInjected = false;
+    if(hintEl){ hintEl.remove(); hintEl = null; }
     document.removeEventListener('keydown', onKey);
-
-    if(lastFocus && typeof lastFocus.focus === 'function') lastFocus.focus();
+    if(location.hash === '#video'){
+      history.back();
+      setTimeout(() => { if(location.hash === '#video') history.replaceState(null, '', location.pathname + location.search); }, 50);
+    }
+    lastFocus && lastFocus.focus();
   }
-
   function onKey(e){
-    if(e.key === 'Escape'){ close(); }
-    if(e.key === 'Tab'){ keepFocusInModal(e); }
+    if(e.key === 'Escape') close();
+    if(e.key === 'Tab') keepFocusInModal(e);
   }
-
-  function trap(e){
-    if(!modal.contains(e.target)){ e.stopPropagation(); modal.querySelector('.modal__close')?.focus(); }
-  }
-
   function keepFocusInModal(e){
     const focusables = modal.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])');
     if(!focusables.length) return;
@@ -405,10 +485,11 @@
     else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
   }
 
-  // open/close bindings
-  openBtn.addEventListener('click', open);
-  modal.addEventListener('click', (e)=>{ if(e.target.closest('[data-close]')) close(); });
-
+  // Events
+  thumbBtn.addEventListener('click', open);
+  modal.addEventListener('click', (e)=>{ if(e.target.closest('[data-close]') || e.target.classList.contains('modal__backdrop')) close(); });
+  window.addEventListener('hashchange', () => { if(!modal.hidden && location.hash !== '#video') close(); });
+  if(location.hash === '#video'){ open(); }
 })();
 </script>
 </body>
