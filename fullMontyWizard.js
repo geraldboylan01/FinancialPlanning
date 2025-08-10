@@ -23,7 +23,6 @@ const fullMontyStore = {
   // retirement goal (LOCKED to percent)
   goalType: 'percent',
   incomePercent: 70,
-  retireSpend: null, // keep but unused
 
   // pensions (self/partner as before)
   currentPensionValueSelf: 0,
@@ -45,10 +44,6 @@ const fullMontyStore = {
   dbPensionPartner: null,
   dbStartAgePartner: null,
   statePensionPartner: false,
-
-  // rental income (always CPI indexed)
-  rentalIncomeNow: null,
-  rentalInflatesWithCPI: true, // constant truthy
 
   // ASSETS (split into mini-steps)
   homes: [],        // [{id,name,value,notes?}]
@@ -183,67 +178,105 @@ function showErrors(errs = {}) {
 }
 
 // mini-list renderer for asset/debt steps
-function makeListStepRenderer(listKey, { addLabel = 'Add item', hint = '', fields = [], valueKey = 'value' }) {
-  const renderer = (cont) => {
+function makeListStepRenderer(
+  listKey,
+  { addLabel = 'Add item', hint = '', fields = [], valueKey = 'value' }
+) {
+  return (cont) => {
     cont.innerHTML = '';
+
     const form = document.createElement('div');
     form.className = 'form';
+
+    const listWrap = document.createElement('div');
+    listWrap.className = 'list-wrap';
+
     const list = document.createElement('div');
-    (fullMontyStore[listKey] || []).forEach(row => list.appendChild(rowEl(row)));
-    form.appendChild(list);
+    list.className = 'list';
+    listWrap.appendChild(list);
+
+    // build one row element
+    const rowEl = (row) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'asset-row form-group';
+
+      fields.forEach(f => {
+        const id = uuid();
+        let fieldEl;
+
+        if (f.type === 'currency') {
+          fieldEl = currencyInput({ id, value: row[f.key] ?? '' });
+          const input = fieldEl.querySelector('input');
+          input.addEventListener('input', () => {
+            row[f.key] = numFromInput(input) || 0;
+          });
+        } else if (f.type === 'percent') {
+          fieldEl = percentInput({ id, value: row[f.key] ?? '' });
+          const input = fieldEl.querySelector('input');
+          input.addEventListener('input', () => {
+            row[f.key] = numFromInput(input) || 0;
+          });
+        } else {
+          fieldEl = document.createElement('input');
+          fieldEl.type = 'text';
+          fieldEl.id = id;
+          fieldEl.value = row[f.key] ?? '';
+          fieldEl.addEventListener('input', () => { row[f.key] = fieldEl.value; });
+        }
+
+        wrap.appendChild(formGroup(id, f.label, fieldEl));
+      });
+
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'btn-row-remove';
+      rm.textContent = 'Remove';
+      rm.addEventListener('click', () => {
+        removeRow(listKey, row.id);
+        list.removeChild(wrap);
+      });
+      wrap.appendChild(rm);
+
+      return wrap;
+    };
+
+    const refresh = () => {
+      list.innerHTML = '';
+      (fullMontyStore[listKey] || []).forEach(row => list.appendChild(rowEl(row)));
+    };
+
+    // initial paint of existing rows
+    refresh();
+
+    // add button
     const add = document.createElement('button');
     add.type = 'button';
+    add.className = 'btn-list-add';
     add.textContent = addLabel;
     add.addEventListener('click', () => {
-      const r = {};
-      fields.forEach(f => r[f.key] = f.default ?? null);
+      const r = { id: uuid() };
+      fields.forEach(f => { r[f.key] = (f.default ?? (f.type === 'currency' || f.type === 'percent' ? 0 : '')); });
       pushRow(listKey, r);
-      render();
+      list.appendChild(rowEl(r));
+      // scroll to the new row
+      setTimeout(() => {
+        const last = list.lastElementChild;
+        if (last) last.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }, 0);
     });
+
+    form.appendChild(listWrap);
     form.appendChild(add);
+
     if (hint) {
       const help = document.createElement('div');
       help.className = 'help';
       help.textContent = hint;
       form.appendChild(help);
     }
-    cont.appendChild(form);
 
-    function rowEl(row) {
-      const wrap = document.createElement('div');
-      wrap.className = 'asset-row form-group';
-      fields.forEach(f => {
-        const id = uuid();
-        let inp;
-        if (f.type === 'currency') {
-          inp = currencyInput({ id, value: row[f.key] ?? '' });
-          inp.querySelector('input').addEventListener('input', () => row[f.key] = numFromInput(inp.querySelector('input')) || 0);
-        } else if (f.type === 'percent') {
-          inp = percentInput({ id, value: row[f.key] ?? '' });
-          inp.querySelector('input').addEventListener('input', () => row[f.key] = numFromInput(inp.querySelector('input')) || 0);
-        } else {
-          inp = document.createElement('input');
-          inp.type = 'text';
-          inp.id = id;
-          inp.value = row[f.key] ?? '';
-          inp.addEventListener('input', () => row[f.key] = inp.value);
-        }
-        wrap.appendChild(formGroup(id, f.label, inp));
-      });
-      const rm = document.createElement('button');
-      rm.type = 'button';
-      rm.textContent = 'Remove';
-      rm.addEventListener('click', () => { removeRow(listKey, row.id); render(); });
-      wrap.appendChild(rm);
-      return wrap;
-    }
+    cont.appendChild(form);
   };
-  renderer.validate = () => {
-    const arr = getStore()[listKey] || [];
-    setStore({ [listKey]: arr.filter(r => (r[valueKey] || 0) > 0) });
-    return { ok: true };
-  };
-  return renderer;
 }
 
 // Step 3 – percent-only goal
@@ -270,7 +303,7 @@ function renderStepGoal(container){
     if (Number.isNaN(v)) v = 0;
     if (v < 0) v = 0; if (v > 100) v = 100;
     pct.value = v;
-    setStore({ incomePercent: v, goalType: 'percent', retireSpend: null });
+    setStore({ incomePercent: v, goalType: 'percent' });
   });
 }
 renderStepGoal.validate = () => {
@@ -278,34 +311,7 @@ renderStepGoal.validate = () => {
   return (typeof v === 'number' && v >= 0 && v <= 100)
     ? { ok: true } : { ok: false, message: 'Enter a % between 0 and 100.' };
 };
-
-// Step 5 – rental income (no CPI toggle)
-function renderStepRental(container){
-  const s = getStore();
-  setStore({ rentalInflatesWithCPI: true }); // Always indexed
-
-  container.innerHTML = `
-    <div class="form">
-      <div class="form-group">
-        <label for="rentalIncomeNow">Rental income today</label>
-        <div class="input-wrap prefix">
-          <span class="unit">€</span>
-          <input id="rentalIncomeNow" type="number" inputmode="decimal" min="0"
-                 value="${s.rentalIncomeNow ?? ''}">
-        </div>
-        <div class="help">We’ll index rent with inflation automatically.</div>
-      </div>
-    </div>
-  `;
-  const el = container.querySelector('#rentalIncomeNow');
-  el.addEventListener('input', () => {
-    const v = parseFloat(el.value);
-    setStore({ rentalIncomeNow: Number.isNaN(v) ? null : Math.max(0, v) });
-  });
-}
-renderStepRental.validate = () => ({ ok: true });
-
-// Step 6–10 renderers
+// Step 5–9 renderers
 const renderStepHomes = makeListStepRenderer('homes', {
   addLabel: 'Add home',
   hint: 'Family home or holiday home you use yourself.',
@@ -315,6 +321,11 @@ const renderStepHomes = makeListStepRenderer('homes', {
     { key: 'notes', label: 'Notes', type: 'text' }
   ]
 });
+renderStepHomes.validate = () => {
+  const arr = getStore().homes || [];
+  setStore({ homes: arr.filter(r => (r.value || 0) > 0) });
+  return { ok: true };
+};
 
 const renderStepCash = makeListStepRenderer('cashLike', {
   addLabel: 'Add item',
@@ -324,6 +335,11 @@ const renderStepCash = makeListStepRenderer('cashLike', {
     { key: 'value', label: 'Value', type: 'currency', default: 0 }
   ]
 });
+renderStepCash.validate = () => {
+  const arr = getStore().cashLike || [];
+  setStore({ cashLike: arr.filter(r => (r.value || 0) > 0) });
+  return { ok: true };
+};
 
 const renderStepInvest = makeListStepRenderer('investments', {
   addLabel: 'Add investment',
@@ -333,10 +349,15 @@ const renderStepInvest = makeListStepRenderer('investments', {
     { key: 'value', label: 'Value', type: 'currency', default: 0 }
   ]
 });
+renderStepInvest.validate = () => {
+  const arr = getStore().investments || [];
+  setStore({ investments: arr.filter(r => (r.value || 0) > 0) });
+  return { ok: true };
+};
 
 const renderStepRentProps = makeListStepRenderer('rentProps', {
   addLabel: 'Add property',
-  hint: 'Properties you rent out.',
+  hint: 'Properties you rent out (include mortgage balance and gross rent).',
   fields: [
     { key: 'name', label: 'Name', type: 'text' },
     { key: 'value', label: 'Value', type: 'currency', default: 0 },
@@ -344,6 +365,11 @@ const renderStepRentProps = makeListStepRenderer('rentProps', {
     { key: 'grossRent', label: 'Gross rent', type: 'currency' }
   ]
 });
+renderStepRentProps.validate = () => {
+  const arr = getStore().rentProps || [];
+  setStore({ rentProps: arr.filter(r => (r.value || 0) > 0) });
+  return { ok: true };
+};
 
 const renderStepLiabilities = makeListStepRenderer('liabilities', {
   addLabel: 'Add liability',
@@ -355,6 +381,11 @@ const renderStepLiabilities = makeListStepRenderer('liabilities', {
     { key: 'rate', label: 'Rate', type: 'percent' }
   ]
 });
+renderStepLiabilities.validate = () => {
+  const arr = getStore().liabilities || [];
+  setStore({ liabilities: arr.filter(r => (r.balance || 0) > 0) });
+  return { ok: true };
+};
 
 // ───────────────────────────────────────────────────────────────
 // Step engine
@@ -381,7 +412,7 @@ function focusFirst() {
 const steps = [
   {
     id: 'household',
-    title: 'About you',
+    title: 'Household',
     render(cont) {
       cont.innerHTML = '';
       const form = document.createElement('div');
@@ -476,14 +507,14 @@ const steps = [
 
   {
     id: 'goal',
-    title: 'Retirement goal',
+    title: 'Retirement goal (percent-only)',
     render: renderStepGoal,
     validate: renderStepGoal.validate
   },
 
   {
     id: 'pensions',
-    title: 'Pensions',
+    title: 'Pensions (DC/DB/State)',
     render(cont) {
       cont.innerHTML = '';
       const form = document.createElement('div');
@@ -572,13 +603,6 @@ const steps = [
   },
 
   {
-    id: 'rental',
-    title: 'Rental income',
-    render: renderStepRental,
-    validate: renderStepRental.validate
-  },
-
-  {
     id: 'homes',
     title: 'Homes you live in / holiday places',
     render: renderStepHomes,
@@ -587,14 +611,14 @@ const steps = [
 
   {
     id: 'cash',
-    title: 'Cash & easy-access savings',
+    title: 'Cash & easy-access savings (incl. 100% bonds)',
     render: renderStepCash,
     validate: renderStepCash.validate
   },
 
   {
     id: 'investments',
-    title: 'Investments',
+    title: 'Investments (funds/accounts, not pensions)',
     render: renderStepInvest,
     validate: renderStepInvest.validate
   },
@@ -625,8 +649,9 @@ function yearsFrom(dobStr) {
 
 function render() {
   const step = steps[cur];
-  progEl.textContent = `Step ${cur + 1} of ${steps.length}`;
-  progFill.style.width = ((cur + 1) / steps.length * 100) + '%';
+  const total = steps.length;
+  progEl.textContent = `Step ${cur + 1} of ${total}`;
+  progFill.style.width = ((cur + 1) / total * 100) + '%';
   container.innerHTML = '';
   const h = document.createElement('h3');
   h.textContent = step.title;
@@ -643,7 +668,7 @@ function render() {
   });
   validateStep();
   btnBack.style.display = cur === 0 ? 'none' : '';
-  btnNext.textContent = cur === steps.length - 1 ? 'Finish' : 'Next';
+  btnNext.textContent = cur === total - 1 ? 'Finish' : 'Next';
   focusFirst();
 }
 
@@ -681,9 +706,10 @@ addKeyboardNav(modal, { back, next, close: () => modal.classList.add('hidden'), 
 // ----------------------------------------------------------------
 
 function computeResolvedRental() {
-  const itemized = fullMontyStore.rentProps.map(r => r.grossRent).filter(v => v);
-  if (itemized.length) return itemized.reduce((a, b) => a + b, 0);
-  return fullMontyStore.rentalIncomeNow || 0;
+  const rents = fullMontyStore.rentProps
+    .map(r => r.grossRent)
+    .filter(v => typeof v === 'number' && v > 0);
+  return rents.length ? rents.reduce((a, b) => a + b, 0) : 0;
 }
 
 function buildBalanceSheet() {
@@ -721,9 +747,8 @@ function runAll() {
 
   const fyArgs = {
     grossIncome: fullMontyStore.grossIncome,
-    targetType: fullMontyStore.goalType,
+    targetType: 'percent',
     incomePercent: fullMontyStore.incomePercent,
-    retireSpend: fullMontyStore.retireSpend,
     dob: fullMontyStore.dobSelf,
     retireAge: fullMontyStore.retireAge,
     statePensionSelf: fullMontyStore.statePensionSelf,
