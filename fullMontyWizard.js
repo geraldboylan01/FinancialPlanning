@@ -312,6 +312,66 @@ function normalizePropertyNameFields(root) {
   });
 }
 
+// Responsive swap: slider to stepper on mobile
+function enhanceInputsForMobile() {
+  const isMobile = window.matchMedia('(max-width: 768px)').matches;
+  document.querySelectorAll('input.fm-range[type="range"]').forEach(range => {
+    const container = range.closest('.fm-control') || range.parentElement;
+    if (!container) return;
+
+    if (isMobile && !container.querySelector('.fm-stepper')) {
+      const step = Number(range.step || (Number(range.max) > 100 ? 100 : 1));
+      const min = Number(range.min || 0);
+      const max = Number(range.max || 100);
+      const current = Number(range.value || min);
+
+      const stepper = document.createElement('div');
+      stepper.className = 'fm-stepper';
+      stepper.innerHTML = `\n        <button type="button" class="fm-stepper-dec" aria-label="Decrease">−</button>\n        <input type="text" class="fm-stepper-input" inputmode="numeric" pattern="[0-9]*" aria-label="Value" />\n        <button type="button" class="fm-stepper-inc" aria-label="Increase">+</button>\n      `;
+
+      // maintain labels
+      const origId = range.id;
+      if (origId) {
+        const lab = document.querySelector(`label[for="${origId}"]`);
+        range.id = `${origId}__range`;
+        stepper.querySelector('.fm-stepper-input').id = origId;
+        if (lab) lab.setAttribute('for', origId);
+      }
+
+      range.style.display = 'none';
+      container.appendChild(stepper);
+
+      const input = stepper.querySelector('.fm-stepper-input');
+      const dec = stepper.querySelector('.fm-stepper-dec');
+      const inc = stepper.querySelector('.fm-stepper-inc');
+
+      const setValue = (v, fire = true) => {
+        const clamped = Math.max(min, Math.min(max, Math.round(v / step) * step));
+        input.value = clamped;
+        range.value = clamped;
+        if (fire) {
+          range.dispatchEvent(new Event('input', { bubbles: true }));
+          range.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      };
+
+      dec.addEventListener('click', () => setValue(Number(input.value) - step));
+      inc.addEventListener('click', () => setValue(Number(input.value) + step));
+      input.addEventListener('input', () => setValue(Number(input.value || min), false));
+      input.addEventListener('blur', () => setValue(Number(input.value || min)));
+      range.addEventListener('input', () => setValue(Number(range.value || min), false));
+
+      setValue(current, false);
+    }
+
+    if (!isMobile) {
+      const stepper = container.querySelector('.fm-stepper');
+      if (stepper) stepper.remove();
+      range.style.display = '';
+    }
+  });
+}
+
 // mini-list renderer for asset/debt steps
 function makeListStepRenderer(
   listKey,
@@ -1346,6 +1406,11 @@ const titleEl = q('fmTitle');
 let cur = 0;
 let steps = [];
 
+function closeModal() {
+  modal.classList.add('hidden');
+  document.body.classList.remove('modal-open');
+}
+
 function paintProgress(){
   const total = steps.length;
   progEl.textContent = `Step ${cur + 1} of ${total}`;
@@ -1636,6 +1701,7 @@ function render() {
   paintProgress();
   container.innerHTML = '';
   step.render(container);
+  enhanceInputsForMobile();
   container.querySelectorAll('input, select, textarea, button').forEach(el => {
     el.addEventListener('blur', () => validateStep(true));
     el.addEventListener('input', () => validateStep());
@@ -1661,7 +1727,7 @@ function next() {
     cur++;
     render();
   } else {
-    modal.classList.add('hidden');
+    closeModal();
   }
 }
 
@@ -1674,7 +1740,13 @@ function back() {
 btnNext.addEventListener('click', next);
 btnBack.addEventListener('click', back);
 
-addKeyboardNav(modal, { back, next, close: () => modal.classList.add('hidden'), getCur: () => cur, getTotal: () => steps.length });
+addKeyboardNav(modal, { back, next, close: closeModal, getCur: () => cur, getTotal: () => steps.length });
+
+window.addEventListener('resize', () => {
+  clearTimeout(window._fm_rsz);
+  window._fm_rsz = setTimeout(enhanceInputsForMobile, 150);
+});
+document.addEventListener('DOMContentLoaded', enhanceInputsForMobile);
 
 // ───────────────────────────────────────────────────────────────
 // Run handler & auto classification
@@ -1793,7 +1865,7 @@ function runAll() {
   const bsArgs = buildBalanceSheet();
   document.dispatchEvent(new CustomEvent('fm-render-balance-sheet', { detail: bsArgs }));
 
-  modal.classList.add('hidden');
+  closeModal();
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -1803,6 +1875,7 @@ function runAll() {
 export function openFullMontyWizard() {
   cur = 0;
   modal.classList.remove('hidden');
+  document.body.classList.add('modal-open');
   render();
 }
 
