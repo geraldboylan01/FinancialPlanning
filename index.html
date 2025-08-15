@@ -629,46 +629,90 @@
   });
 })();
 </script>
- <script>
+<script>
 (function videoThumbAndModal(){
   const thumbBtns = document.querySelectorAll('.yt-thumb[data-video-id]');
   const modal     = document.getElementById('videoModal');
   if(!thumbBtns.length || !modal) return;
 
+  const isMobile  = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   const mount     = modal.querySelector('[data-video-mount]');
   let lastFocus   = null;
   let iframeInjected = false;
   let hintEl = null;
   let currentId = null;
+  let fsListenersBound = false;
+
   thumbBtns.forEach(btn => {
     btn.addEventListener('click', () => open(btn.getAttribute('data-video-id')));
   });
 
-  function injectIframe(){
-    if(iframeInjected || !mount || !currentId) return;
+  function buildParams() {
     const params = new URLSearchParams({
-      modestbranding:'1', rel:'0', playsinline:'1', enablejsapi:'1',
+      modestbranding:'1',
+      rel:'0',
+      // IMPORTANT: playsinline=0 nudges iOS to native fullscreen
+      playsinline: isMobile ? '0' : '1',
+      enablejsapi:'1',
       controls:'1',
-      autoplay:'1', mute:'1',
+      autoplay:'1',
+      mute:'1',
       origin: window.location.origin
     });
+    return params.toString();
+  }
+
+  function injectIframe(){
+    if(iframeInjected || !mount || !currentId) return null;
     const iframe = document.createElement('iframe');
-    iframe.src = `https://www.youtube-nocookie.com/embed/${currentId}?` + params.toString();
-    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+    iframe.src = `https://www.youtube-nocookie.com/embed/${currentId}?` + buildParams();
+    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
     iframe.setAttribute('allowfullscreen','');
     iframe.setAttribute('title','Why I built these tools');
+
     mount.appendChild(iframe);
     iframeInjected = true;
 
-    // Unmute hint
+    // Unmute hint (preserve your current UI)
     hintEl = document.createElement('p');
     hintEl.className = 'unmute-hint';
     hintEl.textContent = 'Tip: use the player controls to unmute.';
     mount.parentElement.appendChild(hintEl);
-    const hideHint = () => { hintEl && (hintEl.hidden = true); document.removeEventListener('mousedown', hideHint); document.removeEventListener('touchstart', hideHint); document.removeEventListener('keydown', hideHint); };
+    const hideHint = () => {
+      if (hintEl) hintEl.hidden = true;
+      document.removeEventListener('mousedown', hideHint);
+      document.removeEventListener('touchstart', hideHint);
+      document.removeEventListener('keydown', hideHint);
+    };
     document.addEventListener('mousedown', hideHint);
     document.addEventListener('touchstart', hideHint);
     document.addEventListener('keydown', hideHint);
+
+    return iframe;
+  }
+
+  function postToPlayer(iframe, command) {
+    try {
+      iframe.contentWindow.postMessage(JSON.stringify({
+        event: 'command',
+        func: command,
+        args: []
+      }), '*');
+    } catch (e) {}
+  }
+
+  function bindFsListenersOnce() {
+    if (fsListenersBound) return;
+    const onFsChange = () => {
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement || null;
+      if (!fsEl) {
+        // User exited fullscreen (swipe/X) → close modal & cleanup
+        close();
+      }
+    };
+    document.addEventListener('fullscreenchange', onFsChange, true);
+    document.addEventListener('webkitfullscreenchange', onFsChange, true);
+    fsListenersBound = true;
   }
 
   // Modal controls
@@ -677,28 +721,67 @@
     lastFocus = document.activeElement;
     modal.hidden = false;
     document.documentElement.style.overflow = 'hidden';
-    injectIframe();
+
+    const iframe = injectIframe();
     modal.querySelector('.modal__close')?.focus();
     if(location.hash !== '#video') history.pushState(null, '', '#video');
     document.addEventListener('keydown', onKey);
+
+    // Mobile: try to enter fullscreen immediately within this click gesture
+    if (isMobile && iframe) {
+      bindFsListenersOnce();
+      // Try the Fullscreen API
+      Promise.resolve()
+        .then(async () => {
+          if (iframe.requestFullscreen) {
+            await iframe.requestFullscreen();
+          } else if (iframe.webkitRequestFullscreen) {
+            iframe.webkitRequestFullscreen(); // iOS/Safari fallback
+          }
+        })
+        .catch(() => {
+          // If fullscreen request is blocked, we simply fall back to YouTube UI
+        })
+        .finally(() => {
+          // Nudge playback once the player is ready
+          setTimeout(() => postToPlayer(iframe, 'playVideo'), 250);
+        });
+
+      // Safety: if the tab is hidden while in fullscreen, close modal
+      const onHide = () => {
+        if (document.hidden) close();
+      };
+      document.addEventListener('visibilitychange', onHide, { once: true, capture: true });
+    }
   }
+
   function close(){
     modal.hidden = true;
     document.documentElement.style.overflow = '';
-    mount.innerHTML = '';
+
+    // Remove iframe and hint
+    if (mount) mount.innerHTML = '';
     iframeInjected = false;
-    if(hintEl){ hintEl.remove(); hintEl = null; }
+    if (hintEl) { hintEl.remove(); hintEl = null; }
+
     document.removeEventListener('keydown', onKey);
+
     if(location.hash === '#video'){
       history.back();
-      setTimeout(() => { if(location.hash === '#video') history.replaceState(null, '', location.pathname + location.search); }, 50);
+      setTimeout(() => {
+        if(location.hash === '#video') {
+          history.replaceState(null, '', location.pathname + location.search);
+        }
+      }, 50);
     }
     lastFocus && lastFocus.focus();
   }
+
   function onKey(e){
     if(e.key === 'Escape') close();
     if(e.key === 'Tab') keepFocusInModal(e);
   }
+
   function keepFocusInModal(e){
     const focusables = modal.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])');
     if(!focusables.length) return;
@@ -708,10 +791,20 @@
     else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
   }
 
-  // Events
-  modal.addEventListener('click', (e)=>{ if(e.target.closest('[data-close]') || e.target.classList.contains('modal__backdrop')) close(); });
-  window.addEventListener('hashchange', () => { if(!modal.hidden && location.hash !== '#video') close(); });
-  if(location.hash === '#video'){ open(thumbBtns[0].getAttribute('data-video-id')); }
+  // Close on backdrop/X as before
+  modal.addEventListener('click', (e)=>{
+    if(e.target.closest('[data-close]') || e.target.classList.contains('modal__backdrop')) close();
+  });
+
+  // Keep your hash sync behavior
+  window.addEventListener('hashchange', () => {
+    if(!modal.hidden && location.hash !== '#video') close();
+  });
+
+  // Deep link support remains unchanged
+  if(location.hash === '#video'){
+    open(thumbBtns[0].getAttribute('data-video-id'));
+  }
 })();
 </script>
 </body>
