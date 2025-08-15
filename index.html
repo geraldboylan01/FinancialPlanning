@@ -11,6 +11,7 @@
   <link rel="prefetch" href="full-monty.html" />
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
+    html { scroll-behavior: smooth; }
     html,body{min-height:100vh;overflow-x:hidden}
     body{font-family:'Inter',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:1.5rem;padding:clamp(1rem,4vw,2.5rem) 1rem;background:var(--bg);color:var(--ink)}
     @media (min-width:960px){body{justify-content:center}}
@@ -397,6 +398,64 @@
 @media (max-width: 380px){
   .learn-card__overlay{ padding-top: 16px; }
 }
+
+    /* ——— Value prop inside brand hero ——— */
+    .brand-hero__value{
+      margin-bottom: clamp(.4rem, 1.6vw, .9rem);
+      display: grid;
+      gap: .45rem;
+    }
+
+    .brand-hero__headline{
+      margin: 0;
+      font-weight: 900;
+      letter-spacing: .2px;
+      color: #fff;
+      font-size: clamp(1.3rem, 3vw, 1.7rem);
+      line-height: 1.2;
+    }
+
+    .brand-hero__support{
+      margin: 0;
+      color: #eaeaea;
+      opacity: .92;
+      font-size: clamp(.95rem, 2vw, 1rem);
+      line-height: 1.45;
+      max-width: 62ch;
+    }
+
+    /* Small, subtle CTA in the hero */
+    .btn-hero-mini{
+      justify-self: start;
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .55rem .85rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.2);
+      background: rgba(255,255,255,.06);
+      color: #fff; text-decoration: none; font-weight: 800; font-size: .95rem;
+      transition: transform .2s, box-shadow .2s, background .2s, border-color .2s, filter .2s;
+      box-shadow: 0 0 16px rgba(0,0,0,.2);
+    }
+
+    .btn-hero-mini:hover,
+    .btn-hero-mini:focus-visible{
+      transform: translateY(-1px);
+      background: linear-gradient(135deg, var(--accentA), var(--accentB));
+      color: #111;
+      border-color: transparent;
+      box-shadow: 0 0 24px rgba(0,255,136,.5);
+      outline: none;
+    }
+
+    /* Ensure anchor section positions nicely when scrolled to */
+    #full-monty{ scroll-margin-top: 14px; }
+
+    /* Tighten on very small screens */
+    @media (max-width: 480px){
+      .brand-hero__support{ max-width: none; }
+      .btn-hero-mini{ font-size: .9rem; padding: .5rem .8rem; }
+    }
+
   </style>
 </head>
 <body>
@@ -413,7 +472,17 @@
 
       <!-- Right: message -->
       <div class="brand-hero__text">
-        <h2 class="brand-hero__kicker">🇮🇪 Built for Irish Pensions</h2>
+        <div class="brand-hero__value">
+          <h2 class="brand-hero__headline">Financial planning for everyone — not just the 1%.</h2>
+          <p class="brand-hero__support">
+            Free tools from a planner at Ireland’s leading wealth management firm to help you master your pension and retirement path.
+          </p>
+          <a class="btn-hero-mini" href="#full-monty" aria-label="Jump to the Full Monty planner section">
+            Start free plan
+          </a>
+        </div>
+
+        <h3 class="brand-hero__kicker">🇮🇪 Built for Irish Pensions</h3>
         <p class="brand-hero__lede">
           All of our tools are designed specifically for Irish pension rules — because pensions are the most tax‑efficient way to invest in Ireland.
         </p>
@@ -421,12 +490,13 @@
           <li>You don’t pay income tax on the money you contribute</li>
           <li>Your investments grow tax‑free (no 8‑year deemed disposal)</li>
           <li>You can take a portion tax‑free at retirement</li>
-        </ul>      </div>
+        </ul>
+      </div>
     </div>
   </section>
 
   <!-- HERO: Full Monty spotlight -->
-  <section class="hero" aria-label="All-in-one planner">
+  <section id="full-monty" class="hero" aria-label="All-in-one planner">
     <div class="hero-copy">
       <h1>Your full financial picture in minutes</h1>
       <p class="lead">Answer a few friendly questions and get a retirement income plan, pension projection, and a personal balance sheet — all in one flow.</p>
