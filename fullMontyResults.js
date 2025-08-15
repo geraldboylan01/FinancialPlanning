@@ -1,6 +1,6 @@
 // fullMontyResults.js
 import { fyRequiredPot } from './shared/fyRequiredPot.js';
-import { sftForYear, CPI, STATE_PENSION, SP_START } from './shared/assumptions.js';
+import { sftForYear, CPI, STATE_PENSION, SP_START, MAX_SALARY_CAP } from './shared/assumptions.js';
 
 let lastPensionOutput = null; // { balances, projValue, retirementYear, contribsBase, growthBase, (optional) maxBalances, contribsMax, growthMax, sftLimit }
 let lastFYOutput = null;      // { requiredPot, retirementYear, alwaysSurplus, sftWarningStripped }
@@ -11,21 +11,43 @@ let contribChart = null;
 let ddBalanceChart = null;
 let ddCashflowChart = null;
 
-let useMax = false; // UI state for “Max contribs” toggle
+const AGE_BANDS = [
+  { max: 29,  pct: 0.15 },
+  { max: 39,  pct: 0.20 },
+  { max: 49,  pct: 0.25 },
+  { max: 54,  pct: 0.30 },
+  { max: 59,  pct: 0.35 },
+  { max: 120, pct: 0.40 }
+];
+const maxPersonalPct = age => AGE_BANDS.find(b => Math.floor(age) <= b.max).pct;
+const maxPersonalByAge = (age, capSalary) => maxPersonalPct(age) * capSalary;
 
 const $ = (s)=>document.querySelector(s);
 const euro = (n)=>'€' + (Math.round(n||0)).toLocaleString();
 
 console.debug('[FM Results] loaded');
 
-// Toggle behaviour
-document.getElementById('maxContribToggle')?.addEventListener('change', (e) => {
-  useMax = !!e.target.checked;
-  if (lastPensionOutput) {
-    lastPensionOutput.showMax = useMax;
+// Handle the "Use max pension contributions" toggle
+const maxToggleEl = document.querySelector('#useMaxContribs');
+const maxNoteEl   = document.querySelector('#maxContribsNote');
+
+if (maxToggleEl) {
+  maxToggleEl.addEventListener('change', () => {
+    // Flip the flag and redraw
+    if (lastPensionOutput) {
+      lastPensionOutput.showMax = maxToggleEl.checked;
+    }
+    // Gentle, professional inline note
+    if (maxToggleEl.checked) {
+      maxNoteEl.textContent =
+        'Max contributions applied — see the detailed age-band limits below.';
+    } else {
+      maxNoteEl.textContent = '';
+    }
     tryRender();
-  }
-});
+    renderMaxBreakdownTable(); // ensure the table is visible/updated
+  });
+}
 
 // Sticky “Change My Inputs”
 document.getElementById('editPlanBtn')?.addEventListener('click', () => {
@@ -62,7 +84,7 @@ function yrDiff(d, refDate = new Date()) {
 
 function activeProjection() {
   if (!lastPensionOutput) return {};
-  const show = !!(useMax || lastPensionOutput.showMax);
+  const show = !!lastPensionOutput.showMax;
   const labels = (show ? lastPensionOutput.maxBalances : lastPensionOutput.balances) || [];
   const valueAtRet = labels.at(-1)?.value || 0;
   return {
@@ -211,16 +233,17 @@ function drawCharts() {
   const ap = activeProjection();
   const labels = ap.labelsAges.map(a => `Age ${a}`);
 
-  const datasets = [
-    {
-      label: useMax ? 'Max Contribution' : 'Your Projection',
-      data: ap.balances,
-      borderColor: useMax ? '#0099ff' : '#00ff88',
-      backgroundColor: useMax ? 'rgba(0,153,255,0.10)' : 'rgba(0,255,136,0.15)',
-      fill: true,
-      tension: 0.25
-    }
-  ];
+    const showMax = !!lastPensionOutput.showMax;
+    const datasets = [
+      {
+        label: showMax ? 'Max Contribution' : 'Your Projection',
+        data: ap.balances,
+        borderColor: showMax ? '#0099ff' : '#00ff88',
+        backgroundColor: showMax ? 'rgba(0,153,255,0.10)' : 'rgba(0,255,136,0.15)',
+        fill: true,
+        tension: 0.25
+      }
+    ];
 
   if (fy.requiredPot && fy.requiredPot > 0) {
     datasets.push({
@@ -270,8 +293,8 @@ function drawCharts() {
     }
   });
 
-  const dataC = useMax ? contribsMax : contribsBase;
-  const dataG = useMax ? growthMax   : growthBase;
+    const dataC = showMax ? contribsMax : contribsBase;
+    const dataG = showMax ? growthMax   : growthBase;
 
   if (contribChart) contribChart.destroy();
   contribChart = new Chart(c, {
@@ -279,7 +302,7 @@ function drawCharts() {
     data: {
       labels,
       datasets: [
-        { label:'Contributions', data:dataC, backgroundColor: useMax ? '#0099ff' : '#00ff88', stack:'s1' },
+          { label:'Contributions', data:dataC, backgroundColor: showMax ? '#0099ff' : '#00ff88', stack:'s1' },
         { label:'Investment growth', data:dataG, backgroundColor:'#ff9933', stack:'s1' }
       ]
     },
@@ -296,7 +319,7 @@ function drawCharts() {
     }
   });
 
-  renderKPIs({ projValue: ap.valueAtRet, balances: (useMax ? lastPensionOutput.maxBalances : lastPensionOutput.balances) }, fy.requiredPot);
+    renderKPIs({ projValue: ap.valueAtRet, balances: (showMax ? lastPensionOutput.maxBalances : lastPensionOutput.balances) }, fy.requiredPot);
 
   // ---------- Retirement-phase (drawdown) charts ----------
   const balCan = document.querySelector('#ddBalanceChart');
@@ -374,14 +397,14 @@ function drawCharts() {
     data: {
       labels: simProj.ages.map(a => `Age ${a}`),
       datasets: [
-        {
-          label: useMax ? 'Balance (Max contribs)' : 'Balance (Projected pot)',
-          data: simProj.balances,
-          borderColor: useMax ? '#0099ff' : '#00ff88',
-          backgroundColor: useMax ? 'rgba(0,153,255,0.10)' : 'rgba(0,255,136,0.10)',
-          fill: true,
-          tension: 0.28
-        },
+          {
+            label: showMax ? 'Balance (Max contribs)' : 'Balance (Projected pot)',
+            data: simProj.balances,
+            borderColor: showMax ? '#0099ff' : '#00ff88',
+            backgroundColor: showMax ? 'rgba(0,153,255,0.10)' : 'rgba(0,255,136,0.10)',
+            fill: true,
+            tension: 0.28
+          },
         {
           label: 'Balance (FY pot)',
           data: simFY.balances,
@@ -411,7 +434,7 @@ function drawCharts() {
     data: {
       labels: simProj.ages.map(a => `Age ${a}`),
       datasets: [
-        { label:'Pension withdrawals', data: simProj.pensionDraw, backgroundColor: useMax ? '#0099ff' : '#00ff88', stack:'s1' },
+          { label:'Pension withdrawals', data: simProj.pensionDraw, backgroundColor: showMax ? '#0099ff' : '#00ff88', stack:'s1' },
         { label:'Other income (SP / Rent / DB)', data: simProj.otherInc, backgroundColor: '#0099ff', stack:'s1' },
         { type:'line', label:'Total income need', data: simProj.reqLine, borderColor:'#ffffff', borderWidth:2, pointRadius:0, fill:false }
       ]
@@ -434,14 +457,75 @@ function drawCharts() {
 
   // Optional: console flag for depletion
   if (simProj.depleteAge) {
-    console.warn(`[Drawdown] Projected pot depletes at age ${simProj.depleteAge}.`);
+  console.warn(`[Drawdown] Projected pot depletes at age ${simProj.depleteAge}.`);
+    }
   }
+
+function renderMaxBreakdownTable() {
+  const container = document.querySelector('#maxContribsBreakdown');
+  if (!container) return;
+
+  // Pull inputs the FM wizard sent earlier (you stash them on lastFYOutput._inputs)
+  const d = lastFYOutput?._inputs || {};
+  const salary = Math.max(0, +d.salary || 0);
+  const capSalary = Math.min(salary, MAX_SALARY_CAP);
+
+  // Need current age (to highlight), reuse yrDiff from this file
+  const dob = d.dob ? new Date(d.dob) : null;
+  const curAge = dob ? yrDiff(dob) : null;
+  const currentAge = curAge != null ? Math.floor(curAge) : null;
+
+  // Nothing to show if we don’t know salary or age
+  if (!capSalary || currentAge == null) {
+    container.hidden = true;
+    container.innerHTML = '';
+    return;
+  }
+
+  // Build rows
+  const bandLabels = [
+    'Up to 29', '30–39', '40–49',
+    '50–54', '55–59', '60+'
+  ];
+  const rows = AGE_BANDS.map((band, i) => {
+    const isCurrent = currentAge <= band.max && (i === 0 || currentAge > AGE_BANDS[i-1].max);
+    const pct = band.pct;
+    const euro = Math.round(pct * capSalary).toLocaleString();
+    return `
+      <tr class="${isCurrent ? 'highlight' : ''}">
+        <td>${bandLabels[i]}</td>
+        <td>${(pct * 100).toFixed(0)}%</td>
+        <td>€${euro}</td>
+      </tr>
+    `;
+  }).join('');
+
+  container.hidden = false;
+  container.innerHTML = `
+    <h3>Maximum personal pension contributions by age band</h3>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Age band</th>
+            <th>Max % of reckonable salary</th>
+            <th>Max € (on €${capSalary.toLocaleString()})</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <p class="footnote">
+      Personal limits apply to the lower of your salary and the Revenue max reckonable salary.
+      Employer contributions are not subject to this cap. Age highlighted = your current band.
+    </p>
+  `;
 }
 
 function tryRender() {
   if (lastPensionOutput && lastFYOutput) {
-    lastPensionOutput.showMax = !!useMax;
     drawCharts();
+    renderMaxBreakdownTable();
   }
 }
 
@@ -450,6 +534,7 @@ function tryRender() {
 document.addEventListener('fm-pension-output', (e) => {
   console.debug('[FM Results] got fm-pension-output', e.detail);
   lastPensionOutput = e.detail;
+  lastPensionOutput.showMax = !!maxToggleEl?.checked;
   tryRender();
 });
 

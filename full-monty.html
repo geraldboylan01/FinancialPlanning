@@ -243,27 +243,90 @@
       color:#ddd;border-radius:999px;padding:.45rem .8rem; font-weight:700;
     }
 
-    /* Controls row + pill switch */
-    .controls-row{ display:flex; align-items:center; gap:12px; margin: 6px 0 8px; }
+    .max-toggle-row{
+      display:flex; align-items:center; gap:16px; margin: 8px 0 16px;
+    }
 
-    .pill-switch{ position:relative; display:inline-flex; align-items:center; cursor:pointer; }
-    .pill-switch input{ display:none; }
-    .pill-switch .track{
-      position:relative; display:inline-flex; align-items:center; gap:10px;
-      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14);
-      height:36px; border-radius:999px; padding:0 12px 0 42px;
-      color:#ddd; font-weight:700; min-width: 160px;
+    .toggle{
+      --h: 44px;
+      --w: 420px;              /* wide so label fits; shrinks on small screens */
+      --pad: 4px;
+      --on: #00ff88;           /* glow */
+      --off: #3f3f3f;
+      --ring: rgba(0,255,136,.25);
+      position: relative; display:inline-flex; align-items:center;
     }
-    .pill-switch .thumb{
-      position:absolute; left:6px; top:4px; width:28px; height:28px;
-      border-radius:50%; background:#666; transition: transform .18s ease, background .2s ease;
+    .toggle input{ position:absolute; opacity:0; pointer-events:none; }
+    .toggle .track{
+      position:relative; width:var(--w); min-width:260px; height:var(--h);
+      border-radius:999px; background:#1f1f1f; outline:1px solid rgba(255,255,255,.08);
+      box-shadow: inset 0 0 0 2px rgba(255,255,255,.06);
+      display:flex; align-items:center; justify-content:center; overflow:hidden;
+      padding:0 var(--h);                      /* space for the thumb both sides */
+      transition: box-shadow .2s ease, outline-color .2s ease;
     }
-    .pill-switch input:checked + .track{ border-color: rgba(0,255,136,.45); box-shadow: 0 0 0 3px rgba(0,255,136,.18); }
-    .pill-switch input:checked + .track .thumb{ transform: translateX(118px); background:#00ff88; }
-    .pill-switch .label-on, .pill-switch .label-off{ font-size:.95rem; }
-    .pill-switch .label-off{ opacity:.85; }
-    .pill-switch input:checked + .track .label-off{ opacity:0; }
-    .pill-switch input:checked + .track .label-on{ opacity:1; }
+    .toggle .label-off, .toggle .label-on{
+      position:absolute; left:0; right:0; text-align:center;
+      font-weight:800; color:#cfcfcf; opacity:1; transition: opacity .15s ease;
+      pointer-events:none; user-select:none; padding:0 16px;
+      white-space:nowrap; text-overflow:ellipsis; overflow:hidden;
+    }
+    .toggle .label-on{ opacity:.0; }
+
+    .toggle .thumb{
+      position:absolute; top:var(--pad); bottom:var(--pad);
+      width: calc(var(--h) - var(--pad)*2); border-radius:50%;
+      background: var(--off); box-shadow: inset 0 0 0 1px rgba(255,255,255,.15);
+      transform: translateX(calc(-50% + var(--pad)));
+      left: calc(var(--h) / 2);            /* centers starting at far-left edge */
+      transition: transform .25s cubic-bezier(.2,.8,.2,1), background .2s ease,
+                  box-shadow .2s ease;
+    }
+
+    /* ON state */
+    .toggle input:checked + .track{
+      outline-color: rgba(0,255,136,.35);
+      box-shadow: 0 0 0 3px var(--ring) inset, 0 0 0 1px rgba(0,255,136,.25);
+    }
+    .toggle input:checked + .track .label-off{ opacity:0; }
+    .toggle input:checked + .track .label-on{ opacity:1; }
+    .toggle input:checked + .track .thumb{
+      background: var(--on);
+      transform: translateX(calc(var(--w) - var(--h) + 50% - var(--pad))); /* full travel */
+    }
+
+    /* Focus/keyboard */
+    .toggle:has(input:focus-visible) .track{
+      box-shadow: 0 0 0 3px var(--ring);
+    }
+
+    /* Inline note */
+    .max-note{
+      color:#9feecb; font-size:.95rem; font-weight:600;
+    }
+
+    /* Table container below charts */
+    .max-breakdown{
+      margin-top: 20px;
+      background:#232323; border:1px solid rgba(255,255,255,.08);
+      border-radius:12px; padding:16px;
+    }
+    .max-breakdown h3{ margin:0 0 12px; font-weight:800; }
+    .max-breakdown .table-scroll{ overflow:auto; border-radius:10px; }
+    .max-breakdown table{
+      width:100%; border-collapse:collapse; min-width:520px;
+    }
+    .max-breakdown thead th{
+      text-align:left; background:#2b2b2b; padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    .max-breakdown tbody td{
+      padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.06);
+    }
+    .max-breakdown tr.highlight{ background:#273529; }
+    .max-breakdown .footnote{ color:#aaa; margin-top:10px; font-size:.9rem; }
+    @media (max-width: 640px){
+      .toggle{ --w: 320px; }
+    }
 
     /* Floating “Change My Inputs” button */
     .floating-edit{
@@ -304,19 +367,20 @@
       <!-- Top Summary / Actions row -->
       <div id="resultsSummary" class="summary-row" aria-live="polite"></div>
 
-      <!-- Controls row -->
-      <div class="controls-row">
-        <label class="pill-switch" title="Show projection if you made the maximum personal contributions allowed by age band">
-          <input id="maxContribToggle" type="checkbox" />
+      <div id="kpis" class="kpi-row"></div>
+
+      <!-- Toggle: max pension contributions -->
+      <div class="max-toggle-row">
+        <label class="toggle" id="maxContribsToggle">
+          <input type="checkbox" id="useMaxContribs" aria-label="Use max pension contributions" />
           <span class="track">
-            <span class="thumb"></span>
-            <span class="label-on">Max contribs</span>
-            <span class="label-off">Max contribs</span>
+            <span class="label-off">Use max pension contributions</span>
+            <span class="label-on">Use max pension contributions</span>
+            <span class="thumb" aria-hidden="true"></span>
           </span>
         </label>
+        <div id="maxContribsNote" class="max-note" aria-live="polite"></div>
       </div>
-
-      <div id="kpis" class="kpi-row"></div>
 
       <div class="chart-grid">
         <div class="chart-card"><canvas id="growthChart"></canvas></div>
@@ -325,6 +389,10 @@
         <!-- NEW: retirement-phase charts (drawdown) -->
         <div class="chart-card"><canvas id="ddBalanceChart"></canvas></div>
         <div class="chart-card"><canvas id="ddCashflowChart"></canvas></div>
+      </div>
+
+      <div id="maxContribsBreakdown" class="max-breakdown" hidden>
+        <!-- JS will populate: heading + table + footnote -->
       </div>
     </div>
 
