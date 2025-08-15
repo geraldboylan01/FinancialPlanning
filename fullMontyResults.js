@@ -1,11 +1,15 @@
 // fullMontyResults.js
 import { fyRequiredPot } from './shared/fyRequiredPot.js';
-import { sftForYear } from './shared/assumptions.js';
+import { sftForYear, CPI, STATE_PENSION, SP_START } from './shared/assumptions.js';
 
 let lastPensionOutput = null; // { balances, projValue, retirementYear, contribsBase, growthBase, (optional) maxBalances, contribsMax, growthMax, sftLimit }
 let lastFYOutput = null;      // { requiredPot, retirementYear, alwaysSurplus, sftWarningStripped }
 let growthChart = null;
 let contribChart = null;
+
+// NEW
+let ddBalanceChart = null;
+let ddCashflowChart = null;
 
 const $ = (s)=>document.querySelector(s);
 const euro = (n)=>'€' + (Math.round(n||0)).toLocaleString();
@@ -32,6 +36,84 @@ function renderKPIs({ projValue, balances }, fyRequired) {
       <div class="kpi-val">${euro(Math.abs(gap))}</div>
     </div>
   `;
+}
+
+// Current age helper (same approach FY uses)
+function yrDiff(d, refDate = new Date()) {
+  return (refDate - d) / (1000 * 60 * 60 * 24 * 365.25);
+}
+
+// Build other-income (SP, Rent, DB) at a given age using FY inputs
+function incomeAtAgeBuilder({
+  includeSP, includePartnerSP,
+  partnerDob, rentAtRet, hasDbSelf, dbAnnualSelf, dbStartAgeSelf,
+  hasDbPartner, dbAnnualPartner, dbStartAgePartner
+}) {
+  return (age, partnerAge, tFromRet) => {
+    const infl = Math.pow(1 + CPI, tFromRet);
+    const rent = rentAtRet * infl;
+    const dbSelf    = (hasDbSelf    && age         >= (dbStartAgeSelf ?? Infinity))    ? (dbAnnualSelf    * infl) : 0;
+    const dbPartner = (hasDbPartner && partnerAge  >= (dbStartAgePartner ?? Infinity)) ? (dbAnnualPartner * infl) : 0;
+
+    let sp = 0;
+    if (includeSP        && age        >= SP_START) sp += STATE_PENSION;
+    if (includePartnerSP && partnerAge >= SP_START) sp += STATE_PENSION;
+
+    return { rent, db: dbSelf + dbPartner, sp, otherTotal: rent + dbSelf + dbPartner + sp };
+  };
+}
+
+// Core drawdown simulator (retirement → age 100)
+function simulateDrawdown({
+  startPot, retireAge, endAge,
+  spendAtRet, rentAtRet,
+  includeSP, includePartnerSP, partnerAgeAtRet,
+  hasDbSelf, dbAnnualSelf, dbStartAgeSelf,
+  hasDbPartner, dbAnnualPartner, dbStartAgePartner,
+  growthRate
+}) {
+  const years = Math.max(0, Math.round(endAge - retireAge));
+  const ages = Array.from({length: years + 1}, (_, i) => retireAge + i);
+
+  const balances = [];
+  const pensionDraw = [];
+  const otherInc = [];
+  const reqLine = [];
+
+  let bal = startPot;
+  const incomeAtAge = incomeAtAgeBuilder({
+    includeSP, includePartnerSP, rentAtRet,
+    hasDbSelf, dbAnnualSelf, dbStartAgeSelf,
+    hasDbPartner, dbAnnualPartner, dbStartAgePartner
+  });
+
+  for (let i = 0; i <= years; i++) {
+    const age = retireAge + i;
+    const t = i;
+    const partnerAge = partnerAgeAtRet != null ? (partnerAgeAtRet + t) : -Infinity;
+    const infl = Math.pow(1 + CPI, t);
+
+    const spend = spendAtRet * infl;
+    const { otherTotal } = incomeAtAge(age, partnerAge, t);
+    const draw = Math.max(0, spend - Math.min(otherTotal, spend));
+
+    balances.push(Math.max(0, Math.round(bal)));
+    reqLine.push(Math.round(spend));
+    pensionDraw.push(Math.round(draw));
+    otherInc.push(Math.round(Math.min(otherTotal, spend)));
+
+    // grow then withdraw
+    bal = bal * (1 + growthRate) - draw;
+    if (bal < 0) bal = 0;
+  }
+
+  // depletion age (first age after start where closing balance hits 0)
+  let depleteAge = null;
+  for (let i = 1; i < balances.length; i++) {
+    if (balances[i] === 0) { depleteAge = ages[i]; break; }
+  }
+
+  return { ages, balances, pensionDraw, otherInc, reqLine, depleteAge };
 }
 
 function drawCharts() {
@@ -136,6 +218,124 @@ function drawCharts() {
   });
 
   renderKPIs({ projValue, balances }, fy.requiredPot);
+
+  // ---------- Retirement-phase (drawdown) charts ----------
+  const balCan = document.querySelector('#ddBalanceChart');
+  const cflCan = document.querySelector('#ddCashflowChart');
+  if (!balCan || !cflCan) return;
+
+  const d = lastFYOutput._inputs || {}; // we stash this below in the FY handler
+  const now = new Date();
+  const curAge = d.dob ? yrDiff(new Date(d.dob), now) : null;
+  const yrsToRet = (d.retireAge ?? 0) - (curAge ?? 0);
+  const spendBase = (d.grossIncome || 0) * ((d.incomePercent || 0) / 100);
+  const spendAtRet = spendBase * Math.pow(1 + CPI, Math.max(0, yrsToRet));
+  const rentAtRet  = (d.rentalIncomeNow || d.rentalIncome || 0) * Math.pow(1 + CPI, Math.max(0, yrsToRet));
+  const partnerCurAge = d.partnerDob ? yrDiff(new Date(d.partnerDob), now) : null;
+  const partnerAgeAtRet = (partnerCurAge != null) ? (partnerCurAge + Math.max(0, yrsToRet)) : null;
+
+  // Sim paths: FY pot (requiredPot) vs projected accumulation pot
+  const retireAge = +d.retireAge || (lastPensionOutput?.balances?.[0]?.age ?? 65);
+  const endAge = 100;
+  const growthRate = +d.growthRate || (lastPensionOutput?.growth || 0.05);
+
+  const simFY = simulateDrawdown({
+    startPot: Math.max(0, lastFYOutput.requiredPot || 0),
+    retireAge, endAge,
+    spendAtRet, rentAtRet,
+    includeSP: !!d.statePensionSelf || !!d.statePension,           // tolerate either name
+    includePartnerSP: !!d.statePensionPartner || !!d.partnerStatePension,
+    partnerAgeAtRet,
+    hasDbSelf: !!d.hasDbSelf || !!d.hasDb,
+    dbAnnualSelf: d.dbPensionSelf ?? d.dbPension ?? 0,
+    dbStartAgeSelf: d.dbStartAgeSelf ?? d.dbStartAge ?? Infinity,
+    hasDbPartner: !!d.hasDbPartner,
+    dbAnnualPartner: d.dbPensionPartner ?? 0,
+    dbStartAgePartner: d.dbStartAgePartner ?? Infinity,
+    growthRate
+  });
+
+  const simProj = simulateDrawdown({
+    startPot: Math.max(0, lastPensionOutput.projValue || 0),
+    retireAge, endAge,
+    spendAtRet, rentAtRet,
+    includeSP: !!d.statePensionSelf || !!d.statePension,
+    includePartnerSP: !!d.statePensionPartner || !!d.partnerStatePension,
+    partnerAgeAtRet,
+    hasDbSelf: !!d.hasDbSelf || !!d.hasDb,
+    dbAnnualSelf: d.dbPensionSelf ?? d.dbPension ?? 0,
+    dbStartAgeSelf: d.dbStartAgeSelf ?? d.dbStartAge ?? Infinity,
+    hasDbPartner: !!d.hasDbPartner,
+    dbAnnualPartner: d.dbPensionPartner ?? 0,
+    dbStartAgePartner: d.dbStartAgePartner ?? Infinity,
+    growthRate
+  });
+
+  // Balance chart (two lines)
+  if (ddBalanceChart) ddBalanceChart.destroy();
+  ddBalanceChart = new Chart(balCan, {
+    type: 'line',
+    data: {
+      labels: simProj.ages.map(a => `Age ${a}`),
+      datasets: [
+        {
+          label: 'Balance (Projected pot)',
+          data: simProj.balances,
+          borderColor: '#00ff88',
+          backgroundColor: 'rgba(0,255,136,0.10)',
+          fill: true,
+          tension: 0.28
+        },
+        {
+          label: 'Balance (FY pot)',
+          data: simFY.balances,
+          borderColor: '#c000ff',
+          borderDash: [6,6],
+          fill: false,
+          tension: 0.28
+        }
+      ]
+    },
+    options: {
+      animation:false, responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ position:'bottom', labels:{ color:'#ccc', font:{ size:12 }, padding:8 } },
+        title:{ display:true, text:`Projected Balance in Retirement (Age ${retireAge}–100)`, color:'#fff', font:{ size:16, weight:'bold' } },
+        tooltip:{ callbacks:{ label:(ctx)=> '€' + (+ctx.parsed.y||0).toLocaleString() } }
+      },
+      scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'€'+v.toLocaleString() } } }
+    }
+  });
+
+  // Cashflow chart (stacked bars + need line)
+  if (ddCashflowChart) ddCashflowChart.destroy();
+  ddCashflowChart = new Chart(cflCan, {
+    type: 'bar',
+    data: {
+      labels: simProj.ages.map(a => `Age ${a}`),
+      datasets: [
+        { label:'Pension withdrawals', data: simProj.pensionDraw, backgroundColor: '#00ff88', stack:'s1' },
+        { label:'Other income (SP / Rent / DB)', data: simProj.otherInc, backgroundColor: '#0099ff', stack:'s1' },
+        { type:'line', label:'Total income need', data: simProj.reqLine, borderColor:'#ffffff', borderWidth:2, pointRadius:0, fill:false }
+      ]
+    },
+    options: {
+      animation:false, responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ position:'bottom', labels:{ color:'#ccc', font:{ size:12 }, padding:8 } },
+        title:{ display:true, text:'Annual Retirement Income: Needs & Sources', color:'#fff', font:{ size:16, weight:'bold' } }
+      },
+      scales: {
+        x:{ stacked:true },
+        y:{ stacked:true, beginAtZero:true, ticks:{ callback:v=>'€'+v.toLocaleString() } }
+      }
+    }
+  });
+
+  // Optional: console flag for depletion
+  if (simProj.depleteAge) {
+    console.warn(`[Drawdown] Projected pot depletes at age ${simProj.depleteAge}.`);
+  }
 }
 
 function tryRender() {
@@ -172,6 +372,9 @@ document.addEventListener('fm-run-fy', (e) => {
     dbAnnualPartner: d.dbPensionPartner || 0,
     dbStartAgePartner: d.dbStartAgePartner || Infinity
   });
+  // NEW: stash raw inputs for drawdown simulation
+  fy._inputs = { ...d };
+
   lastFYOutput = fy;
   tryRender();
 });
