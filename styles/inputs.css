@@ -118,13 +118,15 @@ button.wizDot.active, button.wizDot:focus-visible{ background:#c000ff; outline:n
 .error { color:#ff6b6b; font-size:.85rem; min-height:1.1em; margin-top:.25rem; }
 
 /* On wizard pages only */
-.wizard-controls > button{
+.wizard-controls > button,
+.wizard-footer > button{
   background:linear-gradient(135deg,#00ff88,#0099ff);
   border-radius:50px;
   transition:transform .25s,box-shadow .25s;
   min-height:2.75rem;
 }
-.wizard-controls > button:hover{
+.wizard-controls > button:hover,
+.wizard-footer > button:hover{
   transform:scale(1.03);
   box-shadow:0 0 22px rgba(0,255,136,.8);
 }

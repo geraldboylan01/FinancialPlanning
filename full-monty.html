@@ -22,10 +22,11 @@
     }
     *{box-sizing:border-box}
     body{font-family:'Inter',sans-serif;background:#1a1a1a;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:1rem;margin:0;}
+    body.modal-open{overflow:hidden;}
     button{padding:.5rem .9rem;font-weight:700;font-size:1rem;border:none;border-radius:8px;cursor:pointer;color:#fff;background:#555;margin:.3rem 0;min-height:2.5rem;}
     .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:9999;}
     .modal.hidden{display:none;}
-    #fullMontyModal .wizard-card{display:flex;flex-direction:column;max-width:640px;width:calc(100% - 2rem);max-height:86vh;overflow:hidden;border-radius:16px;padding:2rem;background:#2a2a2a;}
+    #fullMontyModal .wizard-card{display:flex;flex-direction:column;max-width:640px;width:calc(100% - 2rem);border-radius:16px;padding:2rem;background:#2a2a2a;}
     #fullMontyModal h3{font-weight:600;font-size:1.1rem;color:#fff;}
     .wiz-header{text-align:center;margin-bottom:1.2rem;}
     #fmProgress{margin:0 0 .8rem 0;}
@@ -50,8 +51,24 @@
       box-shadow:0 0 16px rgba(255,255,255,.08);
       outline:2px solid transparent;
     }
-    .wizard-controls{display:flex;justify-content:space-between;margin-top:auto;}
-    #fmStepContainer{overflow:auto;-webkit-overflow-scrolling:touch;padding-right:.25rem;}
+    .wizard-body{
+      max-height:80vh;
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
+      overscroll-behavior:contain;
+      padding-right:.25rem;
+      padding-bottom:5rem;
+    }
+    .wizard-footer{
+      position:sticky;
+      bottom:0;
+      display:flex;
+      gap:.75rem;
+      justify-content:space-between;
+      padding:.75rem 1rem;
+      background:var(--surface, #111);
+      border-top:1px solid rgba(255,255,255,.08);
+    }
     .form{display:flex;flex-direction:column;gap:1rem;}
     .form-group{margin-bottom:1rem;}
     .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
@@ -128,6 +145,14 @@
 
     /* Slightly tighter spacing for the conditional rent input */
     .form-group.condensed label{ margin-bottom: .25rem; }
+
+    @media (max-width: 768px) {
+      .fm-range { display:none; }
+      .fm-stepper { display:inline-flex; align-items:center; gap:.5rem; background:var(--field-bg, #404040); color:var(--field-ink, #fff); border-radius:10px; padding:.5rem .5rem; }
+      .fm-stepper button { min-width:2.5rem; min-height:2.5rem; border:0; border-radius:8px; background:rgba(255,255,255,.08); }
+      .fm-stepper-input { width:8ch; text-align:center; background:transparent; border:0; color:inherit; }
+    }
+
     @keyframes slideInLeft{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
     @keyframes slideInRight{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
     #fmStepContainer.anim-left{animation:slideInLeft .25s ease-out both}
@@ -143,10 +168,12 @@
         <div id="fmDots"></div>
         <h3 id="fmTitle"></h3>
       </div>
-      <div id="fmStepContainer"></div>
-      <div class="wizard-controls">
-        <button id="fmBack">Back</button>
-        <button id="fmNext">Next</button>
+      <div class="wizard-body">
+        <div id="fmStepContainer"></div>
+      </div>
+      <div class="wizard-footer">
+        <button class="btn-secondary wizard-back" id="fmBack">Back</button>
+        <button class="btn-primary wizard-next" id="fmNext">Next</button>
       </div>
     </div>
   </div>
