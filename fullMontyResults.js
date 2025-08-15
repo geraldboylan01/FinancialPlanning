@@ -227,17 +227,17 @@ function drawCharts() {
   const d = lastFYOutput._inputs || {}; // we stash this below in the FY handler
   const now = new Date();
   const curAge = d.dob ? yrDiff(new Date(d.dob), now) : null;
-  const yrsToRet = (d.retireAge ?? 0) - (curAge ?? 0);
+  const yrsToRet = Math.max(0, (d.retireAge ?? 0) - (curAge ?? 0));
   const spendBase = (d.grossIncome || 0) * ((d.incomePercent || 0) / 100);
-  const spendAtRet = spendBase * Math.pow(1 + CPI, Math.max(0, yrsToRet));
-  const rentAtRet  = (d.rentalIncomeNow || d.rentalIncome || 0) * Math.pow(1 + CPI, Math.max(0, yrsToRet));
+  const spendAtRet = spendBase * Math.pow(1 + CPI, yrsToRet);
+  const rentAtRet  = (d.rentalIncomeNow || d.rentalIncome || 0) * Math.pow(1 + CPI, yrsToRet);
   const partnerCurAge = d.partnerDob ? yrDiff(new Date(d.partnerDob), now) : null;
-  const partnerAgeAtRet = (partnerCurAge != null) ? (partnerCurAge + Math.max(0, yrsToRet)) : null;
+  const partnerAgeAtRet = (partnerCurAge != null) ? (partnerCurAge + yrsToRet) : null;
 
   // Sim paths: FY pot (requiredPot) vs projected accumulation pot
   const retireAge = +d.retireAge || (lastPensionOutput?.balances?.[0]?.age ?? 65);
   const endAge = 100;
-  const growthRate = +d.growthRate || (lastPensionOutput?.growth || 0.05);
+  const growthRate = Number.isFinite(+d.growthRate) ? +d.growthRate : (lastPensionOutput?.growth ?? 0.05);
 
   const simFY = simulateDrawdown({
     startPot: Math.max(0, lastFYOutput.requiredPot || 0),
@@ -271,6 +271,21 @@ function drawCharts() {
     growthRate
   });
 
+  const depletionIndex = simProj.depleteAge
+    ? simProj.ages.findIndex(a => a === simProj.depleteAge)
+    : -1;
+
+  const depletionDataset = (depletionIndex > 0) ? {
+    type: 'line',
+    label: `Projected pot depletes @ age ${simProj.depleteAge}`,
+    data: simProj.ages.map((_, i) => i === depletionIndex ? simProj.balances[i] : null),
+    borderColor: '#ff4d4d',
+    backgroundColor: '#ff4d4d',
+    pointRadius: 6,
+    pointHoverRadius: 7,
+    showLine: false
+  } : null;
+
   // Balance chart (two lines)
   if (ddBalanceChart) ddBalanceChart.destroy();
   ddBalanceChart = new Chart(balCan, {
@@ -293,7 +308,8 @@ function drawCharts() {
           borderDash: [6,6],
           fill: false,
           tension: 0.28
-        }
+        },
+        ...(depletionDataset ? [depletionDataset] : [])
       ]
     },
     options: {
