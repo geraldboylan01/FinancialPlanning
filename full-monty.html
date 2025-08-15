@@ -217,6 +217,64 @@
     @media (max-width: 900px){
       .kpi-row{ grid-template-columns: 1fr; }
     }
+
+    /* Summary strip */
+    .summary-row{
+      margin: 6px 0 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      background: #232323;
+      border: 1px solid rgba(255,255,255,.08);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+    .summary-row .headline{
+      font-weight: 800;
+      font-size: 1.05rem;
+    }
+    .summary-row.ok{ box-shadow: 0 0 0 3px rgba(0,255,136,.12) inset; }
+    .summary-row.warn{ box-shadow: 0 0 0 3px rgba(255,180,0,.12) inset; }
+    .summary-row.danger{ box-shadow: 0 0 0 3px rgba(255,77,77,.12) inset; }
+    .summary-row .actions{ display:flex; gap:.5rem; }
+    .summary-row .action-btn{
+      background:#2f2f2f;border:1px solid rgba(255,255,255,.14);
+      color:#ddd;border-radius:999px;padding:.45rem .8rem; font-weight:700;
+    }
+
+    /* Controls row + pill switch */
+    .controls-row{ display:flex; align-items:center; gap:12px; margin: 6px 0 8px; }
+
+    .pill-switch{ position:relative; display:inline-flex; align-items:center; cursor:pointer; }
+    .pill-switch input{ display:none; }
+    .pill-switch .track{
+      position:relative; display:inline-flex; align-items:center; gap:10px;
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14);
+      height:36px; border-radius:999px; padding:0 12px 0 42px;
+      color:#ddd; font-weight:700; min-width: 160px;
+    }
+    .pill-switch .thumb{
+      position:absolute; left:6px; top:4px; width:28px; height:28px;
+      border-radius:50%; background:#666; transition: transform .18s ease, background .2s ease;
+    }
+    .pill-switch input:checked + .track{ border-color: rgba(0,255,136,.45); box-shadow: 0 0 0 3px rgba(0,255,136,.18); }
+    .pill-switch input:checked + .track .thumb{ transform: translateX(118px); background:#00ff88; }
+    .pill-switch .label-on, .pill-switch .label-off{ font-size:.95rem; }
+    .pill-switch .label-off{ opacity:.85; }
+    .pill-switch input:checked + .track .label-off{ opacity:0; }
+    .pill-switch input:checked + .track .label-on{ opacity:1; }
+
+    /* Floating “Change My Inputs” button */
+    .floating-edit{
+      position: fixed; right: 22px; bottom: 22px; z-index: 20;
+      background:#00a86b; color:#fff; border:0; border-radius:999px;
+      padding:.9rem 1.1rem; font-weight:800; box-shadow: 0 10px 30px rgba(0,168,107,.35);
+    }
+    .floating-edit:hover{ filter: brightness(1.05); transform: translateY(-1px); }
+
+    /* Short, friendly captions under charts (optional hooks) */
+    .chart-card .caption{ color:#bdbdbd; font-size:.9rem; margin-top:6px; }
   </style>
 </head>
 <body>
@@ -243,6 +301,21 @@
   </div>
   <section id="fullMontyResults" class="fm-results">
     <div class="results-shell">
+      <!-- Top Summary / Actions row -->
+      <div id="resultsSummary" class="summary-row" aria-live="polite"></div>
+
+      <!-- Controls row -->
+      <div class="controls-row">
+        <label class="pill-switch" title="Show projection if you made the maximum personal contributions allowed by age band">
+          <input id="maxContribToggle" type="checkbox" />
+          <span class="track">
+            <span class="thumb"></span>
+            <span class="label-on">Max contribs</span>
+            <span class="label-off">Max contribs</span>
+          </span>
+        </label>
+      </div>
+
       <div id="kpis" class="kpi-row"></div>
 
       <div class="chart-grid">
@@ -254,6 +327,8 @@
         <div class="chart-card"><canvas id="ddCashflowChart"></canvas></div>
       </div>
     </div>
+
+    <button id="editPlanBtn" class="floating-edit">Change My Inputs</button>
   </section>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.js"></script>
