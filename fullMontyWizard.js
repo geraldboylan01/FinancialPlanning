@@ -752,7 +752,7 @@ function next() {
     cur++;
     render();
   } else {
-    closeModal();
+    runAll();   // fire both calcs; runAll() already closes the modal at the end
   }
 }
 
