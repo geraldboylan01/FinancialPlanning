@@ -1,6 +1,6 @@
 import { drawBanner, getBannerHeight } from './pdfWarningHelpers.js';
 import { numFromInput, clampPercent } from './ui-inputs.js';
-const MAX_SALARY_CAP = 115000;
+import { MAX_SALARY_CAP, sftForYear } from './shared/assumptions.js';
 const AGE_BANDS = [
   { max: 29,  pct: 0.15 },
   { max: 39,  pct: 0.20 },
@@ -10,12 +10,7 @@ const AGE_BANDS = [
   { max: 120, pct: 0.40 }
 ];
 
-  // ─── Standard Fund Threshold schedule ──────────────────────────
-function sftForYear(year) {
-  if (year < 2026) return 2000000;
-  if (year <= 2029) return 2000000 + 200000 * (year - 2025);
-  return 2800000;
-}
+// (sftForYear imported from shared/assumptions.js)
 
 let growthChart = null;
 let contribChart = null;
@@ -558,7 +553,7 @@ if (projValue > sftLimit) {
       }
     }
 
-    function gatherData(value, year, sftText, personalAnnual, employerAnnual, maxValue) {
+function gatherData(value, year, sftText, personalAnnual, employerAnnual, maxValue) {
       const inputs = {
         salary: numFromInput(document.getElementById('salary')) || 0,
         currentValue: numFromInput(document.getElementById('currentValue')) || 0,
@@ -576,7 +571,8 @@ if (projValue > sftLimit) {
         personalAnnual,
         employerAnnual,
         maxProjectedValue: maxValue,
-        sftMessage: sftText
+        sftMessage: sftText,
+        fyRequired: null
       };
       return { inputs, outputs, assumptions: ASSUMPTIONS_TABLE };
     }
@@ -743,6 +739,8 @@ function generatePDF() {
     ['Retirement year', latestRun.outputs.retirementYear]
   ];
   if(latestRun.outputs.sftMessage) metrics.push(['SFT warning', latestRun.outputs.sftMessage]);
+  metrics.push(['FY Target (€)', latestRun.outputs.fyRequired ? fmtEuro(latestRun.outputs.fyRequired) : 'No extra capital required']);
+  metrics.push(['Gap vs FY (€)', fmtEuro((latestRun.outputs.projectedValue||0) - (latestRun.outputs.fyRequired||0))]);
   doc.autoTable({ startY:tableEnd, margin:{left:40,right:40+colW+columnGap}, head:[['Metric','Value']],
     body:metrics,
     headStyles:{ fillColor:ACCENT_CYAN, textColor:'#000' },
@@ -772,7 +770,8 @@ function generatePDF() {
     `employer contributions of ${fmtEuro(latestRun.outputs.employerAnnual)} p.a. `+
     `and an annualised growth rate of ${(latestRun.inputs.growth*100).toFixed(0)}% p.a., `+
     `your pension is projected to reach ${fmtEuro(latestRun.outputs.projectedValue)} `+
-    `at age ${latestRun.inputs.retireAge}.`;
+    `at age ${latestRun.inputs.retireAge}.`+
+    ` Your FY Target at age ${latestRun.inputs.retireAge} is ${fmtEuro(latestRun.outputs.fyRequired || 0)}; your projected pot is ${fmtEuro(latestRun.outputs.projectedValue)}, indicating a ${((latestRun.outputs.projectedValue - (latestRun.outputs.fyRequired||0)) >= 0 ? 'surplus' : 'shortfall')} of ${fmtEuro(Math.abs((latestRun.outputs.projectedValue||0) - (latestRun.outputs.fyRequired||0)))}.`;
   const maxSummary =
     `If all else stays the same but you were to make the maximum personal contributions `+
     `each year prior to retirement based on your salary of ${fmtEuro(latestRun.inputs.salary)}, `+
@@ -820,4 +819,75 @@ function generatePDF() {
   const pdfUrl=doc.output('bloburl');
   import('./consentModal.js').then(m=>m.showConsent(pdfUrl));
 }
+
+// ───────────────────────────────────────────────────────────────
+// Event-driven API for Full Monty flow
+// ----------------------------------------------------------------
+document.addEventListener('fm-run-pension', e => {
+  const d = e.detail || {};
+  const salaryRaw  = +d.salary || 0;
+  const salaryCapped = Math.min(salaryRaw, MAX_SALARY_CAP);
+  const currentPv   = +d.currentValue || 0;
+  const personalRaw = +d.personalContrib || 0;
+  const personalPct = (+d.personalPct || 0) / 100;
+  const employerRaw = +d.employerContrib || 0;
+  const employerPct = (+d.employerPct || 0) / 100;
+  const employerCalc = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
+  const dob         = new Date(d.dob);
+  const curAge      = ageInYears(dob, new Date());
+  const personalCalc  = personalRaw > 0 ? personalRaw : salaryCapped * personalPct;
+  const limitValue    = maxPersonalPct(Math.floor(curAge)) * salaryCapped;
+  const personalUsed  = Math.min(personalCalc, limitValue);
+  const retireAge   = +d.retireAge;
+  const gRate       = +d.growth || 0.05;
+  const yearsToRet  = Math.ceil(retireAge - curAge);
+
+  const balances = [];
+  let bal = currentPv;
+  balances.push({ age: Math.floor(curAge), value: Math.round(bal) });
+  const contribsBase = [0];
+  const growthBase = [0];
+  for (let y = 1; y <= yearsToRet; y++) {
+    const before = bal;
+    bal = bal * (1 + gRate) + personalUsed + employerCalc;
+    contribsBase.push(Math.round(personalUsed + employerCalc));
+    growthBase.push(Math.round(bal - before - (personalUsed + employerCalc)));
+    balances.push({ age: Math.floor(curAge) + y, value: Math.round(bal) });
+  }
+
+  // max contribution scenario
+  let maxBalances = [];
+  let maxBal = currentPv;
+  maxBalances.push({ age: Math.floor(curAge), value: Math.round(maxBal) });
+  const contribsMax = [0];
+  const growthMax = [0];
+  for (let y = 1; y <= yearsToRet; y++) {
+    const ageNext = curAge + y;
+    const personalMax = maxPersonalByAge(ageNext, salaryCapped);
+    const before = maxBal;
+    maxBal = maxBal * (1 + gRate) + personalMax + employerCalc;
+    contribsMax.push(Math.round(personalMax + employerCalc));
+    growthMax.push(Math.round(maxBal - before - (personalMax + employerCalc)));
+    maxBalances.push({ age: Math.floor(ageNext), value: Math.round(maxBal) });
+  }
+
+  const projValue = balances.at(-1).value;
+  const retirementYear = new Date().getFullYear() + Math.ceil(yearsToRet);
+  const sftLimit = sftForYear(retirementYear);
+
+  document.dispatchEvent(new CustomEvent('fm-pension-output', {
+    detail: {
+      balances,
+      projValue,
+      retirementYear,
+      contribsBase,
+      growthBase,
+      sftLimit,
+      showMax: document.getElementById('maxToggle')?.checked || false,
+      maxBalances,
+      contribsMax,
+      growthMax
+    }
+  }));
+});
 

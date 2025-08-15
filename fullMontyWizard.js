@@ -6,6 +6,7 @@
 import { animate, addKeyboardNav } from './wizardCore.js';
 import { currencyInput, percentInput, numFromInput, clampPercent } from './ui-inputs.js';
 import { renderStepPensionRisk, RISK_OPTIONS } from './stepPensionRisk.js';
+import { MAX_SALARY_CAP } from './shared/assumptions.js';
 
 const LS_KEY = 'fullMonty.store.v1';
 const SCHEMA = 1;
@@ -659,6 +660,7 @@ const baseSteps = [
         if (!fullMontyStore.dbPensionPartner) errs.PartnerDbAmt = 'Enter DB amount';
         if (!fullMontyStore.dbStartAgePartner) errs.PartnerDbAge = 'Enter start age';
       }
+      if ((fullMontyStore.rentalIncomeNow ?? 0) < 0) errs.rentalIncomeNow = 'Must be ≥ 0';
       const ok = Object.keys(errs).length === 0;
       return { ok, errors: ok ? {} : errs };
     }
@@ -777,40 +779,40 @@ document.addEventListener('DOMContentLoaded', enhanceInputsForMobile);
 
 
 function runAll() {
-  // dispatch events for external modules
   const pensionArgs = {
-    salary: Math.min(fullMontyStore.grossIncome || 0, 115000),
-    currentValue: fullMontyStore.currentPensionValueSelf,
+    salary: Math.min(fullMontyStore.grossIncome || 0, MAX_SALARY_CAP),
+    currentValue: fullMontyStore.currentPensionValueSelf || 0,
     personalContrib: fullMontyStore.personalContribSelf,
     personalPct: fullMontyStore.personalPctSelf,
     employerContrib: fullMontyStore.employerContribSelf,
     employerPct: fullMontyStore.employerPctSelf,
     dob: fullMontyStore.dobSelf,
     retireAge: Math.max(50, Math.min(70, fullMontyStore.retireAge || 0)),
-    growth: fullMontyStore.pensionGrowthRate,
+    growth: fullMontyStore.pensionGrowthRate || 0.05,
     pensionRisk: fullMontyStore.pensionRisk,
-    sftAwareness: fullMontyStore.sftAwareness,
+    sftAwareness: fullMontyStore.sftAwareness
   };
   document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: pensionArgs }));
 
   const fyArgs = {
-    grossIncome: fullMontyStore.grossIncome,
+    grossIncome: fullMontyStore.grossIncome || 0,
     targetType: 'percent',
-    incomePercent: fullMontyStore.incomePercent,
+    incomePercent: fullMontyStore.incomePercent || 70,
     dob: fullMontyStore.dobSelf,
+    partnerDob: fullMontyStore.dobPartner,
     retireAge: fullMontyStore.retireAge,
-    statePensionSelf: fullMontyStore.statePensionSelf,
-    hasDbSelf: fullMontyStore.hasDbSelf,
-    dbPensionSelf: fullMontyStore.dbPensionSelf,
-    dbStartAgeSelf: fullMontyStore.dbStartAgeSelf,
-    rentalIncomeNow: fullMontyStore.rentalIncomeNow,
-    growthRate: fullMontyStore.pensionGrowthRate,
+    statePensionSelf: !!fullMontyStore.statePensionSelf,
+    hasDbSelf: !!fullMontyStore.hasDbSelf,
+    dbPensionSelf: fullMontyStore.dbPensionSelf || 0,
+    dbStartAgeSelf: fullMontyStore.dbStartAgeSelf || null,
+    rentalIncomeNow: fullMontyStore.rentalIncomeNow || 0,
+    growthRate: fullMontyStore.pensionGrowthRate || 0.05,
     pensionRisk: fullMontyStore.pensionRisk,
-    statePensionPartner: fullMontyStore.statePensionPartner,
-    hasPartner: fullMontyStore.hasPartner,
-    hasDbPartner: fullMontyStore.hasDbPartner,
-    dbPensionPartner: fullMontyStore.dbPensionPartner,
-    dbStartAgePartner: fullMontyStore.dbStartAgePartner,
+    hasPartner: !!fullMontyStore.hasPartner,
+    statePensionPartner: !!fullMontyStore.statePensionPartner,
+    hasDbPartner: !!fullMontyStore.hasDbPartner,
+    dbPensionPartner: fullMontyStore.dbPensionPartner || 0,
+    dbStartAgePartner: fullMontyStore.dbStartAgePartner || null
   };
   document.dispatchEvent(new CustomEvent('fm-run-fy', { detail: fyArgs }));
 
