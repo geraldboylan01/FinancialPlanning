@@ -11,10 +11,27 @@ let contribChart = null;
 let ddBalanceChart = null;
 let ddCashflowChart = null;
 
+let useMax = false; // UI state for “Max contribs” toggle
+
 const $ = (s)=>document.querySelector(s);
 const euro = (n)=>'€' + (Math.round(n||0)).toLocaleString();
 
 console.debug('[FM Results] loaded');
+
+// Toggle behaviour
+document.getElementById('maxContribToggle')?.addEventListener('change', (e) => {
+  useMax = !!e.target.checked;
+  if (lastPensionOutput) {
+    lastPensionOutput.showMax = useMax;
+    tryRender();
+  }
+});
+
+// Sticky “Change My Inputs”
+document.getElementById('editPlanBtn')?.addEventListener('click', () => {
+  document.getElementById('fullMontyModal')?.classList.add('is-open');
+  document.body.classList.add('modal-open');
+});
 
 function renderKPIs({ projValue, balances }, fyRequired) {
   const ageAtRet = balances?.at(-1)?.age ?? '';
@@ -41,6 +58,19 @@ function renderKPIs({ projValue, balances }, fyRequired) {
 // Current age helper (same approach FY uses)
 function yrDiff(d, refDate = new Date()) {
   return (refDate - d) / (1000 * 60 * 60 * 24 * 365.25);
+}
+
+function activeProjection() {
+  if (!lastPensionOutput) return {};
+  const show = !!(useMax || lastPensionOutput.showMax);
+  const labels = (show ? lastPensionOutput.maxBalances : lastPensionOutput.balances) || [];
+  const valueAtRet = labels.at(-1)?.value || 0;
+  return {
+    show,
+    labelsAges: labels.map(b => b.age),
+    balances: labels.map(b => b.value),
+    valueAtRet
+  };
 }
 
 // Build other-income (SP, Rent, DB) at a given age using FY inputs
@@ -116,33 +146,82 @@ function simulateDrawdown({
   return { ages, balances, pensionDraw, otherInc, reqLine, depleteAge };
 }
 
+function renderSummary() {
+  if (!lastFYOutput || !lastPensionOutput) return;
+  const root = document.getElementById('resultsSummary');
+  if (!root) return;
+
+  const ap = activeProjection();
+  const fy = lastFYOutput.requiredPot || 0;
+  const gap = ap.valueAtRet - fy;
+  const cls = gap >= 0 ? 'ok' : (gap < -0.15*(fy||1) ? 'danger' : 'warn');
+
+  const msg = gap >= 0
+    ? `You’re on track. Projected pot is ${euro(ap.valueAtRet)} — about ${euro(Math.abs(gap))} above your FY target.`
+    : `Possible shortfall. Projected pot is ${euro(ap.valueAtRet)} — about ${euro(Math.abs(gap))} below your FY target.`;
+
+  const actions = gap >= 0
+    ? `<button class="action-btn" id="actExplore">Explore “what-if”</button>`
+    : `<button class="action-btn" id="actContrib">Add €200/mo</button>
+       <button class="action-btn" id="actDelay">Delay retirement 1 yr</button>`;
+
+  root.className = `summary-row ${cls}`;
+  root.innerHTML = `
+    <div class="headline">${msg}</div>
+    <div class="actions">${actions}</div>
+  `;
+
+  document.getElementById('actContrib')?.addEventListener('click', () => {
+    document.getElementById('fullMontyModal')?.classList.add('is-open');
+    document.body.classList.add('modal-open');
+  });
+  document.getElementById('actDelay')?.addEventListener('click', () => {
+    document.getElementById('fullMontyModal')?.classList.add('is-open');
+    document.body.classList.add('modal-open');
+  });
+}
+
+function ensureCaptions() {
+  const captions = [
+    { selector: '#growthChart', text: 'Higher curve = more freedom later. Dotted lines show targets/limits.' },
+    { selector: '#contribChart', text: 'Green is money you add. Orange is growth from investing.' },
+    { selector: '#ddBalanceChart', text: 'Aim to stay above €0 until age 100. Purple shows FY pot for comparison.' },
+    { selector: '#ddCashflowChart', text: 'Bars show income sources (green + blue). White line is what you plan to spend.' }
+  ];
+  for (const c of captions) {
+    const card = document.querySelector(c.selector)?.closest('.chart-card');
+    if (!card) continue;
+    if (!card.querySelector('.caption')) {
+      const div = document.createElement('div');
+      div.className = 'caption';
+      div.textContent = c.text;
+      card.appendChild(div);
+    }
+  }
+}
+
 function drawCharts() {
   if (!lastPensionOutput || !lastFYOutput) return;
   const g = $('#growthChart'), c = $('#contribChart');
   if (!g || !c) { console.warn('[FM Results] canvases not found'); return; }
 
-  const { balances, projValue, retirementYear, contribsBase, growthBase, maxBalances, contribsMax, growthMax, sftLimit, showMax } = lastPensionOutput;
+  const { retirementYear, contribsBase, growthBase, contribsMax, growthMax, sftLimit } = lastPensionOutput;
   const fy = lastFYOutput;
-  const labels = balances.map(b => `Age ${b.age}`);
+
+  const ap = activeProjection();
+  const labels = ap.labelsAges.map(a => `Age ${a}`);
+
   const datasets = [
     {
-      label: 'Your Projection',
-      data: balances.map(b => b.value),
-      borderColor: '#00ff88',
-      backgroundColor: 'rgba(0,255,136,0.15)',
+      label: useMax ? 'Max Contribution' : 'Your Projection',
+      data: ap.balances,
+      borderColor: useMax ? '#0099ff' : '#00ff88',
+      backgroundColor: useMax ? 'rgba(0,153,255,0.10)' : 'rgba(0,255,136,0.15)',
       fill: true,
       tension: 0.25
     }
   ];
-  if (showMax && maxBalances) {
-    datasets.push({
-      label: 'Max Contribution',
-      data: maxBalances.map(b => b.value),
-      borderColor: '#0099ff',
-      fill: false,
-      tension: 0.25
-    });
-  }
+
   if (fy.requiredPot && fy.requiredPot > 0) {
     datasets.push({
       label: `FY Target (${euro(fy.requiredPot)})`,
@@ -180,8 +259,8 @@ function drawCharts() {
           callbacks: {
             afterBody: (items) => {
               const idx = items?.[0]?.dataIndex ?? 0;
-              const val = lastPensionOutput?.balances?.[idx]?.value || 0;
-              const gap = lastFYOutput?.requiredPot ? (val - lastFYOutput.requiredPot) : 0;
+              const val = ap.balances?.[idx] || 0;
+              const gap = fy.requiredPot ? (val - fy.requiredPot) : 0;
               return `Gap vs FY: ${euro(gap)}`;
             }
           }
@@ -191,8 +270,8 @@ function drawCharts() {
     }
   });
 
-  const dataC = showMax && contribsMax ? contribsMax : contribsBase;
-  const dataG = showMax && growthMax   ? growthMax   : growthBase;
+  const dataC = useMax ? contribsMax : contribsBase;
+  const dataG = useMax ? growthMax   : growthBase;
 
   if (contribChart) contribChart.destroy();
   contribChart = new Chart(c, {
@@ -200,7 +279,7 @@ function drawCharts() {
     data: {
       labels,
       datasets: [
-        { label:'Contributions', data:dataC, backgroundColor: showMax ? '#0099ff' : '#00ff88', stack:'s1' },
+        { label:'Contributions', data:dataC, backgroundColor: useMax ? '#0099ff' : '#00ff88', stack:'s1' },
         { label:'Investment growth', data:dataG, backgroundColor:'#ff9933', stack:'s1' }
       ]
     },
@@ -217,7 +296,7 @@ function drawCharts() {
     }
   });
 
-  renderKPIs({ projValue, balances }, fy.requiredPot);
+  renderKPIs({ projValue: ap.valueAtRet, balances: (useMax ? lastPensionOutput.maxBalances : lastPensionOutput.balances) }, fy.requiredPot);
 
   // ---------- Retirement-phase (drawdown) charts ----------
   const balCan = document.querySelector('#ddBalanceChart');
@@ -239,6 +318,8 @@ function drawCharts() {
   const endAge = 100;
   const growthRate = Number.isFinite(+d.growthRate) ? +d.growthRate : (lastPensionOutput?.growth ?? 0.05);
 
+  const startPotProj = ap.valueAtRet;
+
   const simFY = simulateDrawdown({
     startPot: Math.max(0, lastFYOutput.requiredPot || 0),
     retireAge, endAge,
@@ -256,7 +337,7 @@ function drawCharts() {
   });
 
   const simProj = simulateDrawdown({
-    startPot: Math.max(0, lastPensionOutput.projValue || 0),
+    startPot: Math.max(0, startPotProj || 0),
     retireAge, endAge,
     spendAtRet, rentAtRet,
     includeSP: !!d.statePensionSelf || !!d.statePension,
@@ -294,10 +375,10 @@ function drawCharts() {
       labels: simProj.ages.map(a => `Age ${a}`),
       datasets: [
         {
-          label: 'Balance (Projected pot)',
+          label: useMax ? 'Balance (Max contribs)' : 'Balance (Projected pot)',
           data: simProj.balances,
-          borderColor: '#00ff88',
-          backgroundColor: 'rgba(0,255,136,0.10)',
+          borderColor: useMax ? '#0099ff' : '#00ff88',
+          backgroundColor: useMax ? 'rgba(0,153,255,0.10)' : 'rgba(0,255,136,0.10)',
           fill: true,
           tension: 0.28
         },
@@ -330,7 +411,7 @@ function drawCharts() {
     data: {
       labels: simProj.ages.map(a => `Age ${a}`),
       datasets: [
-        { label:'Pension withdrawals', data: simProj.pensionDraw, backgroundColor: '#00ff88', stack:'s1' },
+        { label:'Pension withdrawals', data: simProj.pensionDraw, backgroundColor: useMax ? '#0099ff' : '#00ff88', stack:'s1' },
         { label:'Other income (SP / Rent / DB)', data: simProj.otherInc, backgroundColor: '#0099ff', stack:'s1' },
         { type:'line', label:'Total income need', data: simProj.reqLine, borderColor:'#ffffff', borderWidth:2, pointRadius:0, fill:false }
       ]
@@ -348,6 +429,9 @@ function drawCharts() {
     }
   });
 
+  ensureCaptions();
+  renderSummary();
+
   // Optional: console flag for depletion
   if (simProj.depleteAge) {
     console.warn(`[Drawdown] Projected pot depletes at age ${simProj.depleteAge}.`);
@@ -355,7 +439,10 @@ function drawCharts() {
 }
 
 function tryRender() {
-  if (lastPensionOutput && lastFYOutput) drawCharts();
+  if (lastPensionOutput && lastFYOutput) {
+    lastPensionOutput.showMax = !!useMax;
+    drawCharts();
+  }
 }
 
 // Listen for inputs from the wizard:
