@@ -50,8 +50,8 @@ function queueSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveStore,
 
 const storedRiskKey = localStorage.getItem('fm.pensionRiskKey');
 const storedRiskRate = parseFloat(localStorage.getItem('fm.pensionGrowthRate'));
-const defaultRiskKey = storedRiskKey && RISK_OPTIONS[storedRiskKey] ? storedRiskKey : 'balanced';
-const defaultRiskRate = !isNaN(storedRiskRate) ? storedRiskRate : RISK_OPTIONS[defaultRiskKey].rate;
+const defaultRiskKey = storedRiskKey && RISK_OPTIONS[storedRiskKey] ? storedRiskKey : null;
+const defaultRiskRate = !isNaN(storedRiskRate) ? storedRiskRate : null;
 
 const fullMontyStore = {
   // household
@@ -89,19 +89,9 @@ const fullMontyStore = {
   dbStartAgePartner: null,
   statePensionPartner: false,
 
-  // Liabilities (all € balances, with optional % rate)
-  liabilities: {
-    mortgageRental: { balance: 0, rate: 0 },
-    creditCard: { balance: 0, rate: 0 },
-    personalLoan: { balance: 0, rate: 0 },
-    carFinance: { balance: 0, rate: 0 },
-    studentLoan: { balance: 0, rate: 0 },
-    taxOwed: { balance: 0, rate: 0 },
-    otherDebt: { balance: 0, rate: 0 }
-  },
 
   // risk profile
-  pensionRisk: RISK_OPTIONS[defaultRiskKey].label,
+  pensionRisk: defaultRiskKey ? RISK_OPTIONS[defaultRiskKey].label : null,
   pensionRiskKey: defaultRiskKey,
   pensionGrowthRate: defaultRiskRate,
 
@@ -254,72 +244,6 @@ function renderStepGoal(container){
 renderStepGoal.validate = () => {
   const v = getStore().incomePercent;
   return (typeof v === 'number' && v >= 0 && v <= 100) ? { ok:true } : { ok:false, message:'Enter a % between 0 and 100.' };
-};
-function renderStepLiabilities(container){
-  const s = getStore();
-  const D = s.liabilities || (s.liabilities = {
-    mortgageRental:{balance:0,rate:0},
-    creditCard:{balance:0,rate:0}, personalLoan:{balance:0,rate:0},
-    carFinance:{balance:0,rate:0}, studentLoan:{balance:0,rate:0},
-    taxOwed:{balance:0,rate:0}, otherDebt:{balance:0,rate:0}
-  });
-
-  container.innerHTML = '';
-  const form = document.createElement('div'); form.className='form';
-
-  const rows = [
-    ['Mortgage (rental)', 'mortgageRental'],
-    ['Credit cards', 'creditCard'],
-    ['Personal loans', 'personalLoan'],
-    ['Car finance', 'carFinance'],
-    ['Student loan', 'studentLoan'],
-    ['Tax owed', 'taxOwed'],
-    ['Other debt', 'otherDebt']
-  ];
-
-  rows.forEach(([label, key]) => form.appendChild(debtRow(label, key)));
-
-  const help = document.createElement('div'); help.className='help';
-  help.textContent = 'Enter balances. Interest rate is optional; add it if you know it.';
-  form.appendChild(help);
-
-  container.appendChild(form);
-
-  function debtRow(label, key){
-    const grp = document.createElement('div'); grp.className='form-group card-like';
-
-    const title = document.createElement('div'); title.textContent = label;
-    title.style.fontWeight='700'; title.style.marginBottom='.35rem';
-    grp.appendChild(title);
-
-    const balWrap = currencyInput({ id:`debt-${key}-bal`, value: D[key].balance || '', placeholder: label === 'Mortgage (rental)' ? 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).' : '' });
-    const balEl = balWrap.querySelector('input');
-    balEl.addEventListener('input', e => { D[key].balance = Math.max(0, numFromInput(e.target) ?? 0); queueSave(); });
-    const balGroup = formGroup(`debt-${key}-bal`, label === 'Mortgage (rental)' ? 'Remaining mortgage balance (€)' : 'Balance (€)', balWrap);
-    if (label === 'Mortgage (rental)') {
-      const h = document.createElement('div');
-      h.className = 'help';
-      h.textContent = 'Please enter the remaining mortgage balance on this property (i.e., the amount you still owe today, not the original loan amount).';
-      balGroup.appendChild(h);
-    }
-    grp.appendChild(balGroup);
-
-    const rateWrap = percentInput({ id:`debt-${key}-rate`, value: D[key].rate || '' });
-    const rateEl = rateWrap.querySelector('input');
-    rateEl.addEventListener('input', e => { D[key].rate = clampPercent(numFromInput(e.target) ?? 0); queueSave(); });
-    grp.appendChild(formGroup(`debt-${key}-rate`, 'Interest rate (%)', rateWrap));
-
-    return grp;
-  }
-}
-renderStepLiabilities.validate = () => {
-  const D = getStore().liabilities;
-  Object.values(D).forEach(d => {
-    d.balance = Math.max(0, +d.balance || 0);
-    d.rate = clampPercent(+d.rate || 0);
-  });
-  setStore({ liabilities: D });
-  return { ok:true };
 };
 
 // Step engine
@@ -615,15 +539,18 @@ const baseSteps = [
   },
 
   {
-    id: 'debts',
-    title: 'Loans & other debts',
-    render: renderStepLiabilities,
-    validate: renderStepLiabilities.validate
-  },
-  {
     id: 'pensionRisk',
     title: 'Select an investment-growth (risk) profile for your pension',
-    render(cont){ renderStepPensionRisk(cont, fullMontyStore, setStore, btnNext); },
+    render(cont){
+      cont.innerHTML = '';
+      const helper = document.createElement('p');
+      helper.textContent = 'We use this to project how your pension could grow over time. It\u2019s a long-term assumption, not a guarantee\u2014you can change it later.';
+      cont.appendChild(helper);
+      const sel = document.createElement('div');
+      sel.id = 'risk-selection';
+      cont.appendChild(sel);
+      renderStepPensionRisk(sel, fullMontyStore, setStore, btnNext);
+    },
     validate(){ return renderStepPensionRisk.validate(); }
   }
 ];
