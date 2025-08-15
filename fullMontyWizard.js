@@ -8,6 +8,9 @@ import { currencyInput, percentInput, numFromInput, clampPercent } from './ui-in
 import { renderStepPensionRisk, RISK_OPTIONS } from './stepPensionRisk.js';
 import { MAX_SALARY_CAP } from './shared/assumptions.js';
 
+// Temporary debug flag: set true to emit fake pension output without engine
+const FM_DEBUG_FAKE_PENSION_OUTPUT = false;
+
 const LS_KEY = 'fullMonty.store.v1';
 const SCHEMA = 1;
 
@@ -793,6 +796,31 @@ function runAll() {
     sftAwareness: fullMontyStore.sftAwareness
   };
   document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: pensionArgs }));
+
+  if (FM_DEBUG_FAKE_PENSION_OUTPUT) {
+    const ageNow = (fullMontyStore.dobSelf
+      ? Math.floor((Date.now() - new Date(fullMontyStore.dobSelf)) / (365.25*24*3600*1000))
+      : 40);
+    const ageRet = Math.max(50, Math.min(70, fullMontyStore.retireAge || 65));
+    const years = Math.max(1, ageRet - ageNow);
+    const start = fullMontyStore.currentPensionValueSelf || 0;
+    const g = fullMontyStore.pensionGrowthRate ?? 0.05;
+    const balances = Array.from({ length: years + 1 }, (_, i) => ({
+      age: ageNow + i,
+      value: start * Math.pow(1 + g, i)
+    }));
+    document.dispatchEvent(new CustomEvent('fm-pension-output', {
+      detail: {
+        balances,
+        projValue: balances.at(-1).value,
+        retirementYear: new Date().getFullYear() + years,
+        contribsBase: Array(balances.length).fill(0),
+        growthBase: Array(balances.length).fill(0),
+        sftLimit: undefined,
+        showMax: false
+      }
+    }));
+  }
 
   const fyArgs = {
     grossIncome: fullMontyStore.grossIncome || 0,
