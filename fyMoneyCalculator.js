@@ -1,9 +1,7 @@
 import { drawBanner, getBannerHeight } from './pdfWarningHelpers.js';
 import { numFromInput, clampPercent } from './ui-inputs.js';
+import { CPI, STATE_PENSION, SP_START, sftForYear } from './shared/assumptions.js';
 const setHTML = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
-const CPI = 0.023;
-const STATE_PENSION = 15044;
-const SP_START = 66;
 let balanceChart = null;
 let cashflowChart = null;
 let latestRun = null;
@@ -44,12 +42,7 @@ if (e.target.id === 'sftModal')
   document.getElementById('sftModal').style.display = 'none';
 };
 
-// ─── Standard Fund Threshold schedule ────────────────
-function sftForYear(year) {
-if (year < 2026) return 2000000;
-if (year <= 2029) return 2000000 + 200000 * (year - 2025);
-return 2800000; // 2030 onward
-}
+// (sftForYear imported from shared/assumptions.js)
 
 function yrDiff(d, ref) {
 return (ref - d) / (1000 * 60 * 60 * 24 * 365.25);
@@ -559,7 +552,9 @@ const inputs = {
 const outputs = {
   requiredPot: requiredPot,
   retirementYear: retirementYear,
-  sftMessage: sftText
+  sftMessage: sftText,
+  fyRequired: requiredPot,
+  projectedValue: 0
 };
 
 return { inputs, outputs, assumptions: ASSUMPTIONS_TABLE_CONSTANT };
@@ -753,6 +748,8 @@ const metrics = [
 ];
 if (latestRun.outputs.sftMessage)
   metrics.push(['SFT warning', latestRun.outputs.sftMessage]);
+metrics.push(['FY Target (€)', latestRun.outputs.fyRequired ? fmtEuro(latestRun.outputs.fyRequired) : 'No extra capital required']);
+metrics.push(['Gap vs FY (€)', fmtEuro((latestRun.outputs.projectedValue||0) - (latestRun.outputs.fyRequired||0))]);
 
 doc.autoTable({
   startY: tableEnd,
@@ -828,6 +825,7 @@ doc.addImage(
     `${latestRun.inputs.retireAge}. `+
     `This projection assumes an annual investment growth rate of `+
     `${(latestRun.inputs.growthRate*100).toFixed(0)}%.`;
+  summaryText += ` Your FY Target at age ${latestRun.inputs.retireAge} is ${fmtEuro(latestRun.outputs.fyRequired)}; your projected pot is ${fmtEuro(latestRun.outputs.projectedValue)}, indicating a ${((latestRun.outputs.projectedValue - latestRun.outputs.fyRequired) >= 0 ? 'surplus' : 'shortfall')} of ${fmtEuro(Math.abs((latestRun.outputs.projectedValue||0) - (latestRun.outputs.fyRequired||0)))}.`;
 
   const sftLimitSinglePdf = sftForYear(latestRun.outputs.retirementYear);
   const sftLimitCombinedPdf = latestRun.inputs.partnerStatePension ?
