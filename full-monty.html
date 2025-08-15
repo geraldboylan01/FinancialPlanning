@@ -123,6 +123,44 @@
     /* Slightly tighter spacing for the conditional rent input */
     .form-group.condensed label{ margin-bottom: .25rem; }
 
+    /* Pill toggles */
+    .pill-row{display:flex;flex-wrap:wrap;gap:.6rem;margin:.2rem 0 0}
+    .pill-toggle{
+      appearance:none;border:1px solid var(--surface-4);background:var(--surface-3);
+      color:var(--text-2);padding:.55rem .8rem;border-radius:999px;display:inline-flex;
+      align-items:center;gap:.5rem;cursor:pointer;transition:.15s transform,.2s box-shadow,.2s border-color;
+    }
+    .pill-toggle .dot{width:.6rem;height:.6rem;border-radius:50%;background:#666}
+    .pill-toggle.is-on{border-color:rgba(0,255,136,.35);background:rgba(0,255,136,.12);color:#00ff88}
+    .pill-toggle.is-on .dot{background:#00ff88}
+    .pill-toggle:active{transform:translateY(1px)}
+
+    /* Income cards */
+    .income-card{
+      background:#2b2b2b;border:1px solid rgba(255,255,255,.08);
+      border-radius:14px;overflow:hidden;margin-top:.75rem
+    }
+    .ic-head{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:#262626}
+    .ic-title{font-weight:800}
+    .ic-actions .ic-toggle{
+      background:transparent;border:1px solid rgba(255,255,255,.14);
+      color:#ddd;border-radius:999px;padding:.35rem .7rem;cursor:pointer
+    }
+    .ic-body{
+      display:grid;gap:.8rem;padding:1rem;max-height:0;opacity:0;
+      transition:max-height .25s ease, opacity .2s ease
+    }
+    .income-card.open .ic-body{max-height:600px;opacity:1}
+
+    /* Inputs inside cards align nicely */
+    .income-card .form-group label{margin-bottom:.35rem}
+
+    /* Keep it comfy on small screens */
+    @media (max-width: 480px){
+      .pill-row{gap:.45rem}
+      .ic-body{padding:.8rem}
+    }
+
     @media (max-width: 768px) {
       .fm-range { display:none; }
       .fm-stepper { display:inline-flex; align-items:center; gap:.5rem; background:var(--field-bg, #404040); color:var(--field-ink, #fff); border-radius:10px; padding:.5rem .5rem; }

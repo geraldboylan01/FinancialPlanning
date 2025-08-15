@@ -88,6 +88,8 @@ const fullMontyStore = {
   dbPensionPartner: null,
   dbStartAgePartner: null,
   statePensionPartner: false,
+  // other income
+  rentalIncomeNow: 0,
 
 
   // risk profile
@@ -495,28 +497,6 @@ const baseSteps = [
         });
         wrap.appendChild(formGroup(`${prefix}Emp€`, 'Employer contribution', ec));
         wrap.appendChild(formGroup(`${prefix}Emp%`, '…or % of salary', ep));
-
-        const db = controlGroup(`${prefix}HasDb`, 'Defined benefit pension?', fullMontyStore[`hasDb${labelPrefix}`]);
-        db.input.addEventListener('change', () => { setStore({ [`hasDb${labelPrefix}`]: db.input.checked }); render(); });
-        wrap.appendChild(db.group);
-
-        if (fullMontyStore[`hasDb${labelPrefix}`]) {
-          const dbAmt = currencyInput({ id: `${prefix}DbAmt`, value: fullMontyStore[`dbPension${labelPrefix}`] ?? '' });
-          dbAmt.querySelector('input').addEventListener('input', () => setStore({ [`dbPension${labelPrefix}`]: numFromInput(dbAmt.querySelector('input')) }));
-          wrap.appendChild(formGroup(`${prefix}DbAmt`, 'DB annual amount', dbAmt));
-
-          const dbAge = document.createElement('input');
-          dbAge.type = 'number';
-          dbAge.min = 50; dbAge.max = 100; dbAge.id = `${prefix}DbAge`;
-          if (fullMontyStore[`dbStartAge${labelPrefix}`]) dbAge.value = fullMontyStore[`dbStartAge${labelPrefix}`];
-          dbAge.addEventListener('input', () => setStore({ [`dbStartAge${labelPrefix}`]: numFromInput(dbAge) }));
-          wrap.appendChild(formGroup(`${prefix}DbAge`, 'DB pension start age', dbAge));
-        }
-
-        const sp = controlGroup(`${prefix}State`, 'Qualifies for State Pension?', fullMontyStore[`statePension${labelPrefix}`]);
-        sp.input.addEventListener('change', () => setStore({ [`statePension${labelPrefix}`]: sp.input.checked }));
-        wrap.appendChild(sp.group);
-
         return wrap;
       }
 
@@ -524,17 +504,163 @@ const baseSteps = [
       if (fullMontyStore.hasPartner) form.appendChild(personBlock('partner', 'Partner'));
       cont.appendChild(form);
     },
-    validate() {
+    validate() { return { ok: true, errors: {} }; }
+  },
+
+  {
+    id: 'otherIncome',
+    title: 'Other income at / after retirement',
+    render(cont){
+      cont.innerHTML = '';
+      const form = document.createElement('div');
+      form.className = 'form';
+
+      // ---------- Rental income (simple) ----------
+      const rentWrap = currencyInput({
+        id: 'rentalIncomeNow',
+        value: fullMontyStore.rentalIncomeNow ?? ''
+      });
+      rentWrap.querySelector('input')
+        .addEventListener('input', () => setStore({
+          rentalIncomeNow: numFromInput(rentWrap.querySelector('input')) || 0
+        }));
+      form.appendChild(formGroup('rentalIncomeNow', 'Current annual rental income (if any)', rentWrap));
+
+      // ---------- Pretty toggle helpers ----------
+      const togglePill = (id, label, checked, onChange) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pill-toggle' + (checked ? ' is-on' : '');
+        btn.id = id;
+        btn.innerHTML = `
+        <span class="dot"></span>
+        <span class="txt">${label}</span>
+      `;
+        btn.addEventListener('click', () => {
+          const nowOn = !btn.classList.contains('is-on');
+          btn.classList.toggle('is-on', nowOn);
+          onChange(nowOn);
+        });
+        return btn;
+      };
+
+      const card = (title, bodyEl, initiallyOpen=false) => {
+        const el = document.createElement('div');
+        el.className = 'income-card' + (initiallyOpen ? ' open' : '');
+        el.innerHTML = `
+        <div class="ic-head">
+          <div class="ic-title">${title}</div>
+          <div class="ic-actions"><button type="button" class="ic-toggle" aria-expanded="${initiallyOpen}">Details</button></div>
+        </div>
+        <div class="ic-body"></div>
+      `;
+        el.querySelector('.ic-body').appendChild(bodyEl);
+        el.querySelector('.ic-toggle').addEventListener('click', () => {
+          const open = !el.classList.contains('open');
+          el.classList.toggle('open', open);
+          el.querySelector('.ic-toggle').setAttribute('aria-expanded', String(open));
+        });
+        return el;
+      };
+
+      // ---------- State Pension pills ----------
+      const spRow = document.createElement('div');
+      spRow.className = 'pill-row';
+      const spSelf = togglePill(
+        'spSelf',
+        'You: State Pension',
+        !!fullMontyStore.statePensionSelf,
+        (on) => setStore({ statePensionSelf: on })
+      );
+      spRow.appendChild(spSelf);
+
+      if (fullMontyStore.hasPartner) {
+        const spPartner = togglePill(
+          'spPartner',
+          'Partner: State Pension',
+          !!fullMontyStore.statePensionPartner,
+          (on) => setStore({ statePensionPartner: on })
+        );
+        spRow.appendChild(spPartner);
+      }
+      form.appendChild(spRow);
+
+      const hint = document.createElement('p');
+      hint.className = 'help';
+      hint.textContent = 'We\u2019ll include State Pension from age 66 for each person selected.';
+      form.appendChild(hint);
+
+      // ---------- DB cards (expandable per person) ----------
+      const mkDbBody = (who) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'stack';
+
+        const editor = document.createElement('div');
+
+        const dbPill = togglePill(
+          `${who}DbPill`,
+          'Has a Defined\u2011Benefit pension',
+          !!fullMontyStore[`hasDb${who}`],
+          (on) => {
+            setStore({
+              [`hasDb${who}`]: on,
+              [`dbPension${who}`]: on ? fullMontyStore[`dbPension${who}`] : null,
+              [`dbStartAge${who}`]: on ? fullMontyStore[`dbStartAge${who}`] : null
+            });
+            editor.style.display = on ? '' : 'none';
+          }
+        );
+        wrap.appendChild(dbPill);
+
+        editor.style.display = fullMontyStore[`hasDb${who}`] ? '' : 'none';
+        const amt = currencyInput({
+          id: `${who}DbAmt`,
+          value: fullMontyStore[`dbPension${who}`] ?? ''
+        });
+        amt.querySelector('input').addEventListener('input', () => {
+          setStore({ [`dbPension${who}`]: numFromInput(amt.querySelector('input')) || 0 });
+        });
+
+        const age = document.createElement('input');
+        age.type = 'number'; age.min = 50; age.max = 100; age.id = `${who}DbAge`;
+        if (fullMontyStore[`dbStartAge${who}`] != null) age.value = fullMontyStore[`dbStartAge${who}`];
+        age.addEventListener('input', () => setStore({ [`dbStartAge${who}`]: numFromInput(age) || null }));
+        age.addEventListener('blur', () => {
+          if (!age.value && fullMontyStore.retireAge) {
+            age.value = fullMontyStore.retireAge;
+            setStore({ [`dbStartAge${who}`]: fullMontyStore.retireAge });
+          }
+        });
+
+        editor.appendChild(formGroup(`${who}DbAmt`, 'DB annual amount (€/yr)', amt));
+        editor.appendChild(formGroup(`${who}DbAge`, 'DB pension start age', age));
+        wrap.appendChild(editor);
+
+        return wrap;
+      };
+
+      const dbSelfBody = mkDbBody('Self');
+      form.appendChild(card('Your Defined\u2011Benefit pension', dbSelfBody, !!fullMontyStore.hasDbSelf));
+
+      if (fullMontyStore.hasPartner) {
+        const dbPartnerBody = mkDbBody('Partner');
+        form.appendChild(card('Partner\u2019s Defined\u2011Benefit pension', dbPartnerBody, !!fullMontyStore.hasDbPartner));
+      }
+
+      cont.appendChild(form);
+    },
+    validate(){
       const errs = {};
-      if (fullMontyStore.hasDbSelf && (!fullMontyStore.dbPensionSelf || !fullMontyStore.dbStartAgeSelf)) {
-        if (!fullMontyStore.dbPensionSelf) errs.selfDbAmt = 'This field is required.';
-        if (!fullMontyStore.dbStartAgeSelf) errs.selfDbAge = 'This field is required.';
+      if (fullMontyStore.hasDbSelf) {
+        if (!fullMontyStore.dbPensionSelf) errs.SelfDbAmt = 'Enter DB amount';
+        if (!fullMontyStore.dbStartAgeSelf) errs.SelfDbAge = 'Enter start age';
       }
-      if (fullMontyStore.hasPartner && fullMontyStore.hasDbPartner && (!fullMontyStore.dbPensionPartner || !fullMontyStore.dbStartAgePartner)) {
-        if (!fullMontyStore.dbPensionPartner) errs.partnerDbAmt = 'This field is required.';
-        if (!fullMontyStore.dbStartAgePartner) errs.partnerDbAge = 'This field is required.';
+      if (fullMontyStore.hasPartner && fullMontyStore.hasDbPartner) {
+        if (!fullMontyStore.dbPensionPartner) errs.PartnerDbAmt = 'Enter DB amount';
+        if (!fullMontyStore.dbStartAgePartner) errs.PartnerDbAge = 'Enter start age';
       }
-      return { ok: Object.keys(errs).length === 0, errors: errs };
+      const ok = Object.keys(errs).length === 0;
+      return { ok, errors: ok ? {} : errs };
     }
   },
 
@@ -677,7 +803,7 @@ function runAll() {
     hasDbSelf: fullMontyStore.hasDbSelf,
     dbPensionSelf: fullMontyStore.dbPensionSelf,
     dbStartAgeSelf: fullMontyStore.dbStartAgeSelf,
-    rentalIncomeNow: 0,
+    rentalIncomeNow: fullMontyStore.rentalIncomeNow,
     growthRate: fullMontyStore.pensionGrowthRate,
     pensionRisk: fullMontyStore.pensionRisk,
     statePensionPartner: fullMontyStore.statePensionPartner,
