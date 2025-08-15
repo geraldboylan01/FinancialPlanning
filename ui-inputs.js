@@ -22,8 +22,11 @@ export function attachZeroClear(inputEl, { clampPercent: doClamp = false } = {})
 export function currencyInput({ id, value = '', placeholder = '' } = {}){
   const wrap = document.createElement('div'); wrap.className = 'input-wrap prefix';
   const unit = document.createElement('span'); unit.className='unit'; unit.textContent='€';
-  const inp = document.createElement('input'); inp.type='number'; inp.id=id || (globalThis.crypto?.randomUUID?.() || ('id-'+Math.random().toString(36).slice(2)));
-  inp.inputMode='decimal'; inp.placeholder = placeholder || '0';
+  const inp = document.createElement('input'); inp.type='number';
+  inp.id=id || (globalThis.crypto?.randomUUID?.() || ('id-'+Math.random().toString(36).slice(2)));
+  inp.inputMode='decimal';
+  inp.pattern='[0-9]*';
+  inp.placeholder = placeholder || '0';
   if (value !== null && value !== undefined && value !== 0) inp.value = String(value);
   wrap.append(unit, inp);
   attachZeroClear(inp);
@@ -33,8 +36,11 @@ export function currencyInput({ id, value = '', placeholder = '' } = {}){
 export function percentInput({ id, value = '', placeholder = '' } = {}){
   const wrap = document.createElement('div'); wrap.className = 'input-wrap suffix';
   const unit = document.createElement('span'); unit.className='unit'; unit.textContent='%';
-  const inp = document.createElement('input'); inp.type='number'; inp.id=id || (globalThis.crypto?.randomUUID?.() || ('id-'+Math.random().toString(36).slice(2)));
-  inp.inputMode='decimal'; inp.min='0'; inp.max='100'; inp.step='0.1';
+  const inp = document.createElement('input'); inp.type='number';
+  inp.id=id || (globalThis.crypto?.randomUUID?.() || ('id-'+Math.random().toString(36).slice(2)));
+  inp.inputMode='numeric';
+  inp.pattern='[0-9]*';
+  inp.min='0'; inp.max='100'; inp.step='0.1';
   inp.placeholder = placeholder || '0';
   if (value !== null && value !== undefined && value !== 0) inp.value = String(value);
   wrap.append(inp, unit);

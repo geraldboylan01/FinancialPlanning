@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=yes" />
   <title>Planéir – Full Monty</title>
   <link rel="icon" type="image/png" href="favicon.png" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet" />
@@ -24,64 +24,28 @@
     body{font-family:'Inter',sans-serif;background:#1a1a1a;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:1rem;margin:0;}
     body.modal-open{overflow:hidden;}
     button{padding:.5rem .9rem;font-weight:700;font-size:1rem;border:none;border-radius:8px;cursor:pointer;color:#fff;background:#555;margin:.3rem 0;min-height:2.5rem;}
-    .modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:9999;}
-    .modal.hidden{display:none;}
-    #fullMontyModal .wizard-card{display:flex;flex-direction:column;max-width:640px;width:calc(100% - 2rem);border-radius:16px;padding:2rem;background:#2a2a2a;}
-    #fullMontyModal h3{font-weight:600;font-size:1.1rem;color:#fff;}
-    .wiz-header{text-align:center;margin-bottom:1.2rem;}
-    #fmProgress{margin:0 0 .8rem 0;}
+    .fm-wizard.modal{display:none;}
+    .fm-wizard.modal.is-open{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.5);display:flex;align-items:stretch;justify-content:center;}
+    .fm-sheet{position:relative;width:100%;max-width:720px;margin:0 auto;height:100vh;height:100svh;display:flex;flex-direction:column;background:var(--surface,#1b1b1b);}
+    @supports (height: 100dvh){.fm-sheet{height:100dvh;}}
+    .fm-sheet,.fm-header,.fm-footer{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));}
+    .fm-header{padding-top:max(12px,env(safe-area-inset-top));}
+    .fm-footer{padding-bottom:max(12px,env(safe-area-inset-bottom));}
+    .fm-header{position:sticky;top:0;z-index:2;background:var(--surface,#1b1b1b);border-bottom:1px solid rgba(255,255,255,.06);}
+    .fm-footer{position:sticky;bottom:0;z-index:2;background:var(--surface,#1b1b1b);border-top:1px solid rgba(255,255,255,.06);display:flex;gap:.75rem;justify-content:space-between;box-shadow:none;}
+    .fm-body{position:relative;height:calc(100% - var(--fm-header-h,0px) - var(--fm-footer-h,0px));overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scroll-padding-top:calc(var(--fm-header-h,0px) + 12px);padding-top:12px;padding-bottom:12px;}
+    .input-wrap{min-height:48px;}
+    .fm-body .form-row{margin:14px 0;}
+    input,select,textarea{font-size:16px;}
+    .wizard-footer,.wizard-actions,.modal-footer,.footer-wrap,.modal .actions,.modal .footer{background:transparent;box-shadow:none;border:0;}
+    .fm-section{scroll-margin-top:calc(var(--fm-header-h,0px) + 12px);}
+    #fmProgress{margin:0 0 .8rem 0;font-weight:600;font-size:1.1rem;text-align:center;color:#fff;}
     #fmProgressBar{height:6px;background:#ddd;border-radius:3px;margin:0 24px 12px;}
     #fmProgressFill{height:100%;width:0;background:var(--accent);border-radius:3px;transition:width .25s ease;}
     #fmDots{display:flex;justify-content:center;gap:8px;}
-    #fmTitle{
-      margin:.25rem 0 0;
-      font-weight:800;
-      font-size:1.05rem;
-      color:#fff;
-      text-align:center;
-    }
-    .btn-list-add{
-      display:flex;justify-content:center;align-items:center;width:100%;
-      background:#555;color:#fff;font-weight:700;border-radius:12px;
-      padding:.9rem 1rem;cursor:pointer;border:none;
-      transition:transform .2s,box-shadow .2s,filter .2s;
-    }
-    .btn-list-add:hover, .btn-list-add:focus-visible{
-      transform:translateY(-1px);
-      box-shadow:0 0 16px rgba(255,255,255,.08);
-      outline:2px solid transparent;
-    }
-    .wizard-body{
-      max-height:80vh;
-      overflow-y:auto;
-      -webkit-overflow-scrolling:touch;
-      overscroll-behavior:contain;
-      padding-right:.25rem;
-      padding-bottom:5rem;
-    }
-    .wizard-footer,
-    .wizard-actions,
-    .modal-footer{
-      position:sticky;
-      bottom:0;
-      display:flex;
-      justify-content:space-between;
-      gap:.75rem;
-      background:transparent;
-      border-top:0;
-      box-shadow:none;
-      padding:.75rem 1rem;
-      padding-bottom:max(.75rem,env(safe-area-inset-bottom));
-      z-index:2;
-    }
-    .wizard-footer-wrap,
-    .modal .actions,
-    .modal .footer,
-    .modal .footer-wrap{
-      background:transparent!important;
-      border:0!important;
-      box-shadow:none!important;
-    }
+    #fmTitle{margin:.25rem 0 0;font-weight:800;font-size:1.05rem;color:#fff;text-align:center;}
+    .btn-list-add{display:flex;justify-content:center;align-items:center;width:100%;background:#555;color:#fff;font-weight:700;border-radius:12px;padding:.9rem 1rem;cursor:pointer;border:none;transition:transform .2s,box-shadow .2s,filter .2s;}
+    .btn-list-add:hover, .btn-list-add:focus-visible{transform:translateY(-1px);box-shadow:0 0 16px rgba(255,255,255,.08);outline:2px solid transparent;}
     .form{display:flex;flex-direction:column;gap:1rem;}
     .form-group{margin-bottom:1rem;}
     .form-2col{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
@@ -173,21 +137,25 @@
   </style>
 </head>
 <body>
-  <div id="fullMontyModal" class="modal hidden">
-    <div class="wizard-card">
-      <div class="wiz-header">
-        <h3 id="fmProgress"></h3>
-        <div id="fmProgressBar"><div id="fmProgressFill"></div></div>
-        <div id="fmDots"></div>
-        <h3 id="fmTitle"></h3>
-      </div>
-      <div class="wizard-body">
+  <div id="fullMontyModal" class="fm-wizard modal" role="dialog" aria-modal="true">
+    <div class="fm-sheet">
+      <header class="fm-header">
+        <div class="fm-step-title" id="fmProgress"></div>
+        <div class="fm-progress">
+          <div id="fmProgressBar"><div id="fmProgressFill"></div></div>
+          <div id="fmDots"></div>
+        </div>
+        <h2 class="fm-page-title" id="fmTitle"></h2>
+      </header>
+
+      <main class="fm-body" id="fmBody" tabindex="-1">
         <div id="fmStepContainer"></div>
-      </div>
-      <div class="wizard-footer">
-        <button class="btn-secondary wizard-back" id="fmBack">Back</button>
-        <button class="btn-primary wizard-next" id="fmNext">Next</button>
-      </div>
+      </main>
+
+      <footer class="fm-footer">
+        <button class="btn-secondary fm-back" id="fmBack">Back</button>
+        <button class="btn-primary fm-next" id="fmNext">Next</button>
+      </footer>
     </div>
   </div>
   <script type="module" src="./fullMontyWizard.js"></script>
