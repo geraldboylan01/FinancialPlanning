@@ -13,7 +13,7 @@ export function animate(stepContainer,dir){
 
 export function addKeyboardNav(modal,{back,next,close,getCur,getTotal}){
   function handler(e){
-    if(modal.classList.contains('hidden')) return;
+    if(!modal.classList.contains('is-open')) return;
     if(['ArrowLeft','ArrowRight','Escape'].includes(e.key)) e.preventDefault();
     if(e.key==='ArrowLeft' && getCur()>0) back();
     else if(e.key==='ArrowRight' && getCur()<getTotal()-1) next();

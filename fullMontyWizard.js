@@ -804,7 +804,7 @@ function renderStepProperties(container){
   const R = s.rentProps || (s.rentProps = []);
 
   container.innerHTML = `\
-<section id="propertiesStep" data-step="properties">\
+<section id="propertiesStep" data-step="properties" class="fm-section">\
   <!-- FAMILY HOME (single, always visible) -->\
   <div id="familyHomeSection" class="subsection">\
     <h3>Properties</h3>\
@@ -812,9 +812,9 @@ function renderStepProperties(container){
       <label class="field-label">Property name</label>\
       <input class="text-input" name="fh_name" placeholder="e.g., Dublin Apartment" />\
       <label class="field-label">Value (€)</label>\
-      <input class="money-input" name="fh_value" inputmode="decimal" />\
+      <input class="money-input" name="fh_value" inputmode="decimal" pattern="[0-9]*" />\
       <label class="field-label">Remaining mortgage balance (€)</label>\
-      <input class="money-input" name="fh_mortgage" inputmode="decimal" />\
+      <input class="money-input" name="fh_mortgage" inputmode="decimal" pattern="[0-9]*" />\
     </div>\
   </div>\
   <!-- HOLIDAY HOMES (add-many) -->\
@@ -837,9 +837,9 @@ function renderStepProperties(container){
     <label class="field-label">Property name</label>\
     <input class="text-input" name="hh_name[]" placeholder="e.g., Dublin Apartment" />\
     <label class="field-label">Value (€)</label>\
-    <input class="money-input" name="hh_value[]" inputmode="decimal" />\
+    <input class="money-input" name="hh_value[]" inputmode="decimal" pattern="[0-9]*" />\
     <label class="field-label">Remaining mortgage balance (€)</label>\
-    <input class="money-input" name="hh_mortgage[]" inputmode="decimal" />\
+    <input class="money-input" name="hh_mortgage[]" inputmode="decimal" pattern="[0-9]*" />\
   </div>\
 </template>\
 <template id="investmentTpl">\
@@ -847,11 +847,11 @@ function renderStepProperties(container){
     <label class="field-label">Property name</label>\
     <input class="text-input" name="ip_name[]" placeholder="e.g., Dublin Apartment" />\
     <label class="field-label">Value (€)</label>\
-    <input class="money-input" name="ip_value[]" inputmode="decimal" />\
+    <input class="money-input" name="ip_value[]" inputmode="decimal" pattern="[0-9]*" />\
     <label class="field-label">Remaining mortgage balance (€)</label>\
-    <input class="money-input" name="ip_mortgage[]" inputmode="decimal" />\
+    <input class="money-input" name="ip_mortgage[]" inputmode="decimal" pattern="[0-9]*" />\
     <label class="field-label">Gross rent (€ per year)</label>\
-    <input class="money-input" name="ip_rent[]" inputmode="decimal" />\
+    <input class="money-input" name="ip_rent[]" inputmode="decimal" pattern="[0-9]*" />\
   </div>\
 </template>`;
 
@@ -1407,8 +1407,68 @@ let cur = 0;
 let steps = [];
 
 function closeModal() {
-  modal.classList.add('hidden');
+  modal.classList.remove('is-open');
+  if (window.__destroyFmWizardUX) window.__destroyFmWizardUX();
   document.body.classList.remove('modal-open');
+}
+
+function initFmWizardMobileUX(){
+  const sheet  = document.querySelector('.fm-sheet');
+  const header = document.querySelector('.fm-header');
+  const footer = document.querySelector('.fm-footer');
+  const bodyEl = document.querySelector('.fm-body');
+  if(!sheet || !header || !footer || !bodyEl) return;
+
+  const setHeights = () => {
+    const hh = header.getBoundingClientRect().height;
+    const fh = footer.getBoundingClientRect().height;
+    sheet.style.setProperty('--fm-header-h', hh + 'px');
+    sheet.style.setProperty('--fm-footer-h', fh + 'px');
+
+    const vv = window.visualViewport;
+    if (vv) {
+      const usable = vv.height;
+      const maxH = usable - hh - fh;
+      bodyEl.style.maxHeight = Math.max(240, maxH) + 'px';
+    } else {
+      bodyEl.style.maxHeight = `calc(100% - ${hh + fh}px)`;
+    }
+  };
+
+  const rAF = (cb)=>requestAnimationFrame(cb);
+  const scrollFieldIntoView = (el) => rAF(()=> el.scrollIntoView({block:'center', behavior:'smooth'}));
+
+  setHeights();
+  window.addEventListener('resize', setHeights);
+  window.addEventListener('orientationchange', setHeights);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', setHeights);
+    window.visualViewport.addEventListener('scroll', setHeights);
+  }
+
+  const focusHandler = (e)=>{
+    const t = e.target.closest('input, select, textarea, [contenteditable="true"]');
+    if (t) scrollFieldIntoView(t);
+  };
+  bodyEl.addEventListener('focusin', focusHandler);
+
+  const nextBtn = document.querySelector('.fm-next');
+  const nextHandler = ()=>{
+    const firstInvalid = bodyEl.querySelector('.is-invalid, [aria-invalid="true"]');
+    if (firstInvalid) scrollFieldIntoView(firstInvalid);
+  };
+  if (nextBtn) nextBtn.addEventListener('click', nextHandler);
+
+  window.__destroyFmWizardUX = () => {
+    window.removeEventListener('resize', setHeights);
+    window.removeEventListener('orientationchange', setHeights);
+    if (window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', setHeights);
+      window.visualViewport.removeEventListener('scroll', setHeights);
+    }
+    bodyEl.removeEventListener('focusin', focusHandler);
+    if (nextBtn) nextBtn.removeEventListener('click', nextHandler);
+  };
 }
 
 function paintProgress(){
@@ -1711,6 +1771,7 @@ function render() {
   btnBack.style.display = cur === 0 ? 'none' : '';
   btnNext.textContent = cur === steps.length - 1 ? 'Finish' : 'Next';
   focusFirst();
+  window.dispatchEvent(new Event('resize'));
 }
 
 function validateStep(show = false) {
@@ -1874,9 +1935,10 @@ function runAll() {
 
 export function openFullMontyWizard() {
   cur = 0;
-  modal.classList.remove('hidden');
+  modal.classList.add('is-open');
   document.body.classList.add('modal-open');
   render();
+  initFmWizardMobileUX();
 }
 
 export function getFullMontyData() { return getStore(); }
