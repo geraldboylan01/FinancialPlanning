@@ -10,6 +10,8 @@ let contribChart = null;
 const $ = (s)=>document.querySelector(s);
 const euro = (n)=>'€' + (Math.round(n||0)).toLocaleString();
 
+console.debug('[FM Results] loaded');
+
 function renderKPIs({ projValue, balances }, fyRequired) {
   const ageAtRet = balances?.at(-1)?.age ?? '';
   const gap = Math.round((projValue||0) - (fyRequired||0));
@@ -34,6 +36,8 @@ function renderKPIs({ projValue, balances }, fyRequired) {
 
 function drawCharts() {
   if (!lastPensionOutput || !lastFYOutput) return;
+  const g = $('#growthChart'), c = $('#contribChart');
+  if (!g || !c) { console.warn('[FM Results] canvases not found'); return; }
 
   const { balances, projValue, retirementYear, contribsBase, growthBase, maxBalances, contribsMax, growthMax, sftLimit, showMax } = lastPensionOutput;
   const fy = lastFYOutput;
@@ -82,7 +86,7 @@ function drawCharts() {
   });
 
   if (growthChart) growthChart.destroy();
-  growthChart = new Chart($('#growthChart'), {
+  growthChart = new Chart(g, {
     type: 'line',
     data: { labels, datasets },
     options: {
@@ -109,7 +113,7 @@ function drawCharts() {
   const dataG = showMax && growthMax   ? growthMax   : growthBase;
 
   if (contribChart) contribChart.destroy();
-  contribChart = new Chart($('#contribChart'), {
+  contribChart = new Chart(c, {
     type: 'bar',
     data: {
       labels,
@@ -141,12 +145,14 @@ function tryRender() {
 // Listen for inputs from the wizard:
 // 1) Pension engine should dispatch 'fm-pension-output' with computed arrays.
 document.addEventListener('fm-pension-output', (e) => {
+  console.debug('[FM Results] got fm-pension-output', e.detail);
   lastPensionOutput = e.detail;
   tryRender();
 });
 
 // 2) Wizard emits 'fm-run-fy' with raw args; compute FY immediately.
 document.addEventListener('fm-run-fy', (e) => {
+  console.debug('[FM Results] got fm-run-fy', e.detail);
   const d = e.detail;
   const fy = fyRequiredPot({
     grossIncome: d.grossIncome || 0,
