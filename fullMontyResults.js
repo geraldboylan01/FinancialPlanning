@@ -78,6 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     chk.addEventListener('change', () => {
       useMax = chk.checked;
       setMaxToggle(useMax);
+      updateAssumptionChip(useMax);
       note.textContent = useMax
         ? 'Max contributions applied — see the detailed age-band limits below.'
         : '';
@@ -86,8 +87,10 @@ document.addEventListener('DOMContentLoaded', () => {
       renderMaxTable(lastWizard);
     });
     setMaxToggle(chk.checked);
+    updateAssumptionChip(chk.checked);
   } else {
     setMaxToggle(false);
+    updateAssumptionChip(false);
   }
 
   if (btn) {
@@ -576,7 +579,10 @@ document.addEventListener('fm-run-pension', (e) => {
   const d = e.detail || {};
   if (d.dob) lastWizard.dob = d.dob;
   if (d.salary != null) lastWizard.salary = +d.salary;
-  if (d.retireAge != null) lastWizard.retireAge = +d.retireAge;
+  if (d.retireAge != null) {
+    lastWizard.retireAge = +d.retireAge;
+    updateRetirementAgeChips(+d.retireAge);
+  }
   if (d.growth != null) lastWizard.growthRate = +d.growth;
 });
 
@@ -592,6 +598,7 @@ document.addEventListener('fm-run-fy', (e) => {
   console.debug('[FM Results] got fm-run-fy', e.detail);
   const d = e.detail || {};
   lastWizard = { ...lastWizard, dob: d.dob, salary: +d.grossIncome || 0, retireAge: +d.retireAge, growthRate: +d.growthRate };
+  updateRetirementAgeChips(+d.retireAge);
   const fy = fyRequiredPot({
     grossIncome: d.grossIncome || 0,
     incomePercent: d.incomePercent || 0,
