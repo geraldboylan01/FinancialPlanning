@@ -441,6 +441,78 @@
 
     /* Short, friendly captions under charts (optional hooks) */
     /* (deprecated: captions replaced by info tooltips) */
+
+    /* ===== Results phases (containers + headers + chips) ===== */
+    .results-phase {
+      margin: 1rem 0 1.5rem;
+      padding: 1rem;
+      background: #181818;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 16px;
+    }
+
+    .results-phase .phase-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: .75rem;
+      align-items: start;
+      margin-bottom: .75rem;
+    }
+
+    .phase-title {
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.2rem;
+      margin: 0;
+    }
+
+    .phase-subline {
+      color: #cfcfcf;
+      margin: .25rem 0 0;
+      font-size: .95rem;
+      line-height: 1.4;
+    }
+
+    .phase-chips {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      padding: .4rem .7rem;
+      border-radius: 999px;
+      background: #232323;
+      border: 1px solid #00ff88; /* neon green border */
+      color: #eaeaea;
+      font-size: .85rem;
+      white-space: nowrap;
+    }
+
+    /* When max contributions are on, we can accent the assumption chip */
+    .chip--accent {
+      background: #00ff88;
+      color: #08130d; /* legible on neon */
+      border-color: #00ff88;
+    }
+
+    /* Two charts side-by-side on desktop, stacked on mobile */
+    .phase-grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 1000px) {
+      .phase-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* Your existing chart wrappers sit inside the grid */
+    .chart-wrapper { margin: 0; } /* spacing handled by grid now */
   </style>
 </head>
 <body>
@@ -486,94 +558,131 @@
         </button>
       </div>
 
-      <div class="chart-grid">
-        <div class="chart-wrapper" id="chart-pension-value">
-          <div class="chart-header">
-            <h3 class="chart-headline">Will my pension reach my Financial Freedom Target?</h3>
-            <span class="info-icon" tabindex="0" aria-label="Chart information">i</span>
+      <!-- ===== BEFORE RETIREMENT ===== -->
+      <section class="results-phase" id="phase-pre">
+        <div class="phase-head">
+          <div>
+            <h2 class="phase-title">Before retirement — Building your pension</h2>
+            <p class="phase-subline">
+              From today to retirement, see how your pension grows and what drives it (your contributions vs. investment growth).
+            </p>
           </div>
-          <canvas id="growthChart"></canvas>
-          <div class="tooltip-box" role="tooltip">
-            <p class="tooltip-text pv-default">
-              This line shows how your pension could grow over time if you keep contributing as you are.
-            </p>
-            <p class="tooltip-text pv-max" style="display:none;">
-              This line shows how your pension could grow over time if you make the maximum allowable pension contributions based on your salary.
-            </p>
-            <p class="tooltip-text">
-              The purple dotted line is your <strong>Financial Freedom Target</strong> — the amount needed to support your estimated income requirement in retirement all the way to age 100.
-            </p>
-            <p class="tooltip-text">
-              The red line is the government’s pension cap (<strong>Standard Fund Threshold</strong>).
-            </p>
-            <p class="tooltip-text">
-              If your curve rises above the purple line, you’re on track for financial freedom. If it rises above the red line, you may face extra tax rules.
-            </p>
-            <div class="conditional-slot"></div>
+          <div class="phase-chips">
+            <span class="chip">Now → Age <strong id="chipRetAgeA">65</strong></span>
+            <span class="chip" id="chipAssumptionWrap">Assumption: <strong id="chipAssumption">Current contributions</strong></span>
           </div>
         </div>
 
-        <div class="chart-wrapper" id="chart-annual-contrib">
-          <div class="chart-header">
-            <h3 class="chart-headline">How much comes from me vs. my money working for me?</h3>
-            <span class="info-icon" tabindex="0" aria-label="Chart information">i</span>
+        <div class="phase-grid">
+          <!-- MOVE your existing Projected Pension Value block here -->
+          <div class="chart-wrapper" id="chart-pension-value">
+            <div class="chart-header">
+              <h3 class="chart-headline">Will my pension reach my Financial Freedom Target?</h3>
+              <span class="info-icon" tabindex="0" aria-label="Chart information">i</span>
+            </div>
+            <canvas id="growthChart"></canvas>
+            <div class="tooltip-box" role="tooltip">
+              <p class="tooltip-text pv-default">
+                This line shows how your pension could grow over time if you keep contributing as you are.
+              </p>
+              <p class="tooltip-text pv-max" style="display:none;">
+                This line shows how your pension could grow over time if you make the maximum allowable pension contributions based on your salary.
+              </p>
+              <p class="tooltip-text">
+                The purple dotted line is your <strong>Financial Freedom Target</strong> — the amount needed to support your estimated income requirement in retirement all the way to age 100.
+              </p>
+              <p class="tooltip-text">
+                The red line is the government’s pension cap (<strong>Standard Fund Threshold</strong>).
+              </p>
+              <p class="tooltip-text">
+                If your curve rises above the purple line, you’re on track for financial freedom. If it rises above the red line, you may face extra tax rules.
+              </p>
+              <div class="conditional-slot"></div>
+            </div>
           </div>
-          <canvas id="contribChart"></canvas>
-          <div class="tooltip-box" role="tooltip">
-            <p class="tooltip-text ac-default">
-              The green bars are the contributions you make each year. The orange bars show how your money grows once invested.
+
+          <!-- MOVE your existing Annual Contributions & Investment Growth block here -->
+          <div class="chart-wrapper" id="chart-annual-contrib">
+            <div class="chart-header">
+              <h3 class="chart-headline">How much comes from me vs. my money working for me?</h3>
+              <span class="info-icon" tabindex="0" aria-label="Chart information">i</span>
+            </div>
+            <canvas id="contribChart"></canvas>
+            <div class="tooltip-box" role="tooltip">
+              <p class="tooltip-text ac-default">
+                The green bars are the contributions you make each year. The orange bars show how your money grows once invested.
+              </p>
+              <p class="tooltip-text ac-max" style="display:none;">
+                The blue bars are the maximum pension contributions you could make each year. The orange bars show how your money grows once invested.
+              </p>
+              <p class="tooltip-text">
+                This highlights the power of compounding — your money earning money — which becomes a major driver of your pension’s long-term growth.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== DURING RETIREMENT ===== -->
+      <section class="results-phase" id="phase-post">
+        <div class="phase-head">
+          <div>
+            <h2 class="phase-title">During retirement — Staying funded to age 100</h2>
+            <p class="phase-subline">
+              From retirement to age 100, track your pension balance and yearly income against your inflation-adjusted income requirement.
             </p>
-            <p class="tooltip-text ac-max" style="display:none;">
-              The blue bars are the maximum pension contributions you could make each year. The orange bars show how your money grows once invested.
-            </p>
-            <p class="tooltip-text">
-              This highlights the power of compounding — your money earning money — which becomes a major driver of your pension’s long-term growth.
-            </p>
+          </div>
+          <div class="phase-chips">
+            <span class="chip">Age <strong id="chipRetAgeB">65</strong> → <strong>100</strong></span>
           </div>
         </div>
 
-        <div class="chart-wrapper" id="chart-retirement-balance">
-          <div class="chart-header">
-            <h3 class="chart-headline">Will my pension last to age 100?</h3>
-            <span class="info-icon" tabindex="0" aria-label="Chart information">i</span>
+        <div class="phase-grid">
+          <!-- MOVE your existing Projected Balance in Retirement block here -->
+          <div class="chart-wrapper" id="chart-retirement-balance">
+            <div class="chart-header">
+              <h3 class="chart-headline">Will my pension last to age 100?</h3>
+              <span class="info-icon" tabindex="0" aria-label="Chart information">i</span>
+            </div>
+            <canvas id="ddBalanceChart"></canvas>
+            <div class="tooltip-box" role="tooltip">
+              <p class="tooltip-text">
+                This chart shows your projected pension balance throughout retirement.
+              </p>
+              <p class="tooltip-text">
+                The purple dotted line starts at your <strong>Financial Freedom Target</strong> — the amount needed to meet your estimated income requirement until age 100 — and shows how that target would gradually deplete over time.
+              </p>
+              <p class="tooltip-text rb-default">
+                The green curve shows how your pension could perform at retirement if you keep contributing as you are, and how long it might last.
+              </p>
+              <p class="tooltip-text rb-max" style="display:none;">
+                The blue curve shows how your pension could perform at retirement if you make the maximum allowable contributions, and how long it might last.
+              </p>
+              <div class="conditional-slot"></div>
+            </div>
           </div>
-          <canvas id="ddBalanceChart"></canvas>
-          <div class="tooltip-box" role="tooltip">
-            <p class="tooltip-text">
-              This chart shows your projected pension balance throughout retirement.
-            </p>
-            <p class="tooltip-text">
-              The purple dotted line starts at your <strong>Financial Freedom Target</strong> — the amount needed to meet your estimated income requirement until age 100 — and shows how that target would gradually deplete over time.
-            </p>
-            <p class="tooltip-text rb-default">
-              The green curve shows how your pension could perform at retirement if you keep contributing as you are, and how long it might last.
-            </p>
-            <p class="tooltip-text rb-max" style="display:none;">
-              The blue curve shows how your pension could perform at retirement if you make the maximum allowable contributions, and how long it might last.
-            </p>
-            <div class="conditional-slot"></div>
-          </div>
-        </div>
 
-        <div class="chart-wrapper" id="chart-retirement-income">
-          <div class="chart-header">
-            <h3 class="chart-headline">Will my income cover my lifestyle in retirement?</h3>
-            <span class="info-icon" tabindex="0" aria-label="Chart information">i</span>
-          </div>
-          <canvas id="ddCashflowChart"></canvas>
-          <div class="tooltip-box" role="tooltip">
-            <p class="tooltip-text">
-              This chart shows the income you could draw from your pension each year, along with any other retirement income sources (such as State Pension or rental income).
-            </p>
-            <p class="tooltip-text">
-              The line above represents your estimated income requirement in retirement, which gradually rises due to inflation.
-            </p>
-            <p class="tooltip-text">
-              The aim is for your combined income sources to meet or exceed this requirement each year.
-            </p>
+          <!-- MOVE your existing Annual Retirement Income block here -->
+          <div class="chart-wrapper" id="chart-retirement-income">
+            <div class="chart-header">
+              <h3 class="chart-headline">Will my income cover my lifestyle in retirement?</h3>
+              <span class="info-icon" tabindex="0" aria-label="Chart information">i</span>
+            </div>
+            <canvas id="ddCashflowChart"></canvas>
+            <div class="tooltip-box" role="tooltip">
+              <p class="tooltip-text">
+                This chart shows the income you could draw from your pension each year, along with any other retirement income sources (such as State Pension or rental income).
+              </p>
+              <p class="tooltip-text">
+                The line above represents your estimated income requirement in retirement, which gradually rises due to inflation.
+              </p>
+              <p class="tooltip-text">
+                The aim is for your combined income sources to meet or exceed this requirement each year.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Max table section (bottom of page) -->
       <section id="maxTableSection" class="max-table-section" aria-live="polite">
@@ -663,6 +772,29 @@
       };
 
     })();
+  </script>
+
+  <script>
+    // Set the retirement age chips (call once when the age is known)
+    function updateRetirementAgeChips(age){
+      const a = document.getElementById('chipRetAgeA');
+      const b = document.getElementById('chipRetAgeB');
+      if (a) a.textContent = age;
+      if (b) b.textContent = age;
+    }
+
+    // Reflect the contributions toggle in the header chip
+    function updateAssumptionChip(isMaxOn){
+      const chip   = document.getElementById('chipAssumption');
+      const wrap   = document.getElementById('chipAssumptionWrap');
+      if (!chip || !wrap) return;
+      chip.textContent = isMaxOn ? 'Max contributions' : 'Current contributions';
+      wrap.classList.toggle('chip--accent', !!isMaxOn); // neon fill when max is on
+    }
+
+    // EXAMPLES — call these from your existing logic:
+    // updateRetirementAgeChips(store.retirementAge || 65);
+    // updateAssumptionChip(store.maxContribsOn === true);
   </script>
 
   <!-- listener that handles fm-run-pension and emits fm-pension-output -->
