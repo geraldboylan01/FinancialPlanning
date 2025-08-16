@@ -35,30 +35,46 @@ const COLORS = {
 
 // Public: update retirement income chart colors for max-toggle
 function setRetirementIncomeColorsForToggle(isMaxOn) {
-  const chart = retirementIncomeChart;
+  const chart = retirementIncomeChart; // your Chart.js instance
   if (!chart) return;
 
-  const pensionDS = chart.data.datasets.find(d =>
+  const n = chart.data.labels.length;
+
+  const pension = chart.data.datasets.find(d =>
     d.key === 'pension_withdrawals' || /Pension withdrawals/i.test(d.label)
   );
-  const otherDS = chart.data.datasets.find(d =>
+  const other = chart.data.datasets.find(d =>
     d.key === 'other_income' || /Other income/i.test(d.label)
   );
 
-  if (pensionDS) {
+  if (pension) {
     const c = isMaxOn ? COLORS.pensionMax : COLORS.pensionCurrent;
-    pensionDS.backgroundColor = c.fill;
-    pensionDS.borderColor = c.border;
+    const fill = Array(n).fill(c.fill);
+    const border = Array(n).fill(c.border);
+    pension.backgroundColor = fill;
+    pension.borderColor = border;
+    pension.hoverBackgroundColor = fill;
+    pension.hoverBorderColor = border;
   }
 
-  if (otherDS) {
-    otherDS.backgroundColor = COLORS.otherIncome.fill;
-    otherDS.borderColor = COLORS.otherIncome.border;
+  if (other) {
+    const fill = Array(n).fill(COLORS.otherIncome.fill);
+    const border = Array(n).fill(COLORS.otherIncome.border);
+    other.backgroundColor = fill;
+    other.borderColor = border;
+    other.hoverBackgroundColor = fill;
+    other.hoverBorderColor = border;
   }
 
-  chart.update('none');
+  chart.update(); // full re-render so styles apply immediately
 }
 window.setRetirementIncomeColorsForToggle = setRetirementIncomeColorsForToggle;
+
+function onMaxContribsToggleChanged(isOn){
+  setRetirementIncomeColorsForToggle(isOn);
+  if (typeof updateAssumptionChip === 'function') updateAssumptionChip(isOn);
+}
+window.onMaxContribsToggleChanged = onMaxContribsToggleChanged;
 
 function ensureMaxScenario() {
   if (!lastPensionOutput || lastPensionOutput.maxBalances) return; // already present
@@ -113,21 +129,19 @@ document.addEventListener('DOMContentLoaded', () => {
     chk.addEventListener('change', () => {
       useMax = chk.checked;
       setMaxToggle(useMax);
-      updateAssumptionChip(useMax);
       note.textContent = useMax
         ? 'Max contributions applied — see the detailed age-band limits below.'
         : '';
       ensureMaxScenario();
       drawCharts();
-      setRetirementIncomeColorsForToggle(useMax);
+      onMaxContribsToggleChanged(useMax);
       renderMaxTable(lastWizard);
     });
     setMaxToggle(chk.checked);
-    updateAssumptionChip(chk.checked);
-    setRetirementIncomeColorsForToggle(chk.checked);
+    onMaxContribsToggleChanged(chk.checked);
   } else {
     setMaxToggle(false);
-    updateAssumptionChip(false);
+    onMaxContribsToggleChanged(false);
   }
 
   if (btn) {
