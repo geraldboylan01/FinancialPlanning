@@ -250,6 +250,61 @@
     }
     .btn-secondary.small{ padding:.5rem .8rem; font-size:.95rem; }
 
+    /* Floating "Edit inputs" FAB on desktop */
+    .fab-edit{
+      /* base look (used on mobile too) */
+      background: var(--glow, #00ff88);
+      color: #0b1f16;           /* readable on neon green */
+      border: 1px solid rgba(0,255,136,.25);
+      border-radius: 999px;
+      font-weight: 800;
+      padding: .7rem 1rem;
+      box-shadow: 0 8px 24px rgba(0,255,136,.18), 0 0 0 2px rgba(0,255,136,.08) inset;
+      transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+    }
+
+    /* Desktop >= 980px: float to bottom-right and enlarge a bit */
+    @media (min-width: 980px){
+      .fab-edit{
+        position: fixed;
+        right: 28px;
+        bottom: 28px;
+        z-index: 50;          /* above charts */
+        padding: .9rem 1.25rem;
+        font-size: 1rem;
+      }
+    }
+
+    /* Hover/active feedback */
+    .fab-edit:hover{ 
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(0,255,136,.22), 0 0 0 2px rgba(0,255,136,.18) inset;
+      filter: saturate(1.05);
+    }
+    .fab-edit:active{
+      transform: translateY(0);
+      box-shadow: 0 6px 16px rgba(0,255,136,.18), 0 0 0 2px rgba(0,255,136,.18) inset;
+    }
+
+    /* Keep the inline toolbar layout clean on mobile */
+    @media (max-width: 979px){
+      .results-controls{
+        gap: 12px;
+      }
+      .fab-edit.small{
+        /* compact pill on mobile within the row */
+        position: static;
+        margin-left: auto;     /* pushes to the right end of the row */
+      }
+    }
+
+    /* Optional: tidy the toolbar spacing on desktop */
+    @media (min-width: 980px){
+      .results-controls{
+        margin: 10px 0 4px;    /* slimmer row since the FAB is floating */
+      }
+    }
+
     .toggle{
       --h: 44px; --pad: 4px; --knob: 32px;
       position: relative; display:inline-block; height: var(--h);
@@ -348,7 +403,9 @@
           </span>
         </label>
         <div id="maxToggleNote" class="toggle-note" aria-live="polite"></div>
-        <button id="editInputsBtn" class="btn-secondary small">Edit inputs</button>
+        <button id="editInputsBtn" class="btn-primary small fab-edit" aria-label="Edit inputs">
+          Edit inputs
+        </button>
       </div>
 
       <div class="chart-grid">
