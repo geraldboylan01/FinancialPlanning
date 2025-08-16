@@ -19,7 +19,7 @@ const AGE_BANDS = [
   { max: 59,  pct: 0.35 },
   { max: 120, pct: 0.40 }
 ];
-const maxPersonalPct = age => AGE_BANDS.find(b => Math.floor(age) <= b.max).pct;
+const maxPersonalPct   = age => AGE_BANDS.find(b => Math.floor(age) <= b.max)?.pct ?? 0.15;
 const maxPersonalByAge = (age, capSalary) => maxPersonalPct(age) * capSalary;
 
 const $ = (s)=>document.querySelector(s);
@@ -29,23 +29,24 @@ console.debug('[FM Results] loaded');
 
 // Handle the "Use max pension contributions" toggle
 const maxToggleEl = document.querySelector('#useMaxContribs');
-const maxNoteEl   = document.querySelector('#maxContribsNote');
+const maxNoteEl   = document.querySelector('#maxToggleNote');
 
 if (maxToggleEl) {
   maxToggleEl.addEventListener('change', () => {
-    // Flip the flag and redraw
-    if (lastPensionOutput) {
-      lastPensionOutput.showMax = maxToggleEl.checked;
-    }
-    // Gentle, professional inline note
     if (maxToggleEl.checked) {
-      maxNoteEl.textContent =
-        'Max contributions applied — see the detailed age-band limits below.';
+      maxNoteEl.innerHTML =
+        'Max contributions applied — see the detailed age-band limits below. ' +
+        '<a id="viewBreakdown" href="#" style="margin-left:.5rem; font-weight:700; text-decoration:underline;">View breakdown</a>';
     } else {
       maxNoteEl.textContent = '';
     }
     tryRender();
-    renderMaxBreakdownTable(); // ensure the table is visible/updated
+
+    // smooth-scroll to the breakdown if asked
+    document.querySelector('#viewBreakdown')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      document.querySelector('#maxContribsBreakdown')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   });
 }
 
@@ -84,7 +85,7 @@ function yrDiff(d, refDate = new Date()) {
 
 function activeProjection() {
   if (!lastPensionOutput) return {};
-  const show = !!lastPensionOutput.showMax;
+  const show = document.querySelector('#useMaxContribs')?.checked;
   const labels = (show ? lastPensionOutput.maxBalances : lastPensionOutput.balances) || [];
   const valueAtRet = labels.at(-1)?.value || 0;
   return {
@@ -232,18 +233,18 @@ function drawCharts() {
 
   const ap = activeProjection();
   const labels = ap.labelsAges.map(a => `Age ${a}`);
+  const showMax = ap.show;
 
-    const showMax = !!lastPensionOutput.showMax;
-    const datasets = [
-      {
-        label: showMax ? 'Max Contribution' : 'Your Projection',
-        data: ap.balances,
-        borderColor: showMax ? '#0099ff' : '#00ff88',
-        backgroundColor: showMax ? 'rgba(0,153,255,0.10)' : 'rgba(0,255,136,0.15)',
-        fill: true,
-        tension: 0.25
-      }
-    ];
+  const datasets = [
+    {
+      label: showMax ? 'Max Contribution' : 'Your Projection',
+      data: ap.balances,
+      borderColor: showMax ? '#0099ff' : '#00ff88',
+      backgroundColor: showMax ? 'rgba(0,153,255,0.10)' : 'rgba(0,255,136,0.15)',
+      fill: true,
+      tension: 0.25
+    }
+  ];
 
   if (fy.requiredPot && fy.requiredPot > 0) {
     datasets.push({
@@ -293,8 +294,8 @@ function drawCharts() {
     }
   });
 
-    const dataC = showMax ? contribsMax : contribsBase;
-    const dataG = showMax ? growthMax   : growthBase;
+  const dataC = showMax ? contribsMax : contribsBase;
+  const dataG = showMax ? growthMax   : growthBase;
 
   if (contribChart) contribChart.destroy();
   contribChart = new Chart(c, {
@@ -319,7 +320,7 @@ function drawCharts() {
     }
   });
 
-    renderKPIs({ projValue: ap.valueAtRet, balances: (showMax ? lastPensionOutput.maxBalances : lastPensionOutput.balances) }, fy.requiredPot);
+  renderKPIs({ projValue: ap.valueAtRet, balances: showMax ? lastPensionOutput.maxBalances : lastPensionOutput.balances }, fy.requiredPot);
 
   // ---------- Retirement-phase (drawdown) charts ----------
   const balCan = document.querySelector('#ddBalanceChart');
@@ -341,8 +342,6 @@ function drawCharts() {
   const endAge = 100;
   const growthRate = Number.isFinite(+d.growthRate) ? +d.growthRate : (lastPensionOutput?.growth ?? 0.05);
 
-  const startPotProj = ap.valueAtRet;
-
   const simFY = simulateDrawdown({
     startPot: Math.max(0, lastFYOutput.requiredPot || 0),
     retireAge, endAge,
@@ -359,8 +358,13 @@ function drawCharts() {
     growthRate
   });
 
+  const useMax = document.querySelector('#useMaxContribs')?.checked;
+  const projectedPotAtRet = useMax
+    ? (lastPensionOutput?.maxBalances?.at(-1)?.value || lastPensionOutput?.projValue || 0)
+    : (lastPensionOutput?.projValue || 0);
+
   const simProj = simulateDrawdown({
-    startPot: Math.max(0, startPotProj || 0),
+    startPot: Math.max(0, projectedPotAtRet),
     retireAge, endAge,
     spendAtRet, rentAtRet,
     includeSP: !!d.statePensionSelf || !!d.statePension,
@@ -462,53 +466,53 @@ function drawCharts() {
   }
 
 function renderMaxBreakdownTable() {
-  const container = document.querySelector('#maxContribsBreakdown');
-  if (!container) return;
+  const wrap = document.querySelector('#maxContribsBreakdown');
+  if (!wrap) return;
 
-  // Pull inputs the FM wizard sent earlier (you stash them on lastFYOutput._inputs)
+  const on = document.querySelector('#useMaxContribs')?.checked;
+  if (!on) { wrap.hidden = true; wrap.innerHTML = ''; return; }
+
+  // Pull inputs (FY stash first)
   const d = lastFYOutput?._inputs || {};
-  const salary = Math.max(0, +d.salary || 0);
-  const capSalary = Math.min(salary, MAX_SALARY_CAP);
+  const salaryRaw = Number(d.salary) || 0;
+  const capSalary = Math.min(Math.max(0, salaryRaw), MAX_SALARY_CAP || salaryRaw);
 
-  // Need current age (to highlight), reuse yrDiff from this file
+  // Current age for highlight
   const dob = d.dob ? new Date(d.dob) : null;
-  const curAge = dob ? yrDiff(dob) : null;
-  const currentAge = curAge != null ? Math.floor(curAge) : null;
+  const currentAge = dob ? Math.floor(yrDiff(dob, new Date())) : null;
 
-  // Nothing to show if we don’t know salary or age
+  wrap.hidden = false;
+
   if (!capSalary || currentAge == null) {
-    container.hidden = true;
-    container.innerHTML = '';
+    wrap.innerHTML = `
+      <h3>Maximum personal pension contributions by age band</h3>
+      <p class="footnote">We couldn’t determine your age and/or salary. Edit inputs to see a personalised breakdown.</p>
+    `;
     return;
   }
 
-  // Build rows
-  const bandLabels = [
-    'Up to 29', '30–39', '40–49',
-    '50–54', '55–59', '60+'
-  ];
+  const bandLabels = ['Up to 29','30–39','40–49','50–54','55–59','60+'];
   const rows = AGE_BANDS.map((band, i) => {
-    const isCurrent = currentAge <= band.max && (i === 0 || currentAge > AGE_BANDS[i-1].max);
+    const inThisBand = currentAge <= band.max && (i === 0 || currentAge > AGE_BANDS[i-1].max);
     const pct = band.pct;
-    const euro = Math.round(pct * capSalary).toLocaleString();
+    const eur = Math.round(pct * capSalary).toLocaleString();
+
     return `
-      <tr class="${isCurrent ? 'highlight' : ''}">
+      <tr class="${inThisBand ? 'highlight' : ''}">
         <td>${bandLabels[i]}</td>
-        <td>${(pct * 100).toFixed(0)}%</td>
-        <td>€${euro}</td>
-      </tr>
-    `;
+        <td>${(pct*100).toFixed(0)} %</td>
+        <td>€${eur}</td>
+      </tr>`;
   }).join('');
 
-  container.hidden = false;
-  container.innerHTML = `
+  wrap.innerHTML = `
     <h3>Maximum personal pension contributions by age band</h3>
     <div class="table-scroll">
       <table>
         <thead>
           <tr>
             <th>Age band</th>
-            <th>Max % of reckonable salary</th>
+            <th>Max %</th>
             <th>Max € (on €${capSalary.toLocaleString()})</th>
           </tr>
         </thead>
@@ -516,8 +520,9 @@ function renderMaxBreakdownTable() {
       </table>
     </div>
     <p class="footnote">
-      Personal limits apply to the lower of your salary and the Revenue max reckonable salary.
-      Employer contributions are not subject to this cap. Age highlighted = your current band.
+      Note: Your current age (${currentAge}) is highlighted.
+      Personal limits are calculated on a max reckonable salary of €115,000;
+      employer contributions are <strong>not</strong> subject to this cap.
     </p>
   `;
 }
@@ -534,7 +539,6 @@ function tryRender() {
 document.addEventListener('fm-pension-output', (e) => {
   console.debug('[FM Results] got fm-pension-output', e.detail);
   lastPensionOutput = e.detail;
-  lastPensionOutput.showMax = !!maxToggleEl?.checked;
   tryRender();
 });
 
