@@ -516,40 +516,31 @@
 
     /* ===== Max pension toggle spacing fix ===== */
     :root{
-      /* Approx knob diameter in px; tweak if your knob is larger/smaller */
-      --max-toggle-knob: 32px;
-      /* Space between knob edge and text */
-      --max-toggle-gap: 10px;
+      --max-knob: 32px;   /* diameter of the grey/green circle */
+      --max-gap: 10px;    /* space between knob edge and text */
     }
 
-    /* Add left padding so the text always clears the knob when OFF */
     .toggle--max{
-      /* Keep existing styles; only add padding-left */
-      padding-left: calc(var(--max-toggle-knob) + var(--max-toggle-gap) + 6px);
-      min-height: max(36px, var(--max-toggle-knob) + 12px); /* ensures comfortable vertical room */
-      display: flex;
-      align-items: center;
+      --knob: var(--max-knob);
     }
 
-    /* If your text sits inside a <label> or <span>, this ensures it inherits spacing well */
-    .toggle--max .label{
+    /* Pad ONLY the text so it always clears the knob when OFF */
+    .toggle--max .toggle-text{
       display: inline-block;
-      line-height: 1.2;
-      /* No extra margin needed on the left; padding is on the wrapper */
-      margin-left: 0;
+      padding-left: calc(var(--max-knob) + var(--max-gap));
+      white-space: nowrap;
     }
 
-    /* Keep the ON state looking balanced (optional, keeps symmetry when knob is on the right) */
-    .toggle--max.is-on{
-      padding-right: calc(var(--max-toggle-knob) + var(--max-toggle-gap) + 6px);
+    /* Optional: symmetrical look when ON (does not move the pill itself) */
+    .toggle--max input:checked + .track .toggle-text{
+      padding-right: calc(var(--max-knob) + var(--max-gap));
     }
 
-    /* Small-screen refinement if your font scales up */
-    @media (max-width: 420px){
-      .toggle--max{
-        --max-toggle-knob: 34px;   /* slightly larger knob on tiny screens */
-        --max-toggle-gap: 12px;    /* a touch more breathing room */
-      }
+    /* Ensure knob respects configured size and stays click-through */
+    .toggle--max .knob{
+      width: var(--max-knob);
+      height: var(--max-knob);
+      pointer-events: none;
     }
   </style>
 </head>
@@ -586,7 +577,7 @@
         <label class="toggle max-toggle toggle--max" id="maxContribsToggle">
           <input type="checkbox" id="maxContribsChk" />
           <span class="track">
-            <span class="label">Use max pension contributions</span>
+            <span class="label"><span class="toggle-text">Use max pension contributions</span></span>
             <span class="knob"></span>
           </span>
         </label>
