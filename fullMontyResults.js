@@ -25,6 +25,46 @@ const fmtEuro = n => '€' + (Math.round(n||0)).toLocaleString();
 const yrDiff = (d, ref = new Date()) => (ref - d) / (1000*60*60*24*365.25);
 const maxPctForAge = age => AGE_BANDS.find(b => age <= b.max)?.pct ?? 0.15;
 
+function ensureMaxScenario() {
+  if (!lastPensionOutput || lastPensionOutput.maxBalances) return; // already present
+
+  // Need wizard inputs + a starting balance & timeline
+  const salaryRaw   = +lastWizard.salary || +lastWizard.grossIncome || 0;
+  const capSalary   = Math.min(salaryRaw, MAX_SALARY_CAP);
+  const growth      = Number.isFinite(+lastWizard.growthRate) ? +lastWizard.growthRate
+                     : (Number.isFinite(+lastPensionOutput.growth) ? +lastPensionOutput.growth : 0.05);
+
+  // Derive ages/years from existing base series
+  const base = lastPensionOutput.balances || [];
+  if (!base.length) return;
+
+  const startAge   = base[0].age;
+  const endAge     = base.at(-1).age;
+  const yearsToRet = Math.max(0, Math.round(endAge - startAge));
+  let maxBal       = base[0].value;
+
+  const maxBalances = [{ age: startAge, value: Math.round(maxBal) }];
+  const contribsMax = [0];
+  const growthMax   = [0];
+
+  for (let y = 1; y <= yearsToRet; y++) {
+    const ageNext     = startAge + y;
+    const personalMax = maxPctForAge(ageNext) * capSalary;
+    const before      = maxBal;
+    // If you later add employer in FM, add it here:
+    const employer = 0; // Full-Monty flow doesn’t capture employer yet
+    maxBal = maxBal * (1 + growth) + personalMax + employer;
+
+    contribsMax.push(Math.round(personalMax + employer));
+    growthMax.push(Math.round(maxBal - before - (personalMax + employer)));
+    maxBalances.push({ age: ageNext, value: Math.round(maxBal) });
+  }
+
+  lastPensionOutput.maxBalances = maxBalances;
+  lastPensionOutput.contribsMax = contribsMax;
+  lastPensionOutput.growthMax   = growthMax;
+}
+
 const $ = (s)=>document.querySelector(s);
 
 console.debug('[FM Results] loaded');
@@ -40,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
       note.textContent = useMax
         ? 'Max contributions applied — see the detailed age-band limits below.'
         : '';
+      ensureMaxScenario();
       drawCharts();
       renderMaxTable(lastWizard);
     });
@@ -532,6 +573,7 @@ document.addEventListener('fm-run-pension', (e) => {
 document.addEventListener('fm-pension-output', (e) => {
   console.debug('[FM Results] got fm-pension-output', e.detail);
   lastPensionOutput = e.detail;
+  ensureMaxScenario();
   drawCharts();
   renderMaxTable(lastWizard);
 });
@@ -560,6 +602,7 @@ document.addEventListener('fm-run-fy', (e) => {
   });
   fy._inputs = { ...d };
   lastFYOutput = fy;
+  ensureMaxScenario();
   drawCharts();
   renderMaxTable(lastWizard);
 });
