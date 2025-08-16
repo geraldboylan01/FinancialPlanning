@@ -861,6 +861,8 @@ export function openFullMontyWizard() {
 
 export function getFullMontyData() { return getStore(); }
 
+document.addEventListener('fm-open-wizard', openFullMontyWizard);
+
 // Auto-launch if script loaded directly
 if (document.readyState !== 'loading') {
   openFullMontyWizard();
