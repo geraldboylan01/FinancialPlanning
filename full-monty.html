@@ -513,6 +513,44 @@
 
     /* Your existing chart wrappers sit inside the grid */
     .chart-wrapper { margin: 0; } /* spacing handled by grid now */
+
+    /* ===== Max pension toggle spacing fix ===== */
+    :root{
+      /* Approx knob diameter in px; tweak if your knob is larger/smaller */
+      --max-toggle-knob: 32px;
+      /* Space between knob edge and text */
+      --max-toggle-gap: 10px;
+    }
+
+    /* Add left padding so the text always clears the knob when OFF */
+    .toggle--max{
+      /* Keep existing styles; only add padding-left */
+      padding-left: calc(var(--max-toggle-knob) + var(--max-toggle-gap) + 6px);
+      min-height: max(36px, var(--max-toggle-knob) + 12px); /* ensures comfortable vertical room */
+      display: flex;
+      align-items: center;
+    }
+
+    /* If your text sits inside a <label> or <span>, this ensures it inherits spacing well */
+    .toggle--max .label{
+      display: inline-block;
+      line-height: 1.2;
+      /* No extra margin needed on the left; padding is on the wrapper */
+      margin-left: 0;
+    }
+
+    /* Keep the ON state looking balanced (optional, keeps symmetry when knob is on the right) */
+    .toggle--max.is-on{
+      padding-right: calc(var(--max-toggle-knob) + var(--max-toggle-gap) + 6px);
+    }
+
+    /* Small-screen refinement if your font scales up */
+    @media (max-width: 420px){
+      .toggle--max{
+        --max-toggle-knob: 34px;   /* slightly larger knob on tiny screens */
+        --max-toggle-gap: 12px;    /* a touch more breathing room */
+      }
+    }
   </style>
 </head>
 <body>
@@ -545,7 +583,7 @@
       <div id="kpis" class="kpi-row"></div>
 
       <div class="results-controls">
-        <label class="toggle max-toggle" id="maxContribsToggle">
+        <label class="toggle max-toggle toggle--max" id="maxContribsToggle">
           <input type="checkbox" id="maxContribsChk" />
           <span class="track">
             <span class="label">Use max pension contributions</span>
