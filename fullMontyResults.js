@@ -77,6 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (chk) {
     chk.addEventListener('change', () => {
       useMax = chk.checked;
+      setMaxToggle(useMax);
       note.textContent = useMax
         ? 'Max contributions applied — see the detailed age-band limits below.'
         : '';
@@ -84,6 +85,9 @@ document.addEventListener('DOMContentLoaded', () => {
       drawCharts();
       renderMaxTable(lastWizard);
     });
+    setMaxToggle(chk.checked);
+  } else {
+    setMaxToggle(false);
   }
 
   if (btn) {
@@ -236,27 +240,10 @@ function renderSummary() {
   });
 }
 
-function ensureCaptions() {
-  const captions = [
-    { selector: '#growthChart', text: 'Higher curve = more freedom later. Dotted lines show targets/limits.' },
-    { selector: '#contribChart', text: 'Green is money you add. Orange is growth from investing.' },
-    { selector: '#ddBalanceChart', text: 'Aim to stay above €0 until age 100. Purple shows FY pot for comparison.' },
-    { selector: '#ddCashflowChart', text: 'Bars show income sources (green + blue). White line is what you plan to spend.' }
-  ];
-  for (const c of captions) {
-    const card = document.querySelector(c.selector)?.closest('.chart-card');
-    if (!card) continue;
-    if (!card.querySelector('.caption')) {
-      const div = document.createElement('div');
-      div.className = 'caption';
-      div.textContent = c.text;
-      card.appendChild(div);
-    }
-  }
-}
 
 function drawCharts() {
   if (!lastPensionOutput || !lastFYOutput) return;
+  setMaxToggle(useMax);
   const g = $('#growthChart'), c = $('#contribChart');
   if (!g || !c) { console.warn('[FM Results] canvases not found'); return; }
 
@@ -378,7 +365,7 @@ function drawCharts() {
     startPot: Math.max(0, lastFYOutput.requiredPot || 0),
     retireAge, endAge,
     spendAtRet, rentAtRet,
-    includeSP: !!d.statePensionSelf || !!d.statePension,           // tolerate either name
+    includeSP: !!d.statePensionSelf || !!d.statePension,
     includePartnerSP: !!d.statePensionPartner || !!d.partnerStatePension,
     partnerAgeAtRet,
     hasDbSelf: !!d.hasDbSelf || !!d.hasDb,
@@ -390,12 +377,9 @@ function drawCharts() {
     growthRate
   });
 
-  const projectedPotAtRet = useMax && lastPensionOutput.maxBalances
-    ? lastPensionOutput.maxBalances.at(-1).value
-    : lastPensionOutput.projValue;
-
-  const simProj = simulateDrawdown({
-    startPot: Math.max(0, projectedPotAtRet),
+  const projectedPotCur = lastPensionOutput.projValue;
+  const simCur = simulateDrawdown({
+    startPot: Math.max(0, projectedPotCur),
     retireAge, endAge,
     spendAtRet, rentAtRet,
     includeSP: !!d.statePensionSelf || !!d.statePension,
@@ -409,6 +393,28 @@ function drawCharts() {
     dbStartAgePartner: d.dbStartAgePartner ?? Infinity,
     growthRate
   });
+
+  let simMax = null;
+  if (lastPensionOutput.maxBalances) {
+    const projectedPotMax = lastPensionOutput.maxBalances.at(-1).value;
+    simMax = simulateDrawdown({
+      startPot: Math.max(0, projectedPotMax),
+      retireAge, endAge,
+      spendAtRet, rentAtRet,
+      includeSP: !!d.statePensionSelf || !!d.statePension,
+      includePartnerSP: !!d.statePensionPartner || !!d.partnerStatePension,
+      partnerAgeAtRet,
+      hasDbSelf: !!d.hasDbSelf || !!d.hasDb,
+      dbAnnualSelf: d.dbPensionSelf ?? d.dbPension ?? 0,
+      dbStartAgeSelf: d.dbStartAgeSelf ?? d.dbStartAge ?? Infinity,
+      hasDbPartner: !!d.hasDbPartner,
+      dbAnnualPartner: d.dbPensionPartner ?? 0,
+      dbStartAgePartner: d.dbStartAgePartner ?? Infinity,
+      growthRate
+    });
+  }
+
+  const simProj = useMax && simMax ? simMax : simCur;
 
   const depletionIndex = simProj.depleteAge
     ? simProj.ages.findIndex(a => a === simProj.depleteAge)
@@ -487,14 +493,18 @@ function drawCharts() {
     }
   });
 
-  ensureCaptions();
+  updateRetirementBalanceConditions({
+    depletionAgeCurrent: simCur.depleteAge ?? null,
+    depletionAgeMax: simMax?.depleteAge ?? null
+  });
+
   renderSummary();
 
   // Optional: console flag for depletion
   if (simProj.depleteAge) {
-  console.warn(`[Drawdown] Projected pot depletes at age ${simProj.depleteAge}.`);
-    }
+    console.warn(`[Drawdown] Projected pot depletes at age ${simProj.depleteAge}.`);
   }
+}
 
 function renderMaxTable(wiz){
   const sect = document.querySelector('#maxTableSection');
