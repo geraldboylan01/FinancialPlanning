@@ -19,11 +19,46 @@ let useMax = false;
 let growthChart = null;
 let contribChart = null;
 let ddBalanceChart = null;
-let ddCashflowChart = null;
+let retirementIncomeChart = null;
 
 const fmtEuro = n => '€' + (Math.round(n||0)).toLocaleString();
 const yrDiff = (d, ref = new Date()) => (ref - d) / (1000*60*60*24*365.25);
 const maxPctForAge = age => AGE_BANDS.find(b => age <= b.max)?.pct ?? 0.15;
+
+// ===== Color constants (dark-theme friendly, colorblind-aware) =====
+const COLORS = {
+  pensionCurrent: { fill: 'rgba(0,230,118,0.95)', border: '#00E676' }, // green
+  pensionMax:     { fill: 'rgba(47,128,255,0.95)', border: '#2F80FF' }, // blue
+  otherIncome:    { fill: 'rgba(178,107,255,0.95)', border: '#B26BFF' }, // violet
+  needLine:       '#FFFFFF'
+};
+
+// Public: update retirement income chart colors for max-toggle
+function setRetirementIncomeColorsForToggle(isMaxOn) {
+  const chart = retirementIncomeChart;
+  if (!chart) return;
+
+  const pensionDS = chart.data.datasets.find(d =>
+    d.key === 'pension_withdrawals' || /Pension withdrawals/i.test(d.label)
+  );
+  const otherDS = chart.data.datasets.find(d =>
+    d.key === 'other_income' || /Other income/i.test(d.label)
+  );
+
+  if (pensionDS) {
+    const c = isMaxOn ? COLORS.pensionMax : COLORS.pensionCurrent;
+    pensionDS.backgroundColor = c.fill;
+    pensionDS.borderColor = c.border;
+  }
+
+  if (otherDS) {
+    otherDS.backgroundColor = COLORS.otherIncome.fill;
+    otherDS.borderColor = COLORS.otherIncome.border;
+  }
+
+  chart.update('none');
+}
+window.setRetirementIncomeColorsForToggle = setRetirementIncomeColorsForToggle;
 
 function ensureMaxScenario() {
   if (!lastPensionOutput || lastPensionOutput.maxBalances) return; // already present
@@ -84,10 +119,12 @@ document.addEventListener('DOMContentLoaded', () => {
         : '';
       ensureMaxScenario();
       drawCharts();
+      setRetirementIncomeColorsForToggle(useMax);
       renderMaxTable(lastWizard);
     });
     setMaxToggle(chk.checked);
     updateAssumptionChip(chk.checked);
+    setRetirementIncomeColorsForToggle(chk.checked);
   } else {
     setMaxToggle(false);
     updateAssumptionChip(false);
@@ -472,15 +509,44 @@ function drawCharts() {
   });
 
   // Cashflow chart (stacked bars + need line)
-  if (ddCashflowChart) ddCashflowChart.destroy();
-  ddCashflowChart = new Chart(cflCan, {
+  if (retirementIncomeChart) retirementIncomeChart.destroy();
+  retirementIncomeChart = new Chart(cflCan, {
     type: 'bar',
     data: {
       labels: simProj.ages.map(a => `Age ${a}`),
       datasets: [
-          { label:'Pension withdrawals', data: simProj.pensionDraw, backgroundColor: showMax ? '#0099ff' : '#00ff88', stack:'s1' },
-        { label:'Other income (SP / Rent / DB)', data: simProj.otherInc, backgroundColor: '#0099ff', stack:'s1' },
-        { type:'line', label:'Total income need', data: simProj.reqLine, borderColor:'#ffffff', borderWidth:2, pointRadius:0, fill:false }
+        {
+          key: 'pension_withdrawals',
+          label: 'Pension withdrawals',
+          type: 'bar',
+          stack: 'income',
+          data: simProj.pensionDraw,
+          backgroundColor: COLORS.pensionCurrent.fill,
+          borderColor: COLORS.pensionCurrent.border,
+          borderWidth: 1
+        },
+        {
+          key: 'other_income',
+          label: 'Other income (SP / Rent / DB)',
+          type: 'bar',
+          stack: 'income',
+          data: simProj.otherInc,
+          backgroundColor: COLORS.otherIncome.fill,
+          borderColor: COLORS.otherIncome.border,
+          borderWidth: 1
+        },
+        {
+          key: 'total_need',
+          label: 'Total income need',
+          type: 'line',
+          data: simProj.reqLine,
+          borderColor: COLORS.needLine,
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.25,
+          fill: false,
+          yAxisID: 'y'
+        }
       ]
     },
     options: {
@@ -495,6 +561,7 @@ function drawCharts() {
       }
     }
   });
+  setRetirementIncomeColorsForToggle(useMax);
 
   updateRetirementBalanceConditions({
     depletionAgeCurrent: simCur.depleteAge ?? null,

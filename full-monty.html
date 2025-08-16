@@ -748,6 +748,9 @@
           { defaultSel: '#chart-annual-contrib .ac-default', maxSel: '#chart-annual-contrib .ac-max' },
           { defaultSel: '#chart-retirement-balance .rb-default', maxSel: '#chart-retirement-balance .rb-max' },
         ], isMaxOn);
+        if (typeof setRetirementIncomeColorsForToggle === 'function') {
+          setRetirementIncomeColorsForToggle(isMaxOn);
+        }
       };
 
       // Public: insert depletion messages for Retirement Balance (conditional, data-driven)
