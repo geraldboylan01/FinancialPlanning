@@ -243,96 +243,68 @@
       color:#ddd;border-radius:999px;padding:.45rem .8rem; font-weight:700;
     }
 
-    /* ───── Max toggle ───────────────────────────────────────── */
-    .max-toggle-row{
-      display:flex; align-items:center; gap:16px; margin:12px 0 6px;
+    /* Toggle and table styles */
+    .results-controls{
+      display:flex; align-items:center; gap:16px; margin: 10px 0 6px;
+      flex-wrap: wrap;
     }
+    .btn-secondary.small{ padding:.5rem .8rem; font-size:.95rem; }
+
     .toggle{
-      --w: 540px;           /* pill width */
-      --h: 52px;            /* pill height */
-      --pad: 6px;           /* inner padding for the thumb */
-      --on:  #00ff88;       /* thumb ON color */
-      --off: #5f5f5f;       /* thumb OFF color */
-      display:inline-block; position:relative;
-      width:var(--w); height:var(--h); cursor:pointer;
+      --h: 44px; --pad: 4px; --knob: 32px;
+      position: relative; display:inline-block; height: var(--h);
     }
-    .toggle input{ position:absolute; inset:0; opacity:0; }
+    .toggle input{ position:absolute; opacity:0; pointer-events:none; }
     .toggle .track{
-      position:absolute; inset:0; border-radius:999px;
-      background:#1f1f1f;
-      box-shadow: inset 0 0 0 2px rgba(0,255,136,.18);
-      display:flex; align-items:center; justify-content:center;
-      padding:0 60px;             /* space for thumb at ends */
+      display:flex; align-items:center; position:relative;
+      padding: 0 calc(var(--pad) + var(--knob) + 8px) 0 var(--pad);
+      height: var(--h); min-width: 340px;
+      background:#212121; border:1px solid rgba(0,255,136,.25);
+      border-radius:999px; box-shadow: 0 0 0 2px rgba(0,255,136,.1) inset;
+      color:#ddd; font-weight:700;
     }
-    .toggle .label{
-      font-weight:800; letter-spacing:.2px; color:#ddd;
-      pointer-events:none; user-select:none;
+    .toggle .label{ margin:0 auto; }
+    .toggle .knob{
+      position:absolute; top:50%; left:var(--pad);
+      width:var(--knob); height:var(--knob);
+      border-radius:50%; transform:translateY(-50%);
+      background:#555; box-shadow: inset 0 0 0 1px rgba(255,255,255,.2);
+      transition: left .22s ease, background .22s ease, box-shadow .22s ease;
     }
-    .toggle .thumb{
-      position:absolute; top:var(--pad); bottom:var(--pad);
-      width: calc(var(--h) - var(--pad)*2);
-      border-radius:50%;
-      background: var(--off);
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.15);
-      left: var(--pad);                       /* start hard-left */
-      transition: left .25s cubic-bezier(.2,.8,.2,1), background .2s ease, box-shadow .2s ease;
-      will-change: left, background;
+    .toggle input:checked + .track .knob{
+      left: calc(100% - var(--pad) - var(--knob));
+      background:#00ff88; box-shadow: 0 0 0 6px rgba(0,255,136,.12);
     }
     .toggle input:checked + .track{
-      box-shadow: inset 0 0 0 2px rgba(0,255,136,.35);
-    }
-    .toggle input:checked + .track .thumb{
-      background: var(--on);
-      left: calc(var(--w) - var(--h) + var(--pad));   /* full travel, full circle visible */
+      outline:1px solid rgba(0,255,136,.35);
     }
 
-    /* Note next to toggle */
-    .max-note{ color:#a7ffd9; font-weight:700; }
-
-    /* ───── Breakdown table ─────────────────────────────────── */
-    .max-breakdown{
-      margin-top: 18px;
-      background:#242424;
-      border:1px solid rgba(255,255,255,.08);
-      border-radius:12px;
-      padding: 10px 10px 14px;
-    }
-    .max-breakdown h3{
-      margin: 8px 10px 10px;
-      font-size: 1.05rem;
-      color: #bfffe9;
-    }
-    .max-breakdown .table-scroll{ overflow:auto; border-radius:10px; }
-    .max-breakdown table{
-      width:100%; border-collapse: collapse; min-width:540px;
-      background:#2d2d2d;
-    }
-    .max-breakdown thead th{
-      background:#3a3a3a; color:#ddd; text-align:left;
-      padding:.7rem .9rem; font-weight:800;
-      border-bottom:1px solid rgba(255,255,255,.08);
-    }
-    .max-breakdown tbody td{
-      padding:.7rem .9rem; border-bottom:1px solid rgba(255,255,255,.06);
-      color:#e8e8e8;
-    }
-    .max-breakdown tbody tr:nth-child(even){ background:#292929; }
-    .max-breakdown tbody tr.highlight{
-      background:#0d3a2d; color:#fff;
-    }
-    .max-breakdown tbody tr.highlight td:nth-child(3),
-    .max-breakdown tbody tr.highlight td:nth-child(2){ font-weight:800; }
-    .max-breakdown .footnote{
-      margin:.7rem .2rem 0; color:#bfbfbf; font-size:.92rem;
+    .toggle-note{
+      color:#a6ffd8; font-weight:700;
     }
 
-    /* Floating “Change My Inputs” button */
-    .floating-edit{
-      position: fixed; right: 22px; bottom: 22px; z-index: 20;
-      background:#00a86b; color:#fff; border:0; border-radius:999px;
-      padding:.9rem 1.1rem; font-weight:800; box-shadow: 0 10px 30px rgba(0,168,107,.35);
+    .max-table-section{
+      margin-top: 16px;
+      background:#222; border:1px solid rgba(255,255,255,.08);
+      border-radius:12px; padding:14px;
     }
-    .floating-edit:hover{ filter: brightness(1.05); transform: translateY(-1px); }
+    .max-table-section h3{
+      margin: 0 0 6px; color:#a6ffd8;
+    }
+    .max-table{
+      width:100%; border-collapse:separate; border-spacing:0;
+      overflow:hidden; border-radius:10px; border:1px solid rgba(255,255,255,.08);
+    }
+    .max-table th, .max-table td{
+      padding:12px 14px; text-align:left;
+    }
+    .max-table thead th{
+      background:#2d2d2d; color:#ddd;
+    }
+    .max-table tbody tr:nth-child(even){ background:#262626; }
+    .max-table tbody tr:nth-child(odd){ background:#2a2a2a; }
+    .max-table tr.highlight{ background:#095b45 !important; color:#fff; }
+    .max-note{ margin-top:8px; color:#bbb; }
 
     /* Short, friendly captions under charts (optional hooks) */
     .chart-card .caption{ color:#bdbdbd; font-size:.9rem; margin-top:6px; }
@@ -367,16 +339,16 @@
 
       <div id="kpis" class="kpi-row"></div>
 
-      <!-- Toggle row -->
-      <div class="max-toggle-row">
-        <label class="toggle" id="useMaxToggle">
-          <input id="useMaxContribs" type="checkbox" />
+      <div class="results-controls">
+        <label class="toggle max-toggle" id="maxContribsToggle">
+          <input type="checkbox" id="maxContribsChk" />
           <span class="track">
             <span class="label">Use max pension contributions</span>
-            <span class="thumb" aria-hidden="true"></span>
+            <span class="knob"></span>
           </span>
         </label>
-        <div id="maxToggleNote" class="max-note" aria-live="polite"></div>
+        <div id="maxToggleNote" class="toggle-note" aria-live="polite"></div>
+        <button id="editInputsBtn" class="btn-secondary small">Edit inputs</button>
       </div>
 
       <div class="chart-grid">
@@ -388,11 +360,12 @@
         <div class="chart-card"><canvas id="ddCashflowChart"></canvas></div>
       </div>
 
-      <!-- Breakdown table goes at the bottom -->
-      <section id="maxContribsBreakdown" class="max-breakdown" hidden></section>
+      <!-- Max table section (bottom of page) -->
+      <section id="maxTableSection" class="max-table-section" aria-live="polite">
+        <!-- JS will inject a heading + table OR a helpful message -->
+      </section>
     </div>
 
-    <button id="editPlanBtn" class="floating-edit">Change My Inputs</button>
   </section>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.js"></script>
