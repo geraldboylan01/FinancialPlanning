@@ -1,9 +1,11 @@
 import { RISK_OPTIONS } from './riskOptions.js';
+import { mountRiskCards } from './risk-cards-mount.js';
 console.debug('[stepPensionRisk] options', RISK_OPTIONS);
 
 export function renderStepPensionRisk(container, store, setStore, nextBtn){
   console.debug('[stepPensionRisk] renderStepPensionRisk called');
   container.innerHTML = '';
+  container.classList.add('risk-section');
   // Keep the existing step text above this container; we’re only injecting the cards below it.
   const grid = document.createElement('div');
   grid.className = 'risk-grid';
@@ -60,6 +62,9 @@ export function renderStepPensionRisk(container, store, setStore, nextBtn){
 
   container.appendChild(grid);
   container.appendChild(error);
+
+  // Reveal cards when ready
+  mountRiskCards();
 
   // Hook a per-step validator the wizard can call before advancing
   renderStepPensionRisk.validate = () => {
