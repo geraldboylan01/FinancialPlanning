@@ -39,181 +39,126 @@ function formatEUR(x){
 }
 
 function ensureNoticesMount(){
-  if (document.getElementById('compliance-notices')) return;
-  const charts = document.querySelector('#phase-pre .phase-grid');
-  if (!charts) return;
-  const sec = document.createElement('section');
-  sec.id = 'compliance-notices';
-  sec.className = 'notices-section';
-  sec.setAttribute('aria-label','Notices & limits');
-  charts.insertAdjacentElement('afterend', sec);
-}
-
-function scenarioLabel(){
-  return useMax ? 'Max contributions' : 'Base case';
+  let el = document.getElementById('compliance-notices');
+  if (el) return el;
+  const postGrid = document.querySelector('#phase-post .phase-grid');
+  if (!postGrid) return null;
+  el = document.createElement('section');
+  el.id = 'compliance-notices';
+  el.className = 'notices-section';
+  el.setAttribute('aria-label','Important notices');
+  postGrid.insertAdjacentElement('afterend', el);
+  return el;
 }
 
 function projectedAtRetirementValue(){
   if (!lastPensionOutput) return null;
-
-  // If the Max toggle is on, use the maxBalances projection; else use base balances.
   if (useMax && Array.isArray(lastPensionOutput.maxBalances) && lastPensionOutput.maxBalances.length){
     return lastPensionOutput.maxBalances.at(-1)?.value ?? null;
   }
-
   if (Array.isArray(lastPensionOutput.balances) && lastPensionOutput.balances.length){
     return lastPensionOutput.balances.at(-1)?.value ?? null;
   }
-
-  // Fallback (fm-pension-output also provides projValue)
   return lastPensionOutput.projValue ?? null;
 }
 
-function sftSeverity(value, limit){
-  if (value == null || !isFinite(value) || !isFinite(limit)) return {level:'ok', label:'No data'};
-  const r = value/limit;
-  if (r >= 1) return {level:'danger', label:'Projected breach'};
-  if (r >= 0.8) return {level:'warn', label:'Close to limit'};
-  return {level:'ok', label:'Below limit'};
-}
-
-function classifyWarnings(){
-  const wb = lastPensionOutput?.warningBlocks || [];
-  const out = { age:null, sftAssump:null };
-  wb.forEach(w=>{
-    const t = (w.title||'').toLowerCase();
-    if (t.includes('retiring before age 50') || t.includes('retiring between age 50') ||
-        t.includes('over 70') || t.includes('75 and over')){
-      out.age = w;
-    }
-    if (t.includes('standard fund threshold (sft) assumptions')) out.sftAssump = w;
-  });
-  return out;
-}
-
 function renderComplianceNotices(container){
-  ensureNoticesMount();
-  container = container || document.getElementById('compliance-notices');
-  if (!container) return;
-
-  if (!lastPensionOutput) { container.innerHTML = ''; return; }
+  container = ensureNoticesMount() || container || document.getElementById('compliance-notices');
+  if (!container || !lastPensionOutput) return;
 
   const valueAtRet   = projectedAtRetirementValue();
-  const sftLimit     = lastPensionOutput?.sftLimit || null;
-  const scenario     = scenarioLabel();
+  const sftLimit     = lastPensionOutput?.sftLimit ?? null;
+  const scenario     = useMax ? 'Max contributions' : 'Base case';
   const retireAge    = lastWizard?.retireAge ?? null;
   const retirementYr = lastPensionOutput?.retirementYear ?? null;
 
-  const sev = sftSeverity(valueAtRet, sftLimit);
-  const classes = (lvl)=> lvl==='danger'?'notice--danger':(lvl==='warn'?'notice--warn':'notice--ok');
-
-  const classified = classifyWarnings();
-
-  const pill = (key, level, main, sub) => `
-    <button class="notice-pill ${classes(level)}" data-target="${key}" type="button" aria-controls="card-${key}">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2L1 21h22L12 2zm0 6l7 12H5L12 8zm-1 3h2v5h-2zm0 6h2v2h-2z"/></svg>
-      <div>
-        <div class="pill-title">${main}</div>
-        <div class="pill-sub">${sub}</div>
-      </div>
-    </button>
-  `;
-
-  const sftMain = `SFT: ${sev.label}`;
-  const sftSub  = (valueAtRet && sftLimit)
-    ? `${scenario} • ${formatEUR(valueAtRet)} vs ${formatEUR(sftLimit)}`
-    : `${scenario} • no projection`;
-
-  let ageLevel='ok', ageLabel='Within typical range';
-  if (retireAge != null){
-    if (retireAge < 50 || retireAge >= 75){ ageLevel='danger'; }
-    else if ((retireAge >= 50 && retireAge < 60) || (retireAge >= 70 && retireAge < 75)){ ageLevel='warn'; }
-    else { ageLevel='ok'; }
-    if (retireAge < 50) ageLabel='Retiring < 50';
-    else if (retireAge < 60) ageLabel='Retiring 50–59';
-    else if (retireAge < 70) ageLabel='60–69 (typical)';
-    else if (retireAge < 75) ageLabel='Over 70';
-    else ageLabel='≥ 75';
+  // --- SFT severity
+  let sftLevel = 'warn'; // default to “warn” when we can’t compare
+  if (valueAtRet != null && sftLimit != null){
+    const r = valueAtRet / sftLimit;
+    sftLevel = r >= 1 ? 'danger' : (r >= 0.8 ? 'warn' : 'ok');
   }
-  const ageSub = retireAge != null ? `Selected age: ${retireAge}` : `No age selected`;
 
-  const showAssump = (retirementYr >= 2030);
-  const assumpLevel = showAssump ? 'warn' : 'ok';
-  const assumpLabel = showAssump ? 'Post-2029 SFT assumptions' : 'SFT assumptions';
-  const assumpSub   = showAssump ? `Year ${retirementYr}: fixed beyond 2029` : `Up to 2029: fixed values`;
+  // --- Age severity
+  let ageLevel='ok';
+  if (retireAge != null){
+    if (retireAge < 50 || retireAge >= 75) ageLevel='danger';
+    else if ((retireAge >= 50 && retireAge < 60) || (retireAge >= 70 && retireAge < 75)) ageLevel='warn';
+  }
+
+  // Pull legacy blocks for body copy (PDF-compatible source of truth)
+  const wb = lastPensionOutput?.warningBlocks || [];
+  const findWB = (pred) => wb.find(w => pred((w.title||'').toLowerCase()));
+  const ageWB   = findWB(t => t.includes('retiring before age 50') || t.includes('retiring between age 50') || t.includes('over 70') || t.includes('75 and over'));
+  const assWB   = findWB(t => t.includes('standard fund threshold (sft) assumptions'));
+
+  // --- Cards
+  const sftMeta = (valueAtRet!=null && sftLimit!=null)
+    ? `Projected (${scenario}): <b>${formatEUR(valueAtRet)}</b> vs SFT: <b>${formatEUR(sftLimit)}</b>.`
+    : (sftLimit!=null ? `SFT configured at <b>${formatEUR(sftLimit)}</b>; projection not available yet.` : 'No SFT comparison available.');
+
+  const sftTail = (sftLevel==='danger')
+    ? ' Your projection exceeds the configured limit.'
+    : (sftLevel==='warn' ? ' You are getting close to the limit.' : '');
 
   const sftCard = `
-    <div id="card-sft" class="notice-card ${sev.level==='danger'?'danger':(sev.level==='warn'?'warn':'')}">
+    <div class="notice-card ${sftLevel==='danger'?'danger':(sftLevel==='warn'?'warn':'')}">
       <div class="title">Standard Fund Threshold</div>
       <div class="meta">
-        ${valueAtRet && sftLimit
-          ? `Projected (${scenario}): <b>${formatEUR(valueAtRet)}</b> vs SFT: <b>${formatEUR(sftLimit)}</b>.`
-          : 'No SFT comparison available.'}
-        ${sev.level==='danger' ? ' Your projection exceeds the configured limit.'
-          : (sev.level==='warn' ? ' You are getting close to the limit.' : ' You are below the limit.')}
-      </div>
-      <div class="actions">
-        <span class="chip">Review contributions</span>
-        <span class="chip">Test retirement age</span>
+        ${sftMeta}${sftTail}
+        <br><br>
+        <em>Reference:</em> current path increases by <b>€200k p.a.</b> from <b>€2.0m</b> to <b>€2.8m</b> in <b>2029</b>.
+        For years <b>2030+</b> we conservatively hold the SFT at <b>€2.8m</b> pending official guidance.
       </div>
     </div>
   `;
 
-  const ageBody = classified.age ? classified.age.body : (
-    ageLevel==='ok' ? 'Selected retirement age is within a typical range.' :
-    (retireAge < 50
-      ? 'Pensions generally cannot be accessed before age 50 except in rare cases (ill-health).'
-      : (retireAge < 60
-          ? 'Access before the usual retirement age is limited and condition-dependent.'
-          : (retireAge < 75
-              ? 'Many schemes must be drawn by 70; PRSA may defer to 75.'
-              : 'All pensions must be accessed by age 75; automatic vesting applies.')))
+  const ageBody = ageWB ? ageWB.body : (
+    retireAge==null
+      ? 'No retirement age selected.'
+      : (retireAge < 50
+          ? 'Pensions generally cannot be accessed before age 50 except in rare cases (ill-health).'
+          : (retireAge < 60
+              ? 'Access before the usual retirement age is limited and condition-dependent.'
+              : (retireAge < 75
+                  ? 'Many schemes must be drawn by age 70; PRSAs may defer to 75.'
+                  : 'All pensions must be accessed by age 75; automatic vesting applies.')))
   );
-  const ageCard = `
-    <div id="card-age" class="notice-card ${ageLevel==='danger'?'danger':(ageLevel==='warn'?'warn':'')}">
+  const ageCard = (ageLevel==='ok' && !ageWB) ? '' : `
+    <div class="notice-card ${ageLevel==='danger'?'danger':(ageLevel==='warn'?'warn':'')}">
       <div class="title">Retirement age selection</div>
       <div class="meta">${ageBody}</div>
-      <div class="actions">
-        <span class="chip">Compare ages ±5 years</span>
-        <span class="chip">Check cashflow robustness</span>
-      </div>
     </div>
   `;
 
-  const assumpBody = classified.sftAssump ? classified.sftAssump.body :
-    'Post-2029 SFT values are not projected in this tool. Actual limits may change based on policy and wage inflation.';
-  const assumpCard = showAssump ? `
-    <div id="card-assump" class="notice-card warn">
+  const assumpCard = (retirementYr>=2030) ? `
+    <div class="notice-card warn">
       <div class="title">SFT assumptions notice</div>
-      <div class="meta">${assumpBody}</div>
-      <div class="actions">
-        <span class="chip">Include wage inflation scenario</span>
-        <span class="chip">Review tax assumptions</span>
+      <div class="meta">
+        ${assWB ? assWB.body :
+          'Official SFT values are confirmed to 2029. Beyond that, Government indicates linkage to wage inflation but no definitive schedule exists. We therefore hold the SFT at €2.8m in projections for 2030+.'}
       </div>
     </div>
   ` : '';
 
-  container.innerHTML = `
-    <div class="notice-pills" role="group" aria-label="Compliance summaries">
-      ${pill('sft',  sev.level,  `SFT: ${sev.label}`, sftSub)}
-      ${pill('age',  ageLevel,    `Retirement: ${ageLabel}`, ageSub)}
-      ${showAssump ? pill('assump','warn', assumpLabel, assumpSub) : ''}
-    </div>
-    <div class="notice-cards">
-      ${sev.level!=='ok' ? sftCard : ''}
-      ${ageLevel!=='ok' ? ageCard : ''}
-      ${assumpCard}
+  const mandatoryCard = `
+    <div class="notice-card warn">
+      <div class="title">Mandatory withdrawals (ARF / vested PRSA)</div>
+      <div class="meta">
+        Minimum annual drawdowns apply in retirement under Revenue’s imputed-distribution rules (rates rise with age and can vary with total ARF/vested PRSA size).
+        Our charts do <b>not</b> model these minimum withdrawals, so real-world net income and fund paths may differ.
+      </div>
     </div>
   `;
 
-  container.querySelectorAll('.notice-pill').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const key = btn.getAttribute('data-target');
-      const card = container.querySelector('#card-'+key);
-      if (!card) return;
-      card.style.display = (card.style.display === 'none' || !card.style.display) ? 'block' : 'none';
-    });
-  });
+  container.innerHTML = `
+    <div class="notice-cards">
+      ${sftCard}
+      ${ageCard}
+      ${assumpCard}
+      ${mandatoryCard}
+    </div>
+  `;
 }
 
 // Public: update retirement income chart colors for max-toggle
@@ -917,7 +862,14 @@ These projections are illustrative only — professional guidance is strongly re
       </div>`;
   }
 
-  const warningsHTML = earlyWarning + sftAssumpWarning;
+  const mandatoryWarning = `
+  <div class="warning-block">
+    ⚠️ <strong>Mandatory Withdrawals (ARF / vested PRSA)</strong><br><br>
+    Revenue’s imputed distribution rules require minimum annual drawdowns from ARFs and vested PRSAs. Rates increase with age and may vary with overall ARF/vested PRSA size. Our charts do not model these minimum withdrawals; actual net income and fund paths may differ.
+  </div>
+`;
+
+  const warningsHTML = (earlyWarning || '') + (sftAssumpWarning || '') + mandatoryWarning;
   document.getElementById('calcWarnings').innerHTML = warningsHTML;
 
   lastPensionOutput.warningBlocks = [...document.querySelectorAll('#calcWarnings .warning-block')].map(el => {
