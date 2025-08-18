@@ -22,13 +22,13 @@
       --shadow-sm:0 2px 4px rgba(0,0,0,.2);
     }
     *{box-sizing:border-box}
-    body{font-family:'Inter',sans-serif;background:#1a1a1a;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;padding:1rem;margin:0;}
+    body{font-family:'Inter',sans-serif;background:#1a1a1a;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100dvh;min-height:calc(var(--vh,1vh)*100);min-height:-webkit-fill-available;padding:1rem;margin:0;}
     body.modal-open{overflow:hidden;}
     button{padding:.5rem .9rem;font-weight:700;font-size:1rem;border:none;border-radius:8px;cursor:pointer;color:#fff;background:#555;margin:.3rem 0;min-height:2.5rem;}
     .fm-wizard.modal{display:none;}
     .fm-wizard.modal.is-open{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.5);display:flex;align-items:stretch;justify-content:center;}
-    .fm-sheet{position:relative;width:100%;max-width:720px;margin:0 auto;height:100vh;height:100svh;display:flex;flex-direction:column;background:var(--surface,#1b1b1b);}
-    @supports (height: 100dvh){.fm-sheet{height:100dvh;}}
+    .fm-sheet{position:relative;width:100%;max-width:720px;margin:0 auto;min-height:100dvh;min-height:calc(var(--vh,1vh)*100);min-height:-webkit-fill-available;display:flex;flex-direction:column;background:var(--surface,#1b1b1b);}
+    @supports (height: 100dvh){.fm-sheet{min-height:100dvh;}}
     .fm-sheet,.fm-header,.fm-footer{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));}
     .fm-header{padding-top:max(12px,env(safe-area-inset-top));}
     .fm-footer{padding-bottom:max(12px,env(safe-area-inset-bottom));}
@@ -59,15 +59,27 @@
     input:focus,select:focus{outline:none;border-color:var(--glow);box-shadow:0 0 0 3px rgba(0,255,136,.25);}
     .error{color:var(--error, #ff6b6b);margin-top:.5rem;font-size:.9rem;}
 
+    .final-step,
+    .risk-section{
+      min-height:100dvh;
+      min-height:calc(var(--vh,1vh)*100);
+      min-height:-webkit-fill-available;
+    }
+
     /* Pension risk cards */
     .risk-grid{
       display:grid;
-      grid-template-columns:repeat(2,minmax(0,1fr));
-      gap:1rem;
+      grid-template-columns:repeat(4,minmax(0,1fr));
+      gap:12px;
       margin-top:1rem;
     }
     @media (max-width:640px){
       .risk-grid{grid-template-columns:1fr;}
+      .risk-card{min-height:140px;}
+    }
+    @supports not (gap: 12px){
+      .risk-grid{row-gap:12px;column-gap:0;}
+      .risk-card + .risk-card{margin-top:12px;}
     }
     .risk-card{
       display:flex;
@@ -91,6 +103,27 @@
     .risk-title{font-weight:700;}
     .risk-mix{font-size:.9rem;opacity:.9;}
     .risk-rate{font-size:.85rem;opacity:.8;}
+
+    /* Disable start-hidden animations on iOS */
+    .is-ios .will-fade-in{
+      opacity:1!important;
+      transform:none!important;
+      transition:none!important;
+    }
+
+    @media (max-width:640px){
+      .has-transform-on-desktop{transform:none!important;}
+      .sticky-on-desktop{position:static!important;}
+    }
+
+    .risk-section{position:relative;z-index:2;}
+    @media (max-width:640px){
+      .cta-bar, .sticky-footer, .wizard{z-index:1;}
+      .cta-bar.is-transparent-over-content{pointer-events:none;}
+    }
+
+    .is-ios .maybe-contents{display:block!important;}
+    .is-ios .glass-bg{-webkit-backdrop-filter:none!important;backdrop-filter:none!important;}
 
     /* Optional: row grouping look */
     .list-wrap .asset-row{
@@ -548,11 +581,13 @@
       pointer-events: none;
     }
   </style>
+  <script src="ios-flag.js"></script>
+  <script src="vh-fix.js"></script>
 </head>
 <body>
   <div id="fullMontyModal" class="fm-wizard modal" role="dialog" aria-modal="true">
     <div class="fm-sheet">
-      <header class="fm-header">
+      <header class="fm-header sticky-on-desktop">
         <div class="fm-step-title" id="fmProgress"></div>
         <div class="fm-progress">
           <div id="fmProgressBar"><div id="fmProgressFill"></div></div>
@@ -562,10 +597,10 @@
       </header>
 
       <main class="fm-body" id="fmBody" tabindex="-1">
-        <div id="fmStepContainer"></div>
+        <div id="fmStepContainer" class="has-transform-on-desktop"></div>
       </main>
 
-      <footer class="fm-footer">
+      <footer class="fm-footer sticky-on-desktop">
         <button class="btn-secondary fm-back" id="fmBack">Back</button>
         <button class="btn-primary fm-next" id="fmNext">Next</button>
       </footer>
