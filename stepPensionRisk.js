@@ -2,6 +2,9 @@ import { RISK_OPTIONS } from './riskOptions.js';
 import { mountRiskCards } from './risk-cards-mount.js';
 console.debug('[stepPensionRisk] options', RISK_OPTIONS);
 
+// Temporary debug flag; set to false to disable layout logs
+const DEBUG_PENSION_RISK = true;
+
 export function renderStepPensionRisk(container, store, setStore, nextBtn){
   console.debug('[stepPensionRisk] renderStepPensionRisk called');
   container.innerHTML = '';
@@ -61,10 +64,25 @@ export function renderStepPensionRisk(container, store, setStore, nextBtn){
   else if(nextBtn) { nextBtn.disabled = true; }
 
   container.appendChild(grid);
+  if(DEBUG_PENSION_RISK){
+    console.debug('[stepPensionRisk] ua/dimensions', navigator.userAgent, window.innerWidth, window.innerHeight);
+  }
   container.appendChild(error);
 
   // Reveal cards when ready
   mountRiskCards();
+
+  if(DEBUG_PENSION_RISK && window.matchMedia('(hover: none) and (pointer: coarse)').matches){
+    const firstCard = grid.querySelector('.risk-card');
+    if(firstCard){
+      const styles = getComputedStyle(firstCard);
+      const styleDump = {};
+      for(const prop of styles){
+        styleDump[prop] = styles.getPropertyValue(prop);
+      }
+      console.debug('[stepPensionRisk] first risk-card styles', styleDump);
+    }
+  }
 
   // Hook a per-step validator the wizard can call before advancing
   renderStepPensionRisk.validate = () => {
