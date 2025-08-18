@@ -106,195 +106,6 @@ function maxPersonalByAge(age, capSalary) {
   return maxPersonalPct(Math.floor(age)) * capSalary;
 }
 
-function formatEUR(x){
-  try { return new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(x); }
-  catch(e){ return '€'+Math.round(+x||0).toLocaleString('en-IE'); }
-}
-
-function ensureNoticesMount(){
-  if (document.getElementById('compliance-notices')) return;
-  const charts = document.getElementById('chart-container');
-  if (!charts) return;
-  const sec = document.createElement('section');
-  sec.id = 'compliance-notices';
-  sec.className = 'notices-section';
-  sec.setAttribute('aria-label','Notices & limits');
-  charts.insertAdjacentElement('afterend', sec);
-}
-
-function scenarioLabel(){
-  const maxOn = !!document.getElementById('maxToggle')?.checked;
-  return maxOn ? 'Max contributions' : 'Base case';
-}
-
-// Pull the value at retirement (base vs max) based on current toggle
-function projectedAtRetirementValue(){
-  const maxOn = !!document.getElementById('maxToggle')?.checked;
-  if (maxOn && Array.isArray(window.maxBalances) && window.maxBalances.length){
-    return window.maxBalances.at(-1)?.value ?? null;
-  }
-  if (Array.isArray(window.balances) && window.balances.length){
-    return window.balances.at(-1)?.value ?? null;
-  }
-  // Fallback to latestRun if charts not built yet
-  return latestRun?.outputs?.projectedValue ?? null;
-}
-
-// Severity computer for SFT
-function sftSeverity(value, limit){
-  if (value == null || !isFinite(value) || !isFinite(limit)) return {level:'ok', label:'No data'};
-  const r = value/limit;
-  if (r >= 1) return {level:'danger', label:'Projected breach'};
-  if (r >= 0.8) return {level:'warn', label:'Close to limit'};
-  return {level:'ok', label:'Below limit'};
-}
-
-// Map latestRun.warningBlocks titles → categories we care about
-function classifyWarnings(){
-  const wb = latestRun?.warningBlocks || [];
-  const out = { age:null, sftAssump:null };
-  wb.forEach(w=>{
-    const t = (w.title||'').toLowerCase();
-    if (t.includes('retiring before age 50') || t.includes('retiring between age 50') ||
-        t.includes('over 70') || t.includes('75 and over')){
-      out.age = w; // the single age/access warning in effect
-    }
-    if (t.includes('standard fund threshold (sft) assumptions')) out.sftAssump = w;
-  });
-  return out;
-}
-
-function renderComplianceNotices(container){
-  ensureNoticesMount();
-  container = container || document.getElementById('compliance-notices');
-  if (!container) return;
-
-  // Inputs available from your code
-  const valueAtRet   = projectedAtRetirementValue();
-  const sftLimit     = window.sftLimitGlobal || latestRun?.outputs?.sftLimit || null;
-  const scenario     = scenarioLabel();
-  const retireAge    = window.retireAge ?? latestRun?.inputs?.retireAge ?? null;
-  const retirementYr = latestRun?.outputs?.retirementYear ?? (new Date().getFullYear() + (window.yearsToRet|0));
-
-  const sev = sftSeverity(valueAtRet, sftLimit);
-  const classes = (lvl)=> lvl==='danger'?'notice--danger':(lvl==='warn'?'notice--warn':'notice--ok');
-
-  // Hook into your already-constructed HTML warning blocks (for PDF),
-  // but present their content in our cards:
-  const classified = classifyWarnings();
-
-  // Build pills
-  const pill = (key, level, main, sub) => `
-    <button class="notice-pill ${classes(level)}" data-target="${key}" type="button" aria-controls="card-${key}">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2L1 21h22L12 2zm0 6l7 12H5L12 8zm-1 3h2v5h-2zm0 6h2v2h-2z"/></svg>
-      <div>
-        <div class="pill-title">${main}</div>
-        <div class="pill-sub">${sub}</div>
-      </div>
-    </button>
-  `;
-
-  const sftMain = `SFT: ${sev.label}`;
-  const sftSub  = (valueAtRet && sftLimit)
-    ? `${scenario} • ${formatEUR(valueAtRet)} vs ${formatEUR(sftLimit)}`
-    : `${scenario} • no projection`;
-
-  // Age pill from your thresholds (mirror existing rules)
-  let ageLevel='ok', ageLabel='Within typical range';
-  if (retireAge != null){
-    if (retireAge < 50 || retireAge >= 75){ ageLevel='danger'; }
-    else if ((retireAge >= 50 && retireAge < 60) || (retireAge >= 70 && retireAge < 75)){ ageLevel='warn'; }
-    else { ageLevel='ok'; }
-    if (retireAge < 50) ageLabel='Retiring < 50';
-    else if (retireAge < 60) ageLabel='Retiring 50–59';
-    else if (retireAge < 70) ageLabel='60–69 (typical)';
-    else if (retireAge < 75) ageLabel='Over 70';
-    else ageLabel='≥ 75';
-  }
-  const ageSub = retireAge != null ? `Selected age: ${retireAge}` : `No age selected`;
-
-  // SFT assumptions pill (shown if retirementYear >= 2030 as per your code)
-  const showAssump = (retirementYr >= 2030);
-  const assumpLevel = showAssump ? 'warn' : 'ok';
-  const assumpLabel = showAssump ? 'Post-2029 SFT assumptions' : 'SFT assumptions';
-  const assumpSub   = showAssump ? `Year ${retirementYr}: fixed beyond 2029` : `Up to 2029: fixed values`;
-
-  // Detail cards (short, referencing your warning copy)
-  const sftCard = `
-    <div id="card-sft" class="notice-card ${sev.level==='danger'?'danger':(sev.level==='warn'?'warn':'')}">
-      <div class="title">Standard Fund Threshold</div>
-      <div class="meta">
-        ${valueAtRet && sftLimit
-          ? `Projected (${scenario}): <b>${formatEUR(valueAtRet)}</b> vs SFT: <b>${formatEUR(sftLimit)}</b>.`
-          : 'No SFT comparison available.'}
-        ${sev.level==='danger' ? ' Your projection exceeds the configured limit.'
-          : (sev.level==='warn' ? ' You are getting close to the limit.' : ' You are below the limit.')}
-      </div>
-      <div class="actions">
-        <span class="chip">Review contributions</span>
-        <span class="chip">Test retirement age</span>
-      </div>
-    </div>
-  `;
-
-  const ageBody = classified.age ? classified.age.body : (
-    ageLevel==='ok' ? 'Selected retirement age is within a typical range.' :
-    (retireAge < 50
-      ? 'Pensions generally cannot be accessed before age 50 except in rare cases (ill-health).'
-      : (retireAge < 60
-          ? 'Access before the usual retirement age is limited and condition-dependent.'
-          : (retireAge < 75
-              ? 'Many schemes must be drawn by 70; PRSA may defer to 75.'
-              : 'All pensions must be accessed by age 75; automatic vesting applies.')))
-  );
-  const ageCard = `
-    <div id="card-age" class="notice-card ${ageLevel==='danger'?'danger':(ageLevel==='warn'?'warn':'')}">
-      <div class="title">Retirement age selection</div>
-      <div class="meta">${ageBody}</div>
-      <div class="actions">
-        <span class="chip">Compare ages ±5 years</span>
-        <span class="chip">Check cashflow robustness</span>
-      </div>
-    </div>
-  `;
-
-  const assumpBody = classified.sftAssump ? classified.sftAssump.body :
-    'Post-2029 SFT values are not projected in this tool. Actual limits may change based on policy and wage inflation.';
-  const assumpCard = showAssump ? `
-    <div id="card-assump" class="notice-card warn">
-      <div class="title">SFT assumptions notice</div>
-      <div class="meta">${assumpBody}</div>
-      <div class="actions">
-        <span class="chip">Include wage inflation scenario</span>
-        <span class="chip">Review tax assumptions</span>
-      </div>
-    </div>
-  ` : '';
-
-  container.innerHTML = `
-    <div class="notice-pills" role="group" aria-label="Compliance summaries">
-      ${pill('sft',  sev.level,  `SFT: ${sev.label}`, sftSub)}
-      ${pill('age',  ageLevel,    `Retirement: ${ageLabel}`, ageSub)}
-      ${showAssump ? pill('assump','warn', assumpLabel, assumpSub) : ''}
-    </div>
-    <div class="notice-cards">
-      ${sev.level!=='ok' ? sftCard : ''}
-      ${ageLevel!=='ok' ? ageCard : ''}
-      ${assumpCard}
-    </div>
-  `;
-
-  // Toggle cards on pill click
-  container.querySelectorAll('.notice-pill').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const key = btn.getAttribute('data-target');
-      const card = container.querySelector('#card-'+key);
-      if (!card) return;
-      card.style.display = (card.style.display === 'none' || !card.style.display) ? 'block' : 'none';
-    });
-  });
-}
-
 // Injects the checkbox under the chart once
 function ensureMaxToggleExists() {
   if (document.getElementById('maxToggle')) return;
@@ -309,11 +120,8 @@ function ensureMaxToggleExists() {
   `;
   document.querySelector('#chart-container')
           .insertAdjacentElement('afterend', div);
-  const tgl = document.getElementById('maxToggle');
-  tgl.addEventListener('change', ()=>{
-    drawChart();
-    renderComplianceNotices(document.getElementById('compliance-notices'));
-  });
+  document.getElementById('maxToggle')
+          .addEventListener('change', drawChart);
 }
   function showSFTWarning(projectedValue, sftLimit, year) {
   const modal   = document.getElementById('sftModal');
@@ -500,9 +308,6 @@ function drawChart() {
     wrapper.innerHTML = extraHTML;
     results.append(wrapper);
   }
-  window.maxBalances = maxBalances;
-  window.balances = balances;
-  renderComplianceNotices(document.getElementById('compliance-notices'));
 }
 
 
@@ -583,7 +388,6 @@ const employerPct = (clampPercent(numFromInput(document.getElementById('employer
 employerCalc      = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
 
     retireAge       = +document.getElementById('retireAge').value;
-    window.retireAge = retireAge;
     gRate           = +document.querySelector('input[name="growth"]:checked').value;
     const dob       = new Date(document.getElementById('dob').value);
 
@@ -602,7 +406,6 @@ employerCalc      = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
     // ─── Build balances (base scenario) ─────────────────────────────
     const yearsToRetInt = Math.ceil(retireAge - curAge);   // integer!
     yearsToRet = yearsToRetInt;     // keep global in sync
-    window.yearsToRet = yearsToRet;
 
     balances = [];
     let bal = currentPv;
@@ -628,8 +431,6 @@ employerCalc      = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
         });
       }
 
-    window.balances = balances;
-
     // Calculate max-contribution projection (for summary/PDF)
     let maxBal = currentPv;
     for (let y = 1; y <= yearsToRetInt; y++) {
@@ -644,7 +445,6 @@ employerCalc      = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
 const retirementYear = new Date().getFullYear() + Math.ceil(yearsToRet);
 const sftLimit       = sftForYear(retirementYear);
 sftLimitGlobal = sftLimit;
-window.sftLimitGlobal = sftLimitGlobal;
 
   let sftAssumpWarning = '';
   if (retirementYear >= 2030) {
@@ -811,23 +611,17 @@ function gatherData(value, year, sftText, personalAnnual, employerAnnual, maxVal
     document.getElementById('results').innerHTML = tableHTML + resultsHTML;
     document.getElementById('calcWarnings').innerHTML = warningsHTML;
 
-    latestRun.warningBlocks = [
-      ...document.querySelectorAll('#results .warning-block, #postCalcContent .warning-block, #calcWarnings .warning-block')
-    ].map(el => {
+    latestRun.warningBlocks = [...document.querySelectorAll('#results .warning-block, #postCalcContent .warning-block')].map(el => {
       const strong = el.querySelector('strong');
       const headText = strong ? strong.innerText.trim() : el.innerText.split('\n')[0].trim();
       const clone = el.cloneNode(true);
-      if (strong) clone.removeChild(clone.querySelector('strong'));
-      else clone.innerHTML = clone.innerHTML.replace(/^[\s\S]*?<br\s*\/?>/, '');
+      if (strong) clone.removeChild(clone.querySelector('strong')); else clone.innerHTML = clone.innerHTML.replace(/^[\s\S]*?<br\s*\/?>/, '');
       const bodyHTML = clone.innerHTML.replace(/^[\s\uFEFF\u200B]*(⚠️|⛔)/, '').trim();
       return { title: headText.replace(/^\s*⚠️|⛔\s*/, '').trim(), body: bodyHTML, danger: el.classList.contains('danger') };
     });
     const mandatoryWarn = latestRun.warningBlocks.find(w => w.title.startsWith('Important Notice'));
     latestRun.mandatoryWarn = mandatoryWarn;
     latestRun.otherWarns = latestRun.warningBlocks.filter(w => w !== mandatoryWarn);
-
-    ensureNoticesMount();
-    renderComplianceNotices(document.getElementById('compliance-notices'));
 
     document.getElementById('postCalcContent').style.display = 'block';
 
@@ -1045,10 +839,8 @@ document.addEventListener('fm-run-pension', e => {
   const limitValue    = maxPersonalPct(Math.floor(curAge)) * salaryCapped;
   const personalUsed  = Math.min(personalCalc, limitValue);
   const retireAge   = +d.retireAge;
-  window.retireAge = retireAge;
   const gRate       = +d.growth || 0.05;
   const yearsToRet  = Math.ceil(retireAge - curAge);
-  window.yearsToRet = yearsToRet;
 
   const balances = [];
   let bal = currentPv;
@@ -1062,7 +854,6 @@ document.addEventListener('fm-run-pension', e => {
     growthBase.push(Math.round(bal - before - (personalUsed + employerCalc)));
     balances.push({ age: Math.floor(curAge) + y, value: Math.round(bal) });
   }
-  window.balances = balances;
 
   // max contribution scenario
   let maxBalances = [];
@@ -1079,13 +870,10 @@ document.addEventListener('fm-run-pension', e => {
     growthMax.push(Math.round(maxBal - before - (personalMax + employerCalc)));
     maxBalances.push({ age: Math.floor(ageNext), value: Math.round(maxBal) });
   }
-  window.maxBalances = maxBalances;
 
   const projValue = balances.at(-1).value;
   const retirementYear = new Date().getFullYear() + Math.ceil(yearsToRet);
   const sftLimit = sftForYear(retirementYear);
-  sftLimitGlobal = sftLimit;
-  window.sftLimitGlobal = sftLimit;
 
   document.dispatchEvent(new CustomEvent('fm-pension-output', {
     detail: {
@@ -1101,7 +889,5 @@ document.addEventListener('fm-run-pension', e => {
       growthMax
     }
   }));
-  ensureNoticesMount();
-  renderComplianceNotices(document.getElementById('compliance-notices'));
 });
 
