@@ -61,6 +61,8 @@
 
     .final-step,
     .risk-section{
+      min-width:0;
+      min-height:0;
       min-height:100dvh;
       min-height:calc(var(--vh,1vh)*100);
       min-height:-webkit-fill-available;
@@ -72,9 +74,20 @@
       grid-template-columns:repeat(4,minmax(0,1fr));
       gap:12px;
       margin-top:1rem;
+      min-width:0;
+      min-height:0;
     }
     @media (max-width:640px){
-      .risk-grid{grid-template-columns:1fr;}
+      .final-step,
+      .risk-section,
+      .risk-grid{
+        min-width:0;
+        min-height:0;
+      }
+      .risk-grid{
+        display:grid;
+        grid-template-columns:1fr;
+      }
       .risk-card{min-height:140px;}
     }
     @supports not (gap: 12px){
