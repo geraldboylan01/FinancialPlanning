@@ -5,7 +5,7 @@
 
 import { animate, addKeyboardNav } from './wizardCore.js';
 import { currencyInput, percentInput, numFromInput, clampPercent } from './ui-inputs.js';
-import { renderStepPensionRisk, RISK_OPTIONS } from './stepPensionRisk.js';
+import { renderStepPensionRisk } from './stepPensionRisk.js';
 import { MAX_SALARY_CAP } from './shared/assumptions.js';
 
 // Temporary debug flag: set true to emit fake pension output without engine
@@ -53,9 +53,11 @@ function queueSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveStore,
 // ----------------------------------------------------------------
 
 const storedRiskKey = localStorage.getItem('fm.pensionRiskKey');
+const storedRiskLabel = localStorage.getItem('fm.pensionRiskLabel');
 const storedRiskRate = parseFloat(localStorage.getItem('fm.pensionGrowthRate'));
-const defaultRiskKey = storedRiskKey && RISK_OPTIONS[storedRiskKey] ? storedRiskKey : null;
+const defaultRiskKey = storedRiskKey || null;
 const defaultRiskRate = !isNaN(storedRiskRate) ? storedRiskRate : null;
+const defaultRiskLabel = storedRiskLabel || null;
 
 const fullMontyStore = {
   // household
@@ -97,7 +99,7 @@ const fullMontyStore = {
 
 
   // risk profile
-  pensionRisk: defaultRiskKey ? RISK_OPTIONS[defaultRiskKey].label : null,
+  pensionRisk: defaultRiskLabel,
   pensionRiskKey: defaultRiskKey,
   pensionGrowthRate: defaultRiskRate,
 
@@ -680,6 +682,7 @@ const baseSteps = [
       const sel = document.createElement('div');
       sel.id = 'risk-selection';
       cont.appendChild(sel);
+      console.debug('[fullMontyWizard] renderStepPensionRisk Step 6');
       renderStepPensionRisk(sel, fullMontyStore, setStore, btnNext);
     },
     validate(){ return renderStepPensionRisk.validate(); }
@@ -708,6 +711,7 @@ function refreshSteps(){
   if(!showRisk){
     setStore({ pensionRisk: 'Not applicable (DB only)', pensionRiskKey: 'dbOnly', pensionGrowthRate: 0 });
     localStorage.setItem('fm.pensionRiskKey','dbOnly');
+    localStorage.setItem('fm.pensionRiskLabel','Not applicable (DB only)');
     localStorage.setItem('fm.pensionGrowthRate','0');
   }
 }

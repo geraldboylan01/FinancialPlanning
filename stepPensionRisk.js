@@ -1,11 +1,8 @@
-export const RISK_OPTIONS = {
-  low:      { label: 'Low risk',      mix: '≈ 30% stocks / 70% bonds', rate: 0.04 },
-  balanced: { label: 'Balanced',      mix: '≈ 50% stocks / 50% bonds', rate: 0.05 },
-  high:     { label: 'High risk',     mix: '≈ 70% stocks / 30% bonds', rate: 0.06 },
-  veryHigh: { label: 'Very-high',     mix: '100% stocks',              rate: 0.07 }
-};
+import { RISK_OPTIONS } from './riskOptions.js';
+console.debug('[stepPensionRisk] options', RISK_OPTIONS);
 
 export function renderStepPensionRisk(container, store, setStore, nextBtn){
+  console.debug('[stepPensionRisk] renderStepPensionRisk called');
   container.innerHTML = '';
   // Keep the existing step text above this container; we’re only injecting the cards below it.
   const grid = document.createElement('div');
@@ -24,8 +21,10 @@ export function renderStepPensionRisk(container, store, setStore, nextBtn){
     setStore?.({ pensionRisk: opt.label, pensionRiskKey: key, pensionGrowthRate: opt.rate });
     try{
       localStorage.setItem('fm.pensionRiskKey', key);
+      localStorage.setItem('fm.pensionRiskLabel', opt.label);
       localStorage.setItem('fm.pensionGrowthRate', String(opt.rate));
     }catch(e){}
+    console.debug('[stepPensionRisk] selected', key, opt);
     grid.querySelectorAll('.risk-card').forEach(c=>{
       c.classList.toggle('selected', c.dataset.key===key);
       c.setAttribute('aria-checked', c.dataset.key===key ? 'true' : 'false');
