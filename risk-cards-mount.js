@@ -14,6 +14,6 @@ export function mountRiskCards(){
     entries.forEach(e=>{
       if (e.isIntersecting) e.target.classList.add('in');
     });
-  }, { rootMargin: '150px 0px', threshold: 0.01 });
+  }, { root: document.querySelector('.fm-body'), rootMargin: '150px 0px', threshold: 0.01 });
   cards.forEach(el => io.observe(el));
 }
