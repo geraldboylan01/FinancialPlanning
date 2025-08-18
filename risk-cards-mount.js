@@ -2,6 +2,12 @@ export function mountRiskCards(){
   // existing render...
   const cards = document.querySelectorAll('.risk-card');
 
+  // If on a coarse pointer device with no hover (e.g., touch screens), reveal immediately
+  if (window.matchMedia('(hover: none) and (pointer: coarse)').matches){
+    cards.forEach(el => el.classList.add('in'));
+    return;
+  }
+
   // If IntersectionObserver missing or iOS Safari, reveal immediately
   const isIOS = document.documentElement.classList.contains('is-ios');
   if (!('IntersectionObserver' in window) || isIOS){
