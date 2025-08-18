@@ -33,6 +33,175 @@ const COLORS = {
   needLine:       '#FFFFFF'
 };
 
+function formatEUR(x){
+  try { return new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(x); }
+  catch(e){ return '€'+Math.round(+x||0).toLocaleString('en-IE'); }
+}
+
+function ensureNoticesMount(){
+  if (document.getElementById('compliance-notices')) return;
+  const charts = document.querySelector('#phase-pre .phase-grid');
+  if (!charts) return;
+  const sec = document.createElement('section');
+  sec.id = 'compliance-notices';
+  sec.className = 'notices-section';
+  sec.setAttribute('aria-label','Notices & limits');
+  charts.insertAdjacentElement('afterend', sec);
+}
+
+function scenarioLabel(){
+  return useMax ? 'Max contributions' : 'Base case';
+}
+
+function projectedAtRetirementValue(){
+  return activeProjection().valueAtRet ?? null;
+}
+
+function sftSeverity(value, limit){
+  if (value == null || !isFinite(value) || !isFinite(limit)) return {level:'ok', label:'No data'};
+  const r = value/limit;
+  if (r >= 1) return {level:'danger', label:'Projected breach'};
+  if (r >= 0.8) return {level:'warn', label:'Close to limit'};
+  return {level:'ok', label:'Below limit'};
+}
+
+function classifyWarnings(){
+  const wb = lastPensionOutput?.warningBlocks || [];
+  const out = { age:null, sftAssump:null };
+  wb.forEach(w=>{
+    const t = (w.title||'').toLowerCase();
+    if (t.includes('retiring before age 50') || t.includes('retiring between age 50') ||
+        t.includes('over 70') || t.includes('75 and over')){
+      out.age = w;
+    }
+    if (t.includes('standard fund threshold (sft) assumptions')) out.sftAssump = w;
+  });
+  return out;
+}
+
+function renderComplianceNotices(container){
+  ensureNoticesMount();
+  container = container || document.getElementById('compliance-notices');
+  if (!container) return;
+
+  const valueAtRet   = projectedAtRetirementValue();
+  const sftLimit     = lastPensionOutput?.sftLimit || null;
+  const scenario     = scenarioLabel();
+  const retireAge    = lastWizard?.retireAge ?? null;
+  const retirementYr = lastPensionOutput?.retirementYear ?? null;
+
+  const sev = sftSeverity(valueAtRet, sftLimit);
+  const classes = (lvl)=> lvl==='danger'?'notice--danger':(lvl==='warn'?'notice--warn':'notice--ok');
+
+  const classified = classifyWarnings();
+
+  const pill = (key, level, main, sub) => `
+    <button class="notice-pill ${classes(level)}" data-target="${key}" type="button" aria-controls="card-${key}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2L1 21h22L12 2zm0 6l7 12H5L12 8zm-1 3h2v5h-2zm0 6h2v2h-2z"/></svg>
+      <div>
+        <div class="pill-title">${main}</div>
+        <div class="pill-sub">${sub}</div>
+      </div>
+    </button>
+  `;
+
+  const sftMain = `SFT: ${sev.label}`;
+  const sftSub  = (valueAtRet && sftLimit)
+    ? `${scenario} • ${formatEUR(valueAtRet)} vs ${formatEUR(sftLimit)}`
+    : `${scenario} • no projection`;
+
+  let ageLevel='ok', ageLabel='Within typical range';
+  if (retireAge != null){
+    if (retireAge < 50 || retireAge >= 75){ ageLevel='danger'; }
+    else if ((retireAge >= 50 && retireAge < 60) || (retireAge >= 70 && retireAge < 75)){ ageLevel='warn'; }
+    else { ageLevel='ok'; }
+    if (retireAge < 50) ageLabel='Retiring < 50';
+    else if (retireAge < 60) ageLabel='Retiring 50–59';
+    else if (retireAge < 70) ageLabel='60–69 (typical)';
+    else if (retireAge < 75) ageLabel='Over 70';
+    else ageLabel='≥ 75';
+  }
+  const ageSub = retireAge != null ? `Selected age: ${retireAge}` : `No age selected`;
+
+  const showAssump = (retirementYr >= 2030);
+  const assumpLevel = showAssump ? 'warn' : 'ok';
+  const assumpLabel = showAssump ? 'Post-2029 SFT assumptions' : 'SFT assumptions';
+  const assumpSub   = showAssump ? `Year ${retirementYr}: fixed beyond 2029` : `Up to 2029: fixed values`;
+
+  const sftCard = `
+    <div id="card-sft" class="notice-card ${sev.level==='danger'?'danger':(sev.level==='warn'?'warn':'')}">
+      <div class="title">Standard Fund Threshold</div>
+      <div class="meta">
+        ${valueAtRet && sftLimit
+          ? `Projected (${scenario}): <b>${formatEUR(valueAtRet)}</b> vs SFT: <b>${formatEUR(sftLimit)}</b>.`
+          : 'No SFT comparison available.'}
+        ${sev.level==='danger' ? ' Your projection exceeds the configured limit.'
+          : (sev.level==='warn' ? ' You are getting close to the limit.' : ' You are below the limit.')}
+      </div>
+      <div class="actions">
+        <span class="chip">Review contributions</span>
+        <span class="chip">Test retirement age</span>
+      </div>
+    </div>
+  `;
+
+  const ageBody = classified.age ? classified.age.body : (
+    ageLevel==='ok' ? 'Selected retirement age is within a typical range.' :
+    (retireAge < 50
+      ? 'Pensions generally cannot be accessed before age 50 except in rare cases (ill-health).'
+      : (retireAge < 60
+          ? 'Access before the usual retirement age is limited and condition-dependent.'
+          : (retireAge < 75
+              ? 'Many schemes must be drawn by 70; PRSA may defer to 75.'
+              : 'All pensions must be accessed by age 75; automatic vesting applies.')))
+  );
+  const ageCard = `
+    <div id="card-age" class="notice-card ${ageLevel==='danger'?'danger':(ageLevel==='warn'?'warn':'')}">
+      <div class="title">Retirement age selection</div>
+      <div class="meta">${ageBody}</div>
+      <div class="actions">
+        <span class="chip">Compare ages ±5 years</span>
+        <span class="chip">Check cashflow robustness</span>
+      </div>
+    </div>
+  `;
+
+  const assumpBody = classified.sftAssump ? classified.sftAssump.body :
+    'Post-2029 SFT values are not projected in this tool. Actual limits may change based on policy and wage inflation.';
+  const assumpCard = showAssump ? `
+    <div id="card-assump" class="notice-card warn">
+      <div class="title">SFT assumptions notice</div>
+      <div class="meta">${assumpBody}</div>
+      <div class="actions">
+        <span class="chip">Include wage inflation scenario</span>
+        <span class="chip">Review tax assumptions</span>
+      </div>
+    </div>
+  ` : '';
+
+  container.innerHTML = `
+    <div class="notice-pills" role="group" aria-label="Compliance summaries">
+      ${pill('sft',  sev.level,  `SFT: ${sev.label}`, sftSub)}
+      ${pill('age',  ageLevel,    `Retirement: ${ageLabel}`, ageSub)}
+      ${showAssump ? pill('assump','warn', assumpLabel, assumpSub) : ''}
+    </div>
+    <div class="notice-cards">
+      ${sev.level!=='ok' ? sftCard : ''}
+      ${ageLevel!=='ok' ? ageCard : ''}
+      ${assumpCard}
+    </div>
+  `;
+
+  container.querySelectorAll('.notice-pill').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = btn.getAttribute('data-target');
+      const card = container.querySelector('#card-'+key);
+      if (!card) return;
+      card.style.display = (card.style.display === 'none' || !card.style.display) ? 'block' : 'none';
+    });
+  });
+}
+
 // Public: update retirement income chart colors for max-toggle
 function setRetirementIncomeColorsForToggle(isMaxOn) {
   const chart = retirementIncomeChart; // your Chart.js instance
@@ -136,6 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
       drawCharts();
       onMaxContribsToggleChanged(useMax);
       renderMaxTable(lastWizard);
+      renderComplianceNotices(document.getElementById('compliance-notices'));
     });
     setMaxToggle(chk.checked);
     onMaxContribsToggleChanged(chk.checked);
@@ -583,6 +753,7 @@ function drawCharts() {
   });
 
   renderSummary();
+  renderComplianceNotices(document.getElementById('compliance-notices'));
 
   // Optional: console flag for depletion
   if (simProj.depleteAge) {
@@ -670,9 +841,86 @@ document.addEventListener('fm-run-pension', (e) => {
 document.addEventListener('fm-pension-output', (e) => {
   console.debug('[FM Results] got fm-pension-output', e.detail);
   lastPensionOutput = e.detail;
+
+  const retireAge = lastWizard?.retireAge ?? lastPensionOutput?.balances?.at(-1)?.age ?? null;
+  const retirementYear = lastPensionOutput?.retirementYear;
+  let earlyWarning = '';
+  if (retireAge != null){
+    if (retireAge < 50){
+      earlyWarning = `
+<div class="warning-block danger">
+⛔ <strong>Retiring Before Age 50</strong><br><br>
+Under Irish Revenue rules, pensions cannot be accessed before age 50, except in rare cases such as ill-health retirement.<br>
+These projections are illustrative only — professional guidance is strongly recommended.
+</div>`;
+    }
+    else if (retireAge < 60){
+      earlyWarning = `
+<div class="warning-block">
+⚠️ <strong>Retiring Between Age 50–59</strong><br><br>
+Access to pension benefits before the usual retirement age is only possible in limited cases.<br><br>
+Typical Normal Retirement Ages (NRAs) are:<br>
+60–70 for most occupational pensions and Personal Retirement Bonds (PRBs)<br>
+60–75 for PRSAs<br><br>
+Early access (from age 50) may be possible only if certain Revenue conditions are met — e.g.:<br>
+You’ve left employment linked to the pension<br>
+You’re a proprietary director who fully severs ties with the sponsoring company<br><br>
+Please seek professional advice before relying on projections assuming early access.
+</div>`;
+    }
+    else if (retireAge < 70){
+      earlyWarning = '';
+    }
+    else if (retireAge < 75){
+      earlyWarning = `
+<div class="warning-block">
+⚠️ <strong>Retirement Age Over 70 (Occupational Pensions &amp; PRBs)</strong><br><br>
+Most occupational pensions and Personal Retirement Bonds (PRBs) must be drawn down by age 70 under Irish Revenue rules.<br>
+If your selected retirement age is over 70, please be aware this may not be allowed for those pension types.<br><br>
+Note: The exception to this is PRSAs, which can remain unretired until age 75.<br><br>
+Please seek professional advice to ensure your retirement plan complies with pension access rules.
+</div>`;
+    }
+    else {
+      earlyWarning = `
+<div class="warning-block danger">
+⛔ <strong>Retirement Age 75 and Over</strong><br><br>
+Under Irish Revenue rules, all pensions — including PRSAs — must be accessed by age 75.<br>
+If benefits are not drawn down by this age, the pension is automatically deemed to vest, and the full value may be treated as taxable income.<br>
+These projections are illustrative only — professional guidance is strongly recommended.
+</div>`;
+    }
+  }
+
+  let sftAssumpWarning = '';
+  if (retirementYear >= 2030) {
+    sftAssumpWarning = `
+      <div class="warning-block">
+        ⚠️ <strong>Standard Fund Threshold (SFT) Assumptions</strong><br><br>
+        This pension projection tool uses the Standard Fund Threshold (SFT) figures as published by the Irish Government for each year up to and including 2029. These are the most recent years for which official, fixed SFT values have been confirmed.<br><br>
+        While the Government has indicated that the SFT will increase in line with wage inflation beyond 2029, no definitive figures or formulae have been published to date. As a result, this tool does not project future increases to the SFT beyond 2029, as doing so would require speculative or unreliable assumptions.<br><br>
+        Users should be aware that actual SFT limits post-2029 may differ significantly depending on future policy decisions and economic conditions. We recommend consulting a qualified financial advisor for guidance specific to your circumstances.
+      </div>`;
+  }
+
+  const warningsHTML = earlyWarning + sftAssumpWarning;
+  document.getElementById('calcWarnings').innerHTML = warningsHTML;
+
+  lastPensionOutput.warningBlocks = [...document.querySelectorAll('#calcWarnings .warning-block')].map(el => {
+    const strong = el.querySelector('strong');
+    const headText = strong ? strong.innerText.trim() : el.innerText.split('\n')[0].trim();
+    const clone = el.cloneNode(true);
+    if (strong) clone.removeChild(clone.querySelector('strong'));
+    else clone.innerHTML = clone.innerHTML.replace(/^[\s\S]*?<br\s*\/?>/, '');
+    const bodyHTML = clone.innerHTML.replace(/^[\s\uFEFF\u200B]*(⚠️|⛔)/, '').trim();
+    return { title: headText.replace(/^\s*⚠️|⛔\s*/, '').trim(), body: bodyHTML, danger: el.classList.contains('danger') };
+  });
+
   ensureMaxScenario();
   drawCharts();
   renderMaxTable(lastWizard);
+  ensureNoticesMount();
+  renderComplianceNotices(document.getElementById('compliance-notices'));
 });
 
 document.addEventListener('fm-run-fy', (e) => {
@@ -703,4 +951,6 @@ document.addEventListener('fm-run-fy', (e) => {
   ensureMaxScenario();
   drawCharts();
   renderMaxTable(lastWizard);
+  ensureNoticesMount();
+  renderComplianceNotices(document.getElementById('compliance-notices'));
 });
