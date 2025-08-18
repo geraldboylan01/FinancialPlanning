@@ -54,7 +54,19 @@ function scenarioLabel(){
 }
 
 function projectedAtRetirementValue(){
-  return activeProjection().valueAtRet ?? null;
+  if (!lastPensionOutput) return null;
+
+  // If the Max toggle is on, use the maxBalances projection; else use base balances.
+  if (useMax && Array.isArray(lastPensionOutput.maxBalances) && lastPensionOutput.maxBalances.length){
+    return lastPensionOutput.maxBalances.at(-1)?.value ?? null;
+  }
+
+  if (Array.isArray(lastPensionOutput.balances) && lastPensionOutput.balances.length){
+    return lastPensionOutput.balances.at(-1)?.value ?? null;
+  }
+
+  // Fallback (fm-pension-output also provides projValue)
+  return lastPensionOutput.projValue ?? null;
 }
 
 function sftSeverity(value, limit){
@@ -83,6 +95,8 @@ function renderComplianceNotices(container){
   ensureNoticesMount();
   container = container || document.getElementById('compliance-notices');
   if (!container) return;
+
+  if (!lastPensionOutput) { container.innerHTML = ''; return; }
 
   const valueAtRet   = projectedAtRetirementValue();
   const sftLimit     = lastPensionOutput?.sftLimit || null;
