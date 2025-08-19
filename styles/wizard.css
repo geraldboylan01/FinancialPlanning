@@ -266,3 +266,77 @@
   .risk-step .rc-meter span{ transition:none; }
 }
 
+/* === Wizard scrollbar theme (scoped) === */
+.fm-sheet{
+  /* Neon dark theme tokens */
+  --sb-track: #141414;
+  --sb-thumb: #2e2e2e;
+  --sb-hover: #00ff88;
+  --sb-active:#00e67a;
+}
+
+/* Apply to the scrollable body of the wizard (vertical) */
+.fm-sheet .fm-body{
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-thumb) var(--sb-track);
+
+  /* Prevent layout shift when the bar appears */
+  scrollbar-gutter: stable both-edges;
+
+  /* Keep the sheet self-contained */
+  overscroll-behavior: contain;
+
+  /* Remove the stray horizontal bar */
+  overflow-x: clip; /* modern */
+  overflow-x: hidden; /* fallback */
+}
+
+/* WebKit (Chrome, Edge, Safari) */
+.fm-sheet .fm-body::-webkit-scrollbar{
+  width: 12px;              /* vertical */
+  height: 12px;             /* horizontal (if any) */
+}
+.fm-sheet .fm-body::-webkit-scrollbar-track{
+  background: var(--sb-track);
+  border-radius: 10px;
+}
+.fm-sheet .fm-body::-webkit-scrollbar-thumb{
+  background: var(--sb-thumb);
+  border: 2px solid var(--sb-track); /* inset groove */
+  border-radius: 10px;
+  transition: background .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.fm-sheet .fm-body::-webkit-scrollbar-thumb:hover{
+  background: var(--sb-hover);
+  box-shadow: 0 0 0 3px rgba(0,255,136,.15) inset;
+}
+.fm-sheet .fm-body::-webkit-scrollbar-thumb:active{
+  background: var(--sb-active);
+  box-shadow: 0 0 0 4px rgba(0,255,136,.22) inset;
+}
+.fm-sheet .fm-body::-webkit-scrollbar-corner{
+  background: var(--sb-track);
+}
+.fm-sheet .fm-body::-webkit-scrollbar-button{
+  display:none;
+}
+
+/* Optional: any other scrollable areas inside the wizard (e.g., expandable cards) */
+.fm-sheet .ic-body,
+.fm-sheet .risk-grid{
+  scrollbar-width: thin;
+  scrollbar-color: var(--sb-thumb) var(--sb-track);
+}
+.fm-sheet .ic-body::-webkit-scrollbar,
+.fm-sheet .risk-grid::-webkit-scrollbar{ width: 10px; height: 10px; }
+.fm-sheet .ic-body::-webkit-scrollbar-track,
+.fm-sheet .risk-grid::-webkit-scrollbar-track{ background: var(--sb-track); border-radius: 10px; }
+.fm-sheet .ic-body::-webkit-scrollbar-thumb,
+.fm-sheet .risk-grid::-webkit-scrollbar-thumb{
+  background: var(--sb-thumb);
+  border: 2px solid var(--sb-track);
+  border-radius: 10px;
+}
+.fm-sheet .ic-body::-webkit-scrollbar-thumb:hover,
+.fm-sheet .risk-grid::-webkit-scrollbar-thumb:hover{ background: var(--sb-hover); }
