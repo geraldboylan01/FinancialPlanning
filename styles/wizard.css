@@ -1,0 +1,150 @@
+/* Risk step layout */
+.risk-step{
+  display: grid;
+  gap: 16px;
+}
+
+.risk-head{
+  display: grid;
+  gap: 6px;
+}
+.risk-title{
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: .2px;
+}
+.risk-sub{
+  color: #bbb;
+  line-height: 1.4;
+}
+
+/* Grid that fills space nicely on desktop, stacks on mobile */
+.risk-grid{
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 680px){
+  .risk-grid{ grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 1040px){
+  .risk-grid{ grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Card (radio) */
+.risk-card{
+  -webkit-tap-highlight-color: transparent;
+  background: #232323;
+  color: #fff;
+  text-align: left;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  padding: 14px;
+  min-height: 168px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 10px;
+  cursor: pointer;
+  outline: none;
+  position: relative;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease, background .15s ease;
+}
+.risk-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0,0,0,.35);
+}
+.risk-card.pressed{ transform: scale(.985); }
+
+.risk-card:focus-visible{
+  border-color: #00ff88;
+  box-shadow: 0 0 0 3px rgba(0,255,136,.25);
+}
+
+.risk-card.selected{
+  border-color: rgba(0,255,136,.8);
+  background: linear-gradient(180deg, rgba(0,255,136,.12), rgba(0,0,0,0));
+}
+
+/* Head */
+.rc-head{ display: grid; gap: 4px; }
+.rc-label{ font-weight: 800; letter-spacing: .2px; }
+.rc-mix{ color:#bbb; font-size:.92rem; }
+
+/* Body */
+.rc-body{
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+/* Big rate */
+.rc-rate{
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.rc-rate-num{
+  font-size: 1.8rem;
+  font-weight: 900;
+  line-height: 1;
+}
+.rc-rate-sub{
+  color:#bbb; font-size:.9rem;
+}
+
+/* 5-dot meter */
+.rc-meter{
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 6px;
+}
+.rc-meter i{
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.16);
+  display: inline-block;
+  transition: background .15s ease, transform .15s ease;
+}
+.risk-card:hover .rc-meter i{ transform: translateY(-1px); }
+
+/* fill according to data-level (1–5) */
+.rc-meter[data-level="1"] i:nth-child(-n+1),
+.rc-meter[data-level="2"] i:nth-child(-n+2),
+.rc-meter[data-level="3"] i:nth-child(-n+3),
+.rc-meter[data-level="4"] i:nth-child(-n+4),
+.rc-meter[data-level="5"] i:nth-child(-n+5){
+  background: #00ff88;
+}
+
+/* Blurb */
+.rc-blurb{ color:#cfcfcf; font-size:.95rem; line-height:1.35; }
+
+/* Call to action hint (desktop hover) */
+.rc-cta{
+  align-self: end;
+  color:#88ffcc;
+  opacity:.0;
+  font-weight:700;
+  letter-spacing:.3px;
+  transition: opacity .15s ease, transform .15s ease;
+}
+.risk-card:hover .rc-cta{ opacity:1; transform: translateY(-2px); }
+
+/* Footer note */
+.risk-foot{ margin-top: 2px; }
+.risk-note{
+  color:#bbb;
+  font-size:.92rem;
+  border-left: 3px solid rgba(255,255,255,.14);
+  padding: 8px 10px;
+  background: rgba(255,255,255,.04);
+  border-radius: 8px;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .risk-card{ transition: none; }
+  .risk-card:hover{ transform:none; box-shadow:none; }
+  .rc-meter i{ transition: none; }
+}
+

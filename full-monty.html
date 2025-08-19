@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles/inputs.css">
   <link rel="stylesheet" href="styles/results.css">
+  <link rel="stylesheet" href="styles/wizard.css">
   <style>
     :root{
       --accent:#c000ff;
@@ -59,64 +60,13 @@
     input:focus,select:focus{outline:none;border-color:var(--glow);box-shadow:0 0 0 3px rgba(0,255,136,.25);}
     .error{color:var(--error, #ff6b6b);margin-top:.5rem;font-size:.9rem;}
 
-    .final-step,
-    .risk-section{
+    .final-step{
       min-width:0;
       min-height:0;
       min-height:100dvh;
       min-height:calc(var(--vh,1vh)*100);
       min-height:-webkit-fill-available;
     }
-
-    /* Pension risk cards */
-    .risk-grid{
-      display:grid;
-      grid-template-columns:repeat(4,minmax(0,1fr));
-      gap:12px;
-      margin-top:1rem;
-      min-width:0;
-      min-height:0;
-    }
-    @media (max-width:640px){
-      .final-step,
-      .risk-section,
-      .risk-grid{
-        min-width:0;
-        min-height:0;
-      }
-      .risk-grid{
-        display:grid;
-        grid-template-columns:1fr;
-      }
-      .risk-card{min-height:140px;}
-    }
-    @supports not (gap: 12px){
-      .risk-grid{row-gap:12px;column-gap:0;}
-      .risk-card + .risk-card{margin-top:12px;}
-    }
-    .risk-card{
-      display:flex;
-      flex-direction:column;
-      align-items:flex-start;
-      gap:.25rem;
-      padding:1rem;
-      border:1px solid var(--field-border,rgba(255,255,255,.12));
-      border-radius:12px;
-      background:var(--field-bg,rgba(255,255,255,.04));
-      outline:none;
-      cursor:pointer;
-      transition:transform .08s ease, box-shadow .2s ease, border-color .2s ease;
-    }
-    .risk-card:hover{transform:translateY(-1px);}
-    .risk-card:focus{box-shadow:var(--focus-ring,0 0 0 3px rgba(0,255,136,.25));}
-    .risk-card.selected{
-      border-color:var(--focus,#00ff88);
-      box-shadow:var(--focus-ring,0 0 0 3px rgba(0,255,136,.25));
-    }
-    .risk-title{font-weight:700;}
-    .risk-mix{font-size:.9rem;opacity:.9;}
-    .risk-rate{font-size:.85rem;opacity:.8;}
-
     /* Disable start-hidden animations on iOS */
     .is-ios .will-fade-in{
       opacity:1!important;
@@ -129,7 +79,6 @@
       .sticky-on-desktop{position:static!important;}
     }
 
-    .risk-section{position:relative;z-index:2;}
     @media (max-width:640px){
       .cta-bar, .sticky-footer, .wizard{z-index:1;}
       .cta-bar.is-transparent-over-content{pointer-events:none;}
