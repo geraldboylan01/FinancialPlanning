@@ -5,7 +5,7 @@
 
 import { animate, addKeyboardNav } from './wizardCore.js';
 import { currencyInput, percentInput, numFromInput, clampPercent } from './ui-inputs.js';
-import { renderStepPensionRisk, validateRiskSelection } from './stepPensionRisk.js';
+import { renderStepPensionRisk } from './stepPensionRisk.js';
 import { MAX_SALARY_CAP } from './shared/assumptions.js';
 
 // Temporary debug flag: set true to emit fake pension output without engine
@@ -685,7 +685,9 @@ const baseSteps = [
       console.debug('[fullMontyWizard] renderStepPensionRisk Step 6');
       renderStepPensionRisk(sel, fullMontyStore, setStore, btnNext);
     },
-    validate(){ return (renderStepPensionRisk.validate && renderStepPensionRisk.validate()) || validateRiskSelection(); }
+    validate(){
+      return (renderStepPensionRisk.validate && renderStepPensionRisk.validate()) || { ok:false, message:'Please choose a risk profile.' };
+    }
   }
 ];
 

@@ -84,7 +84,7 @@ export function renderStepPensionRisk(container, store, setStore, nextBtn){
           <span class="rc-rate-sub">assumed annual growth</span>
         </div>
         <div class="rc-meter" aria-hidden="true" data-level="${opt.level}">
-          <i></i><i></i><i></i><i></i><i></i>
+          <span></span><span></span><span></span><span></span><span></span>
         </div>
         <p class="rc-blurb">${opt.blurb}</p>
       </div>
@@ -179,9 +179,7 @@ export function validateRiskSelection(){
   return ok ? { ok: true } : { ok: false, message: 'Please choose a risk profile.' };
 }
 
-// Keep compatibility with your wizard:
-export const renderStepPensionRiskValidate = validateRiskSelection;
-export const validate = validateRiskSelection;
-export default { renderStepPensionRisk, validateRiskSelection };
 renderStepPensionRisk.validate = validateRiskSelection;
+export { validateRiskSelection as validate };
+export default { renderStepPensionRisk, validateRiskSelection };
 
