@@ -890,6 +890,32 @@ function withBusyState(button, fn){
   });
 }
 
+// Central setter for the "Use max contributions" scenario.
+function setUseMaxContributions(enabled){
+  // Normalize boolean
+  store.useMaxContributions = !!enabled;
+
+  // Propagate to global helpers that rely on this flag
+  if (typeof window !== 'undefined') {
+    window.useMax = store.useMaxContributions;
+    if (typeof setMaxToggle === 'function') setMaxToggle(store.useMaxContributions);
+    if (typeof onMaxContribsToggleChanged === 'function') onMaxContribsToggleChanged(store.useMaxContributions);
+  }
+
+  // Recompute and re-render EVERYTHING (hero + charts)
+  recomputeAndRefreshUI();
+
+  // Accessible announcement
+  announce(enabled
+    ? 'Max contributions scenario enabled.'
+    : 'Max contributions scenario disabled.');
+}
+
+function syncMaxToggleUI(){
+  const maxTgl = document.getElementById('maxContribsChk');
+  if (maxTgl) maxTgl.checked = !!store.useMaxContributions;
+}
+
 // ====== MAX CONTRIBUTION HELPERS ======
 const CONTRIB_KEYS = {
   monthlyEuro: ['personalContribSelf','personalMonthlyContribution','employeeContributionMonthly','contribMonthly'],
@@ -998,12 +1024,11 @@ function restoreBaseline(){
   if (k && baselineSnapshot[k] !== undefined) patch[k] = baselineSnapshot[k];
   if (pk && baselineSnapshot[pk] !== undefined) patch[pk] = baselineSnapshot[pk];
   if (baselineSnapshot.retireAge !== undefined) patch.retireAge = baselineSnapshot.retireAge;
-  if (baselineSnapshot.useMaxContributions !== undefined) patch.useMaxContributions = baselineSnapshot.useMaxContributions;
   setStore(patch);
   deltaContribEuro = 0;
   deltaRetireYears = 0;
   actionStack.length = 0;
-  recomputeAndRefreshUI();
+  setUseMaxContributions(baselineSnapshot.useMaxContributions);
   announce('Inputs restored to your original values.');
 }
 
@@ -1124,12 +1149,7 @@ function renderResults(container, data = {}){
     switchBtn.type = 'button';
     switchBtn.textContent = 'Enable “Use max contributions”';
     switchBtn.addEventListener('click', () => {
-      store.useMaxContributions = true;
-      const chk = document.getElementById('maxContribsChk');
-      if (chk){ chk.checked = true; chk.dispatchEvent(new Event('change')); }
-      else if (typeof setMaxToggle === 'function') setMaxToggle(true);
-      recomputeAndRefreshUI();
-      announce('Max contributions scenario enabled.');
+      setUseMaxContributions(true);
     });
 
     switchRow.appendChild(switchBtn);
@@ -1174,7 +1194,7 @@ function renderResults(container, data = {}){
   container.appendChild(controlsWrap);
 
   requestAnimationFrame(()=> hero.classList.add('reveal--in'));
-
+  syncMaxToggleUI();
   showEditFab(() => openFullMontyWizard());
 }
 
@@ -1205,4 +1225,5 @@ window.showEditFab = showEditFab;
 window.hideEditFab = hideEditFab;
 window.renderResults = renderResults;
 window.navigateToInputs = openFullMontyWizard;
+window.setUseMaxContributions = setUseMaxContributions;
 

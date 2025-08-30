@@ -252,31 +252,17 @@ console.debug('[FM Results] loaded');
 document.addEventListener('DOMContentLoaded', () => {
   setUIMode('results');
   const chk = document.querySelector('#maxContribsChk');
-  const note = document.querySelector('#maxToggleNote');
-
   if (chk) {
-    chk.addEventListener('change', () => {
-      useMax = chk.checked;
-      setMaxToggle(useMax);
-      note.textContent = useMax
-        ? 'Max contributions applied — see the detailed age-band limits below.'
-        : '';
-      ensureMaxScenario();
-      drawCharts();
-      onMaxContribsToggleChanged(useMax);
-      renderMaxTable(lastWizard);
-      renderComplianceNotices(document.getElementById('compliance-notices'));
+    useMax = chk.checked;
+    chk.addEventListener('change', (e) => {
+      setUseMaxContributions(e.target.checked);
     });
-    setMaxToggle(chk.checked);
-    onMaxContribsToggleChanged(chk.checked);
-  } else {
-    setMaxToggle(false);
-    onMaxContribsToggleChanged(false);
+    if (typeof setMaxToggle === 'function') setMaxToggle(chk.checked);
+    if (typeof onMaxContribsToggleChanged === 'function') onMaxContribsToggleChanged(chk.checked);
   }
-
 });
 
-function renderMaxContributionToggle(){
+function renderMaxContributionToggle(storeRef){
   const wrap = document.createElement('div');
 
   const label = document.createElement('label');
@@ -286,6 +272,8 @@ function renderMaxContributionToggle(){
   const chk = document.createElement('input');
   chk.type = 'checkbox';
   chk.id = 'maxContribsChk';
+  chk.checked = !!storeRef.useMaxContributions;
+  useMax = !!storeRef.useMaxContributions;
   label.appendChild(chk);
 
   const track = document.createElement('span');
@@ -307,19 +295,13 @@ function renderMaxContributionToggle(){
   note.id = 'maxToggleNote';
   note.className = 'toggle-note';
   note.setAttribute('aria-live','polite');
+  note.textContent = chk.checked
+    ? 'Max contributions applied — see the detailed age-band limits below.'
+    : '';
   wrap.appendChild(note);
 
-  chk.addEventListener('change', () => {
-    useMax = chk.checked;
-    setMaxToggle(useMax);
-    note.textContent = useMax
-      ? 'Max contributions applied — see the detailed age-band limits below.'
-      : '';
-    ensureMaxScenario();
-    drawCharts();
-    onMaxContribsToggleChanged(useMax);
-    renderMaxTable(lastWizard);
-    renderComplianceNotices(document.getElementById('compliance-notices'));
+  chk.addEventListener('change', (e) => {
+    setUseMaxContributions(e.target.checked);
   });
 
   return wrap;
