@@ -1157,132 +1157,143 @@ function renderResults(container, storeRef){
   const surplus   = Math.max(projected - required, 0);
   const partnerIncluded = !!(store.partnerDOB || store.partnerIncluded || store.hasPartner);
 
-  // ----- build hero (shortfall-first + partner-aware text) -----
-  const hero = document.createElement('section');
-  hero.className = 'results-hero fullscreen-hero reveal';
+  try{
+    // ----- build hero (shortfall-first + partner-aware text) -----
+    const hero = document.createElement('section');
+    hero.className = 'results-hero fullscreen-hero reveal';
 
-  const num = document.createElement('h2'); num.className='hero-number';
-  num.textContent = deficit ? formatEUR(deficit) : formatEUR(surplus);
-  const line = document.createElement('p'); line.className='hero-headline-text';
-  line.textContent = deficit ? 'below your retirement goal' : 'above your retirement goal';
-  hero.appendChild(num); hero.appendChild(line);
+    const num = document.createElement('h2'); num.className='hero-number';
+    num.textContent = deficit ? formatEUR(deficit) : formatEUR(surplus);
+    const line = document.createElement('p'); line.className='hero-headline-text';
+    line.textContent = deficit ? 'below your retirement goal' : 'above your retirement goal';
+    hero.appendChild(num); hero.appendChild(line);
 
-  const pensionLabel   = partnerIncluded ? 'your combined projected pensions are' : 'your projected pension is';
-  const lifestyleLabel = partnerIncluded ? 'your household’s lifestyle'           : 'your desired lifestyle';
-  const sub = document.createElement('p'); sub.className='hero-sub';
-  sub.textContent = `At age ${age}, ${pensionLabel} ${formatEUR(projected)}. To sustain ${lifestyleLabel} in retirement, we estimate you’ll need ${formatEUR(required)}.`;
-  hero.appendChild(sub);
+    const pensionLabel   = partnerIncluded ? 'your combined projected pensions are' : 'your projected pension is';
+    const lifestyleLabel = partnerIncluded ? 'your household’s lifestyle'           : 'your desired lifestyle';
+    const sub = document.createElement('p'); sub.className='hero-sub';
+    sub.textContent = `At age ${age}, ${pensionLabel} ${formatEUR(projected)}. To sustain ${lifestyleLabel} in retirement, we estimate you’ll need ${formatEUR(required)}.`;
+    hero.appendChild(sub);
 
-  const chips = document.createElement('div'); chips.className='metrics-chips';
-  chips.appendChild(makeMetricChip('Your pension', formatEUR(projected)));
-  chips.appendChild(makeMetricChip('Required',     formatEUR(required)));
-  hero.appendChild(chips);
+    const chips = document.createElement('div'); chips.className='metrics-chips';
+    chips.appendChild(makeMetricChip('Your pension', formatEUR(projected)));
+    chips.appendChild(makeMetricChip('Required',     formatEUR(required)));
+    hero.appendChild(chips);
 
-  // Change summary (derived from counters)
-  const parts = [];
-  if (nudgeCounts['contrib+200']>0 || nudgeCounts['contrib-200']>0){
-    const net = (nudgeCounts['contrib+200'] - nudgeCounts['contrib-200']) * 200;
-    if (net !== 0) parts.push(`${net>0?'+':''}${formatEUR(net)}/mo contributions`);
+    // Change summary (derived from counters)
+    const parts = [];
+    if (nudgeCounts['contrib+200']>0 || nudgeCounts['contrib-200']>0){
+      const net = (nudgeCounts['contrib+200'] - nudgeCounts['contrib-200']) * 200;
+      if (net !== 0) parts.push(`${net>0?'+':''}${formatEUR(net)}/mo contributions`);
+    }
+    if (nudgeCounts['age+1']>0 || nudgeCounts['age-1']>0){
+      const netY = nudgeCounts['age+1'] - nudgeCounts['age-1'];
+      if (netY !== 0) parts.push(`${netY>0?'+':''}${netY} yr${Math.abs(netY)===1?'':'s'} to retirement age`);
+    }
+    if (parts.length){
+      const cs = document.createElement('p');
+      cs.className = 'change-summary';
+      cs.textContent = `Changes: ${parts.join(', ')}`;
+      hero.appendChild(cs);
+    }
+
+    // ----- Actions (build buttons, add count badges, then style+order) -----
+    const actionsWrap = document.createElement('div'); actionsWrap.className='actions-wrap';
+    const rowTop     = document.createElement('div'); rowTop.className='actions-row';
+    const rowBottom  = document.createElement('div'); rowBottom.className='actions-row';
+
+    // Buttons
+    const btnRemove200 = document.createElement('button');
+    btnRemove200.className='btn btn-pill'; btnRemove200.textContent='– Remove €200/mo';
+    btnRemove200.addEventListener('click', ()=> withBusy(btnRemove200, ()=> increaseMonthlyContributionBy(-200)));
+
+    const btnAdd200 = document.createElement('button');
+    btnAdd200.className='btn btn-pill'; btnAdd200.textContent='+ Add €200/mo';
+    btnAdd200.addEventListener('click', ()=> withBusy(btnAdd200, ()=> increaseMonthlyContributionBy(200)));
+
+    const btnEarlier = document.createElement('button');
+    btnEarlier.className='btn btn-pill'; btnEarlier.textContent='⏪ Retire 1 yr earlier';
+    btnEarlier.addEventListener('click', ()=> withBusy(btnEarlier, ()=> delayRetirementByYears(-1)));
+
+    const btnLater = document.createElement('button');
+    btnLater.className='btn btn-pill'; btnLater.textContent='⏩ Retire 1 yr later';
+    btnLater.addEventListener('click', ()=> withBusy(btnLater, ()=> delayRetirementByYears(1)));
+
+    // Add count badges
+    function applyBadge(btn, count){
+      let b = btn.querySelector('.badge');
+      if (!b){ b = document.createElement('span'); b.className='badge'; btn.appendChild(b); }
+      b.textContent = count>0 ? `×${count}` : '';
+    }
+    applyBadge(btnAdd200,    nudgeCounts['contrib+200']);
+    applyBadge(btnRemove200, nudgeCounts['contrib-200']);
+    applyBadge(btnLater,     nudgeCounts['age+1']);
+    applyBadge(btnEarlier,   nudgeCounts['age-1']);
+
+    // Style/order by context
+    const atMaxContrib = contributionsAtMax();
+    const minAge=50, maxAge=75;
+    styleAndOrderNudges(
+      {
+        shortfall: deficit,
+        atMaxContrib,
+        minAgeReached: age<=minAge,
+        maxAgeReached: age>=maxAge
+      },
+      { rowTop, rowBottom, btnAdd200, btnRemove200, btnEarlier, btnLater }
+    );
+
+    actionsWrap.appendChild(rowTop);
+    actionsWrap.appendChild(rowBottom);
+    hero.appendChild(actionsWrap);
+
+    // Show helper when at current-age tax-relievable max
+    if (atMaxContrib){
+      const note = document.createElement('div');
+      note.className = 'helper-note';
+      note.setAttribute('role','status');
+      note.innerHTML = `
+        <strong>You’re at the maximum tax-relievable contributions for your age.</strong>
+        <div class="helper-sub">To contribute more as you get older, switch to the <em>Use max pension contributions</em> setting.</div>
+      `;
+
+      const noteActions = document.createElement('div');
+      noteActions.className = 'helper-actions';
+
+      const enableMaxBtn = document.createElement('button');
+      enableMaxBtn.className = 'btn btn-pill btn-green';
+      enableMaxBtn.type = 'button';
+      enableMaxBtn.textContent = 'Enable “Use max contributions”';
+      enableMaxBtn.addEventListener('click', () => setUseMaxContributions(true));
+
+      noteActions.appendChild(enableMaxBtn);
+      note.appendChild(noteActions);
+      hero.appendChild(note);
+    }
+
+    // ----- Undo / Restore row -----
+    if (actionStack.length || Object.values(nudgeCounts).some(v=>v>0)){
+      const rev = document.createElement('div'); rev.className='revert-row';
+      const undoBtn = document.createElement('button'); undoBtn.className='btn btn-text'; undoBtn.textContent='Undo last change';
+      undoBtn.addEventListener('click', undoLast);
+      const resetBtn = document.createElement('button'); resetBtn.className='btn btn-outline';
+      resetBtn.textContent='Restore original inputs';
+      resetBtn.addEventListener('click', restoreBaseline);
+      rev.appendChild(undoBtn); rev.appendChild(resetBtn);
+      hero.appendChild(rev);
+    }
+
+    container.appendChild(hero);
+
+    // Ensure reveal animation always runs
+    const revealHero = () => hero.classList.add('reveal--in');
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(revealHero);
+    }
+    // Fallback in case rAF is skipped
+    setTimeout(revealHero, 200);
+  }catch(err){
+    console.error('Error building results hero', err);
   }
-  if (nudgeCounts['age+1']>0 || nudgeCounts['age-1']>0){
-    const netY = nudgeCounts['age+1'] - nudgeCounts['age-1'];
-    if (netY !== 0) parts.push(`${netY>0?'+':''}${netY} yr${Math.abs(netY)===1?'':'s'} to retirement age`);
-  }
-  if (parts.length){
-    const cs = document.createElement('p');
-    cs.className = 'change-summary';
-    cs.textContent = `Changes: ${parts.join(', ')}`;
-    hero.appendChild(cs);
-  }
-
-  // ----- Actions (build buttons, add count badges, then style+order) -----
-  const actionsWrap = document.createElement('div'); actionsWrap.className='actions-wrap';
-  const rowTop     = document.createElement('div'); rowTop.className='actions-row';
-  const rowBottom  = document.createElement('div'); rowBottom.className='actions-row';
-
-  // Buttons
-  const btnRemove200 = document.createElement('button');
-  btnRemove200.className='btn btn-pill'; btnRemove200.textContent='– Remove €200/mo';
-  btnRemove200.addEventListener('click', ()=> withBusy(btnRemove200, ()=> increaseMonthlyContributionBy(-200)));
-
-  const btnAdd200 = document.createElement('button');
-  btnAdd200.className='btn btn-pill'; btnAdd200.textContent='+ Add €200/mo';
-  btnAdd200.addEventListener('click', ()=> withBusy(btnAdd200, ()=> increaseMonthlyContributionBy(200)));
-
-  const btnEarlier = document.createElement('button');
-  btnEarlier.className='btn btn-pill'; btnEarlier.textContent='⏪ Retire 1 yr earlier';
-  btnEarlier.addEventListener('click', ()=> withBusy(btnEarlier, ()=> delayRetirementByYears(-1)));
-
-  const btnLater = document.createElement('button');
-  btnLater.className='btn btn-pill'; btnLater.textContent='⏩ Retire 1 yr later';
-  btnLater.addEventListener('click', ()=> withBusy(btnLater, ()=> delayRetirementByYears(1)));
-
-  // Add count badges
-  function applyBadge(btn, count){
-    let b = btn.querySelector('.badge');
-    if (!b){ b = document.createElement('span'); b.className='badge'; btn.appendChild(b); }
-    b.textContent = count>0 ? `×${count}` : '';
-  }
-  applyBadge(btnAdd200,    nudgeCounts['contrib+200']);
-  applyBadge(btnRemove200, nudgeCounts['contrib-200']);
-  applyBadge(btnLater,     nudgeCounts['age+1']);
-  applyBadge(btnEarlier,   nudgeCounts['age-1']);
-
-  // Style/order by context
-  const atMaxContrib = contributionsAtMax();
-  const minAge=50, maxAge=75;
-  styleAndOrderNudges(
-    {
-      shortfall: deficit,
-      atMaxContrib,
-      minAgeReached: age<=minAge,
-      maxAgeReached: age>=maxAge
-    },
-    { rowTop, rowBottom, btnAdd200, btnRemove200, btnEarlier, btnLater }
-  );
-
-  actionsWrap.appendChild(rowTop);
-  actionsWrap.appendChild(rowBottom);
-  hero.appendChild(actionsWrap);
-
-  // Show helper when at current-age tax-relievable max
-  if (atMaxContrib){
-    const note = document.createElement('div');
-    note.className = 'helper-note';
-    note.setAttribute('role','status');
-    note.innerHTML = `
-      <strong>You’re at the maximum tax-relievable contributions for your age.</strong>
-      <div class="helper-sub">To contribute more as you get older, switch to the <em>Use max pension contributions</em> setting.</div>
-    `;
-
-    const noteActions = document.createElement('div');
-    noteActions.className = 'helper-actions';
-
-    const enableMaxBtn = document.createElement('button');
-    enableMaxBtn.className = 'btn btn-pill btn-green';
-    enableMaxBtn.type = 'button';
-    enableMaxBtn.textContent = 'Enable “Use max contributions”';
-    enableMaxBtn.addEventListener('click', () => setUseMaxContributions(true));
-
-    noteActions.appendChild(enableMaxBtn);
-    note.appendChild(noteActions);
-    hero.appendChild(note);
-  }
-
-  // ----- Undo / Restore row -----
-  if (actionStack.length || Object.values(nudgeCounts).some(v=>v>0)){
-    const rev = document.createElement('div'); rev.className='revert-row';
-    const undoBtn = document.createElement('button'); undoBtn.className='btn btn-text'; undoBtn.textContent='Undo last change';
-    undoBtn.addEventListener('click', undoLast);
-    const resetBtn = document.createElement('button'); resetBtn.className='btn btn-outline';
-    resetBtn.textContent='Restore original inputs';
-    resetBtn.addEventListener('click', restoreBaseline);
-    rev.appendChild(undoBtn); rev.appendChild(resetBtn);
-    hero.appendChild(rev);
-  }
-
-  container.appendChild(hero);
-  requestAnimationFrame(()=> hero.classList.add('reveal--in'));
 }
 
 // ───────────────────────────────────────────────────────────────
