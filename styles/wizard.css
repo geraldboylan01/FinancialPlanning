@@ -340,3 +340,124 @@
 }
 .fm-sheet .ic-body::-webkit-scrollbar-thumb:hover,
 .fm-sheet .risk-grid::-webkit-scrollbar-thumb:hover{ background: var(--sb-hover); }
+
+/* --- Full Monty Results Root --- */
+.fm-results-root {
+  box-sizing: border-box;
+  padding-left: 16px;
+  padding-right: 16px;
+  /* iOS safe areas */
+  padding-left: calc(16px + env(safe-area-inset-left));
+  padding-right: calc(16px + env(safe-area-inset-right));
+}
+
+/* Space out the cards/sections a bit more on mobile */
+@media (max-width: 767px) {
+  .fm-results-root .result-card,
+  .fm-results-root .summary-row,
+  .fm-results-root .metric,
+  .fm-results-root .chart-card {
+    margin-bottom: 14px;
+    border-radius: 12px;
+  }
+}
+
+/* Floating Edit Inputs button */
+.fab-edit-inputs {
+  position: fixed;
+  right: clamp(16px, 2vw, 28px);
+  bottom: max(16px, calc(16px + env(safe-area-inset-bottom)));
+  z-index: 1000;
+  padding: 12px 18px;
+  font-weight: 700;
+  border: none;
+  border-radius: 999px;
+  background: var(--accentA, #00ff66);
+  color: #0b0b0b;
+  box-shadow: 0 8px 20px rgba(0,0,0,.35);
+  cursor: pointer;
+  transition: transform .08s ease, box-shadow .2s ease;
+}
+
+.fab-edit-inputs:active {
+  transform: translateY(1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,.35);
+}
+
+/* Prevent overlap with any bottom nav/toast on very small screens */
+@media (max-width: 374px) {
+  .fab-edit-inputs { bottom: max(12px, calc(12px + env(safe-area-inset-bottom))); }
+}
+
+/* Section head layout */
+.fm-section-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 12px;
+  margin: 8px 0 10px;
+}
+
+/* Tools area (chips) */
+.fm-section-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 100%;
+}
+
+.range-badge,
+.assumption-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  font-size: .9rem;
+}
+
+/* Green accent ring for the assumption chip to stand out */
+.assumption-chip {
+  border-color: var(--accentA, #00ff66);
+}
+
+/* Stack layout on small screens so the chips don't squash the title */
+@media (max-width: 767px) {
+  .fm-section-head {
+    grid-template-columns: 1fr;
+  }
+  .fm-section-tools {
+    justify-content: flex-start;
+  }
+}
+
+/* Optional: make long titles breathe on mobile */
+@media (max-width: 480px) {
+  .fm-section-title h2,
+  .fm-section-title h3 {
+    line-height: 1.15;
+  }
+}
+
+/* Chart/metric panels keep their own padding so the canvas/labels never hug edges */
+.chart-card,
+.metric,
+.summary-row {
+  padding: 12px 14px;
+  background: var(--panel, #232323);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 12px;
+}
+
+/* Extra breathing room for canvases */
+.chart-card canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 4px 0 0;
+}
