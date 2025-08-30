@@ -858,10 +858,12 @@ function runAll() {
 }
 
 // ====== STATE & UTILITIES ======
-let baselineSnapshot = null;            // snapshot of inputs when results first render
-const actionStack = [];                 // for Undo (last change)
-let deltaContribEuro = 0;               // cumulative € change vs baseline
-let deltaRetireYears = 0;               // cumulative years change vs baseline
+let baselineSnapshot = null;   // captured first time results render
+const actionStack = [];        // { type: 'contrib'|'age', delta: number }
+
+// Tap counters (since baseline). Keys: 'contrib+200','contrib-200','age+1','age-1'
+const nudgeCounts = { 'contrib+200':0, 'contrib-200':0, 'age+1':0, 'age-1':0 };
+
 const store = fullMontyStore;
 
 function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
@@ -872,26 +874,64 @@ function announce(msg){
 }
 
 function formatEUR(x){
-  try{ return new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(x); }
-  catch(e){ return '€'+Math.round(+x||0).toLocaleString('en-IE'); }
+  try{
+    return new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(Number(x)||0);
+  }catch(e){ return `€${(Number(x)||0).toLocaleString()}`; }
 }
 
-function recomputeAndRefreshUI(){
-  runAll();
-  const view = document.getElementById('resultsView');
-  if (view && typeof window.renderResults === 'function'){
-    window.renderResults(view, store);
+// ----- Contribution accessors (align keys if needed) -----
+const CONTRIB_KEYS = {
+  monthlyEuro: ['personalContribSelf','personalMonthlyContribution','employeeContributionMonthly','contribMonthly'],
+  percent:     ['personalPctSelf','employeeContributionPct','personalContributionPct'],
+  maxMonthly:  ['maxContribMonthly','maxAllowedMonthlyContribution','taxRelievedMonthlyCap']
+};
+function firstKey(obj, keys){ return keys.find(k => Object.prototype.hasOwnProperty.call(obj, k)); }
+
+function getCurrentMonthlyContrib(){
+  const k = firstKey(store, CONTRIB_KEYS.monthlyEuro);
+  return k ? Number(store[k]||0) : 0;
+}
+function setCurrentMonthlyContrib(val){
+  const k = firstKey(store, CONTRIB_KEYS.monthlyEuro);
+  if (k){ setStore({ [k]: Math.max(0, Number(val)||0) }); return true; }
+  const pk = firstKey(store, CONTRIB_KEYS.percent);
+  const salary = Number(store.grossIncome || store.salary || 0);
+  if (pk && salary>0){
+    const pct = Math.max(0, Math.min(100, ((Number(val)||0)/(salary/12))*100));
+    setStore({ [pk]: pct }); return true;
   }
+  return false;
+}
+function getMaxMonthlyContrib(){
+  const k = firstKey(store, CONTRIB_KEYS.maxMonthly);
+  if (k) return Number(store[k]||0);
+  if (typeof computeMaxTaxRelievedMonthly==='function') return computeMaxTaxRelievedMonthly(store);
+  return Infinity;
+}
+function contributionsAtMax(){
+  const cur = getCurrentMonthlyContrib(), max=getMaxMonthlyContrib();
+  return (isFinite(max) && cur >= max - 1);
 }
 
-function withBusyState(button, fn){
-  if (!button) return fn();
-  button.disabled = true;
-  button.classList.add('is-busy');
-  Promise.resolve().then(fn).finally(()=>{
-    button.disabled = false;
-    button.classList.remove('is-busy');
-  });
+// ---------- Recompute + refresh ----------
+function recomputeAndRefreshUI(){
+  if (typeof runAll === 'function') runAll();
+  else if (typeof computeResults==='function') computeResults(store);
+  else if (typeof runPensionModel==='function') runPensionModel(store);
+
+  try{ localStorage.setItem('planer_store', JSON.stringify(store)); }catch(e){}
+
+  const view = document.getElementById('resultsView');
+  if (view && typeof window.renderResults==='function') window.renderResults(view, store);
+
+  if (typeof renderResultsCharts==='function') renderResultsCharts(store);
+  else if (typeof updateCharts==='function') updateCharts(store);
+}
+
+function withBusy(btn, fn){
+  if (!btn) return fn();
+  btn.disabled = true; btn.classList.add('is-busy');
+  Promise.resolve().then(fn).finally(()=>{ btn.disabled=false; btn.classList.remove('is-busy'); });
 }
 
 // Central setter for the "Use max contributions" scenario.
@@ -915,41 +955,6 @@ function setUseMaxContributions(enabled){
     : 'Max contributions scenario disabled.');
 }
 
-function syncMaxToggleUI(){
-  const maxTgl = document.getElementById('maxContribsChk');
-  if (maxTgl) maxTgl.checked = !!store.useMaxContributions;
-}
-
-// ====== MAX CONTRIBUTION HELPERS ======
-const CONTRIB_KEYS = {
-  monthlyEuro: ['personalContribSelf','personalMonthlyContribution','employeeContributionMonthly','contribMonthly'],
-  percent:     ['personalPctSelf','employeeContributionPct','personalContributionPct'],
-  maxMonthly:  ['maxContribMonthly','maxAllowedMonthlyContribution','taxRelievedMonthlyCap']
-};
-
-function keyIn(obj, keys){ return keys.find(k => Object.prototype.hasOwnProperty.call(obj, k)); }
-
-function getCurrentMonthlyContrib(){
-  const k = keyIn(store, CONTRIB_KEYS.monthlyEuro);
-  return k ? Number(store[k] || 0) : 0;
-}
-function setCurrentMonthlyContrib(val){
-  const k = keyIn(store, CONTRIB_KEYS.monthlyEuro);
-  if (k){
-    setStore({ [k]: Math.max(0, Number(val) || 0) });
-    return true;
-  }
-  const pk = keyIn(store, CONTRIB_KEYS.percent);
-  const salary = Number(store.grossIncome || store.salary || 0);
-  if (pk && salary > 0){
-    const monthlySalary = salary/12;
-    const pct = Math.max(0, Math.min(100, ((Number(val) || 0)/monthlySalary)*100));
-    setStore({ [pk]: pct });
-    return true;
-  }
-  return false;
-}
-
 function computeMaxTaxRelievedMonthly(s){
   const dob = s.dobSelf || s.dob;
   if(!dob) return Infinity;
@@ -961,28 +966,22 @@ function computeMaxTaxRelievedMonthly(s){
   return (salaryCapped * pct) / 12;
 }
 
-function getMaxMonthlyContrib(){
-  const k = keyIn(store, CONTRIB_KEYS.maxMonthly);
-  if (k) return Number(store[k] || 0);
-  return computeMaxTaxRelievedMonthly(store);
-}
-
-function contributionsAtMax(){
-  const cur = getCurrentMonthlyContrib();
-  const max = getMaxMonthlyContrib();
-  return (isFinite(max) && cur >= max - 1);
-}
-
 // ====== ACTION HANDLERS ======
 function increaseMonthlyContributionBy(deltaEuro){
   const cur = getCurrentMonthlyContrib();
   const max = getMaxMonthlyContrib();
   let next = cur + deltaEuro;
   if (isFinite(max) && next > max) next = max;
-  const ok = setCurrentMonthlyContrib(next);
-  if (!ok) return;
-  deltaContribEuro += (next - cur);
-  actionStack.push({ type:'contrib', delta: next - cur });
+  if (next < 0) next = 0;
+
+  if (!setCurrentMonthlyContrib(next)) return;
+
+  const applied = next - cur;
+  if (applied !== 0){
+    actionStack.push({ type:'contrib', delta: applied });
+    if (applied > 0) nudgeCounts['contrib+200'] += Math.round(applied/200);
+    else             nudgeCounts['contrib-200'] += Math.round(Math.abs(applied)/200);
+  }
   recomputeAndRefreshUI();
   if (contributionsAtMax()){
     announce('You have reached the maximum tax-relieved contribution for your current age.');
@@ -992,14 +991,17 @@ function increaseMonthlyContributionBy(deltaEuro){
 }
 
 function delayRetirementByYears(years){
-  const key = 'retireAge';
-  const minAge = 50; const maxAge = 75;
+  const key='retireAge';
+  const minAge=50, maxAge=75;
   const from = Number(store[key] || 65);
-  const to = Math.max(minAge, Math.min(maxAge, from + years));
+  const to   = Math.max(minAge, Math.min(maxAge, from + years));
   if (to === from) return;
+
   setStore({ [key]: to });
-  deltaRetireYears += (to - from);
   actionStack.push({ type:'age', delta: (to - from) });
+  if (to - from > 0) nudgeCounts['age+1'] += (to - from);
+  else               nudgeCounts['age-1'] += (from - to);
+
   recomputeAndRefreshUI();
   announce(`Retirement age set to ${to}.`);
 }
@@ -1007,14 +1009,18 @@ function delayRetirementByYears(years){
 function undoLast(){
   const last = actionStack.pop();
   if (!last) return;
-  if (last.type === 'contrib'){
+
+  if (last.type==='contrib'){
     const cur = getCurrentMonthlyContrib();
-    setCurrentMonthlyContrib(Math.max(0, cur - last.delta));
-    deltaContribEuro -= last.delta;
-  } else if (last.type === 'age'){
-    const key = 'retireAge';
-    setStore({ [key]: Number(store[key] || 65) - last.delta });
-    deltaRetireYears -= last.delta;
+    const next = Math.max(0, cur - last.delta);
+    setCurrentMonthlyContrib(next);
+    if (last.delta > 0) nudgeCounts['contrib+200'] -= Math.round(last.delta/200);
+    else                nudgeCounts['contrib-200'] -= Math.round(Math.abs(last.delta)/200);
+  } else if (last.type==='age'){
+    const key='retireAge';
+    setStore({ [key]: Number(store[key]||65) - last.delta });
+    if (last.delta > 0) nudgeCounts['age+1'] -= last.delta;
+    else                nudgeCounts['age-1'] -= -last.delta;
   }
   recomputeAndRefreshUI();
   announce('Last change undone.');
@@ -1022,17 +1028,18 @@ function undoLast(){
 
 function restoreBaseline(){
   if (!baselineSnapshot) return;
-  const k = keyIn(store, CONTRIB_KEYS.monthlyEuro);
-  const pk = keyIn(store, CONTRIB_KEYS.percent);
+  const k  = firstKey(store, CONTRIB_KEYS.monthlyEuro);
+  const pk = firstKey(store, CONTRIB_KEYS.percent);
   const patch = {};
-  if (k && baselineSnapshot[k] !== undefined) patch[k] = baselineSnapshot[k];
+  if (k  && baselineSnapshot[k]  !== undefined) patch[k]  = baselineSnapshot[k];
   if (pk && baselineSnapshot[pk] !== undefined) patch[pk] = baselineSnapshot[pk];
   if (baselineSnapshot.retireAge !== undefined) patch.retireAge = baselineSnapshot.retireAge;
   setStore(patch);
-  deltaContribEuro = 0;
-  deltaRetireYears = 0;
+
   actionStack.length = 0;
+  Object.keys(nudgeCounts).forEach(key => nudgeCounts[key]=0);
   setUseMaxContributions(baselineSnapshot.useMaxContributions);
+  recomputeAndRefreshUI();
   announce('Inputs restored to your original values.');
 }
 
@@ -1089,132 +1096,33 @@ function attachHeroScrollAffordance(heroEl){
   window.addEventListener('scroll', onScroll, { passive:true });
 }
 
-function renderResults(container, storeRef){
-  container.innerHTML = '';
+function styleAndOrderNudges({ shortfall, atMaxContrib, minAgeReached, maxAgeReached }, refs){
+  const { rowTop, rowBottom, btnAdd200, btnRemove200, btnEarlier, btnLater } = refs;
 
-  const store = storeRef || {};
+  // Clear rows
+  rowTop.innerHTML = ''; rowBottom.innerHTML = '';
 
-  const projected = Number(store.projectedPotAtRetirement || store.projectedPot || 0);
-  const required  = Number(store.financialFreedomTarget || store.fyTarget || 0);
-  const age       = Number(store.desiredRetirementAge || store.retirementAge || store.retireAge || 65);
-  const partnerIncluded = !!(store.partnerDOB || store.partnerIncluded || store.hasPartner);
-
-  const deficit = Math.max(required - projected, 0);
-  const surplus = Math.max(projected - required, 0);
-
-  const hero = document.createElement('section');
-  hero.className = 'results-hero fullscreen-hero reveal';
-
-  const num = document.createElement('h2');
-  num.className = 'hero-number';
-  num.textContent = deficit ? formatEUR(deficit) : formatEUR(surplus);
-
-  const line = document.createElement('p');
-  line.className = 'hero-headline-text';
-  line.textContent = deficit ? 'below your retirement goal' : 'above your retirement goal';
-
-  hero.appendChild(num);
-  hero.appendChild(line);
-
-  const pensionLabel   = partnerIncluded ? 'your combined projected pensions are' : 'your projected pension is';
-  const lifestyleLabel = partnerIncluded ? 'your household’s lifestyle'           : 'your desired lifestyle';
-
-  const sub = document.createElement('p');
-  sub.className = 'hero-sub';
-  sub.textContent = `At age ${age}, ${pensionLabel} ${formatEUR(projected)}. To sustain ${lifestyleLabel} in retirement, we estimate you’ll need ${formatEUR(required)}.`;
-  hero.appendChild(sub);
-
-  const chips = document.createElement('div'); chips.className = 'metrics-chips';
-  chips.appendChild(makeMetricChip('Your pension', formatEUR(projected)));
-  chips.appendChild(makeMetricChip('Required',     formatEUR(required)));
-  hero.appendChild(chips);
-
-  const actions = document.createElement('div'); actions.className = 'actions-row';
-  const rowMoney = document.createElement('div'); rowMoney.className = 'nudge-row';
-  const rowTime  = document.createElement('div'); rowTime.className  = 'nudge-row';
-
-  const btnRemove200 = document.createElement('button');
-  btnRemove200.className = 'btn btn-pill';
-  btnRemove200.textContent = '– Remove €200/mo';
-  btnRemove200.setAttribute('aria-label','Reduce contributions by €200 per month');
-  btnRemove200.addEventListener('click', () =>
-    withBusyState(btnRemove200, () => increaseMonthlyContributionBy(-200))
-  );
-
-  const btnAdd200 = document.createElement('button');
-  btnAdd200.className = 'btn btn-pill';
-  btnAdd200.textContent = '+ Add €200/mo';
-  btnAdd200.setAttribute('aria-label','Increase contributions by €200 per month');
-  btnAdd200.addEventListener('click', () =>
-    withBusyState(btnAdd200, () => increaseMonthlyContributionBy(200))
-  );
-
-  const btnEarlier = document.createElement('button');
-  btnEarlier.className = 'btn btn-pill';
-  btnEarlier.textContent = '⏪ Retire 1 yr earlier';
-  btnEarlier.setAttribute('aria-label','Retire one year earlier');
-  btnEarlier.addEventListener('click', () =>
-    withBusyState(btnEarlier, () => delayRetirementByYears(-1))
-  );
-
-  const btnLater = document.createElement('button');
-  btnLater.className = 'btn btn-pill';
-  btnLater.textContent = '⏩ Retire 1 yr later';
-  btnLater.setAttribute('aria-label','Retire one year later');
-  btnLater.addEventListener('click', () =>
-    withBusyState(btnLater, () => delayRetirementByYears(1))
-  );
-
-  rowMoney.appendChild(btnRemove200);
-  rowMoney.appendChild(btnAdd200);
-  rowTime.appendChild(btnEarlier);
-  rowTime.appendChild(btnLater);
-  actions.appendChild(rowMoney);
-  actions.appendChild(rowTime);
-  hero.appendChild(actions);
-
-  const atMaxContrib = contributionsAtMax();
-  const minAge = 50, maxAge = 75;
-
-  restyleNudgesForContext(
-    {
-      shortfall: deficit,
-      atMaxContrib,
-      minAgeReached: age <= minAge,
-      maxAgeReached: age >= maxAge
-    },
-    { btnRemove200, btnAdd200, btnEarlier, btnLater }
-  );
-
-  container.appendChild(hero);
-  requestAnimationFrame(()=> hero.classList.add('reveal--in'));
-}
-
-/* Context-aware styling function */
-function restyleNudgesForContext(context, refs){
-  const { shortfall, atMaxContrib, minAgeReached, maxAgeReached } = context;
-  const { btnRemove200, btnAdd200, btnEarlier, btnLater } = refs;
-
-  [btnRemove200, btnAdd200, btnEarlier, btnLater].forEach(b=>{
+  // Reset classes/disabled
+  [btnAdd200,btnRemove200,btnEarlier,btnLater].forEach(b=>{
     b.classList.remove('btn-green','btn-outline','is-disabled');
-    b.removeAttribute('aria-disabled');
-    b.disabled = false; b.title='';
+    b.removeAttribute('aria-disabled'); b.disabled=false; b.title='';
   });
 
   const isShortfall = shortfall > 0;
 
-  if (isShortfall){
-    btnAdd200.classList.add('btn-green');
-    btnLater.classList.add('btn-green');
-    btnRemove200.classList.add('btn-outline');
-    btnEarlier.classList.add('btn-outline');
-  } else {
-    btnRemove200.classList.add('btn-green');
-    btnEarlier.classList.add('btn-green');
-    btnAdd200.classList.add('btn-outline');
-    btnLater.classList.add('btn-outline');
-  }
+  // Recommended pair & not-recommended pair
+  const recommended   = isShortfall ? [btnAdd200, btnLater] : [btnRemove200, btnEarlier];
+  const notRecommended= isShortfall ? [btnRemove200, btnEarlier] : [btnAdd200, btnLater];
 
+  // Apply visual variants
+  recommended.forEach(b => b.classList.add('btn-green'));
+  notRecommended.forEach(b => b.classList.add('btn-outline'));
+
+  // Place recommended as TOP ROW, others as BOTTOM ROW
+  recommended.forEach(b => rowTop.appendChild(b));
+  notRecommended.forEach(b => rowBottom.appendChild(b));
+
+  // Hard guards override visuals
   if (atMaxContrib){
     btnAdd200.classList.remove('btn-green');
     btnAdd200.classList.add('btn-outline','is-disabled');
@@ -1223,17 +1131,134 @@ function restyleNudgesForContext(context, refs){
     btnAdd200.title = 'Max tax-relieved contribution reached for your current age.';
   }
   if (minAgeReached){
-    btnEarlier.classList.add('is-disabled');
-    btnEarlier.disabled = true;
+    btnEarlier.classList.add('is-disabled'); btnEarlier.disabled = true;
     btnEarlier.setAttribute('aria-disabled','true');
     btnEarlier.title = 'Minimum retirement age reached.';
   }
   if (maxAgeReached){
-    btnLater.classList.add('is-disabled');
-    btnLater.disabled = true;
+    btnLater.classList.add('is-disabled'); btnLater.disabled = true;
     btnLater.setAttribute('aria-disabled','true');
     btnLater.title = 'Maximum retirement age reached.';
   }
+}
+
+function renderResults(container, storeRef){
+  container.innerHTML = '';
+
+  // Snapshot baseline once
+  if (!baselineSnapshot) baselineSnapshot = deepClone(store);
+
+  // Pull values from your model
+  const store = storeRef || {};
+  const projected = Number(store.projectedPotAtRetirement || store.projectedPot || 0);
+  const required  = Number(store.financialFreedomTarget   || store.fyTarget    || 0);
+  const age       = Number(store.desiredRetirementAge || store.retirementAge || store.retireAge || 65);
+  const deficit   = Math.max(required - projected, 0);
+  const surplus   = Math.max(projected - required, 0);
+  const partnerIncluded = !!(store.partnerDOB || store.partnerIncluded || store.hasPartner);
+
+  // ----- build hero (shortfall-first + partner-aware text) -----
+  const hero = document.createElement('section');
+  hero.className = 'results-hero fullscreen-hero reveal';
+
+  const num = document.createElement('h2'); num.className='hero-number';
+  num.textContent = deficit ? formatEUR(deficit) : formatEUR(surplus);
+  const line = document.createElement('p'); line.className='hero-headline-text';
+  line.textContent = deficit ? 'below your retirement goal' : 'above your retirement goal';
+  hero.appendChild(num); hero.appendChild(line);
+
+  const pensionLabel   = partnerIncluded ? 'your combined projected pensions are' : 'your projected pension is';
+  const lifestyleLabel = partnerIncluded ? 'your household’s lifestyle'           : 'your desired lifestyle';
+  const sub = document.createElement('p'); sub.className='hero-sub';
+  sub.textContent = `At age ${age}, ${pensionLabel} ${formatEUR(projected)}. To sustain ${lifestyleLabel} in retirement, we estimate you’ll need ${formatEUR(required)}.`;
+  hero.appendChild(sub);
+
+  const chips = document.createElement('div'); chips.className='metrics-chips';
+  chips.appendChild(makeMetricChip('Your pension', formatEUR(projected)));
+  chips.appendChild(makeMetricChip('Required',     formatEUR(required)));
+  hero.appendChild(chips);
+
+  // Change summary (derived from counters)
+  const parts = [];
+  if (nudgeCounts['contrib+200']>0 || nudgeCounts['contrib-200']>0){
+    const net = (nudgeCounts['contrib+200'] - nudgeCounts['contrib-200']) * 200;
+    if (net !== 0) parts.push(`${net>0?'+':''}${formatEUR(net)}/mo contributions`);
+  }
+  if (nudgeCounts['age+1']>0 || nudgeCounts['age-1']>0){
+    const netY = nudgeCounts['age+1'] - nudgeCounts['age-1'];
+    if (netY !== 0) parts.push(`${netY>0?'+':''}${netY} yr${Math.abs(netY)===1?'':'s'} to retirement age`);
+  }
+  if (parts.length){
+    const cs = document.createElement('p');
+    cs.className = 'change-summary';
+    cs.textContent = `Changes: ${parts.join(', ')}`;
+    hero.appendChild(cs);
+  }
+
+  // ----- Actions (build buttons, add count badges, then style+order) -----
+  const actionsWrap = document.createElement('div'); actionsWrap.className='actions-wrap';
+  const rowTop     = document.createElement('div'); rowTop.className='actions-row';
+  const rowBottom  = document.createElement('div'); rowBottom.className='actions-row';
+
+  // Buttons
+  const btnRemove200 = document.createElement('button');
+  btnRemove200.className='btn btn-pill'; btnRemove200.textContent='– Remove €200/mo';
+  btnRemove200.addEventListener('click', ()=> withBusy(btnRemove200, ()=> increaseMonthlyContributionBy(-200)));
+
+  const btnAdd200 = document.createElement('button');
+  btnAdd200.className='btn btn-pill'; btnAdd200.textContent='+ Add €200/mo';
+  btnAdd200.addEventListener('click', ()=> withBusy(btnAdd200, ()=> increaseMonthlyContributionBy(200)));
+
+  const btnEarlier = document.createElement('button');
+  btnEarlier.className='btn btn-pill'; btnEarlier.textContent='⏪ Retire 1 yr earlier';
+  btnEarlier.addEventListener('click', ()=> withBusy(btnEarlier, ()=> delayRetirementByYears(-1)));
+
+  const btnLater = document.createElement('button');
+  btnLater.className='btn btn-pill'; btnLater.textContent='⏩ Retire 1 yr later';
+  btnLater.addEventListener('click', ()=> withBusy(btnLater, ()=> delayRetirementByYears(1)));
+
+  // Add count badges
+  function applyBadge(btn, count){
+    let b = btn.querySelector('.badge');
+    if (!b){ b = document.createElement('span'); b.className='badge'; btn.appendChild(b); }
+    b.textContent = count>0 ? `×${count}` : '';
+  }
+  applyBadge(btnAdd200,    nudgeCounts['contrib+200']);
+  applyBadge(btnRemove200, nudgeCounts['contrib-200']);
+  applyBadge(btnLater,     nudgeCounts['age+1']);
+  applyBadge(btnEarlier,   nudgeCounts['age-1']);
+
+  // Style/order by context
+  const atMaxContrib = contributionsAtMax();
+  const minAge=50, maxAge=75;
+  styleAndOrderNudges(
+    {
+      shortfall: deficit,
+      atMaxContrib,
+      minAgeReached: age<=minAge,
+      maxAgeReached: age>=maxAge
+    },
+    { rowTop, rowBottom, btnAdd200, btnRemove200, btnEarlier, btnLater }
+  );
+
+  actionsWrap.appendChild(rowTop);
+  actionsWrap.appendChild(rowBottom);
+  hero.appendChild(actionsWrap);
+
+  // ----- Undo / Restore row -----
+  if (actionStack.length || Object.values(nudgeCounts).some(v=>v>0)){
+    const rev = document.createElement('div'); rev.className='revert-row';
+    const undoBtn = document.createElement('button'); undoBtn.className='btn btn-text'; undoBtn.textContent='Undo last change';
+    undoBtn.addEventListener('click', undoLast);
+    const resetBtn = document.createElement('button'); resetBtn.className='btn btn-outline';
+    resetBtn.textContent='Restore original inputs';
+    resetBtn.addEventListener('click', restoreBaseline);
+    rev.appendChild(undoBtn); rev.appendChild(resetBtn);
+    hero.appendChild(rev);
+  }
+
+  container.appendChild(hero);
+  requestAnimationFrame(()=> hero.classList.add('reveal--in'));
 }
 
 // ───────────────────────────────────────────────────────────────
