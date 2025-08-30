@@ -119,6 +119,7 @@
 /* Blurb */
 .rc-blurb{ color:#cfcfcf; font-size:.95rem; line-height:1.35; }
 
+/* --------- GLOBAL TOKENS --------- */
 :root{
   --bg-elev-1: rgba(255,255,255,0.04);
   --bg-elev-2: rgba(255,255,255,0.08);
@@ -127,6 +128,17 @@
   --accentA: var(--neon, #39FF88);
   --danger: #ff4d4f;
   --ok: #2ecc71;
+
+  /* Side padding that adapts per device width while respecting notches/safe areas */
+  --pad-inline: clamp(14px, 4.5vw, 24px);
+  --pad-block: 18px;
+
+  /* Will be set by JS to keep elements above browser toolbars */
+  --viewport-bottom-ui: 0px; /* dynamic; updated at runtime */
+
+  /* Affordance offset from very bottom; bump if the toolbar overlaps */
+  --affordance-bottom: calc(max(18px, env(safe-area-inset-bottom) + 12px) + var(--viewport-bottom-ui));
+  --affordance-raise: 12px; /* extra lift for comfort */
 }
 
 #resultsView{
@@ -143,23 +155,57 @@
   gap: 12px;
 }
 
+/* --------- FULLSCREEN HERO --------- */
+.fullscreen-hero{
+  /* Fill *visible* height, including iOS URL bar collapse behavior */
+  min-height: 100svh; /* dynamic viewport unit */
+  /* Fallback for older iOS if needed: */
+  min-height: -webkit-fill-available;
+
+  /* Center content and keep it readable */
+  display: grid;
+  align-content: center;
+  gap: 12px;
+
+  /* Use logical padding so it respects LTR/RTL and safe areas */
+  padding-block: calc(var(--pad-block) + env(safe-area-inset-top)) 
+                 calc(max(var(--pad-block), env(safe-area-inset-bottom)) + 20px);
+  padding-inline: calc(var(--pad-inline) + env(safe-area-inset-left))
+                  calc(var(--pad-inline) + env(safe-area-inset-right));
+
+  /* Keep text away from rounded corners; limit line length on large phones */
+  max-inline-size: 680px;         /* absolute max for very large devices */
+  margin-inline: auto;            /* center on tablet/landscape */
+
+  background: var(--bg-elev-2);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 20px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.28);
+  position: relative;
+}
+
+.hero-content{
+  max-inline-size: 560px;
+  margin-inline: auto;
+  width: 100%;
+  padding-inline: 0; /* inherits outer padding already */
+}
+
 .hero-headline{
   font-size: clamp(18px, 5vw, 22px);
   font-weight: 800;
   color: var(--text-1);
   margin: 0;
   text-align: center;
-  max-width: 32ch;
-  margin-left: auto;
-  margin-right: auto;
+  max-inline-size: 32ch;
+  margin-inline: auto;
 }
 .hero-sub{
   color: var(--text-2);
   margin: 0;
   text-align: center;
-  max-width: 34ch;
-  margin-left: auto;
-  margin-right: auto;
+  max-inline-size: 36ch;
+  margin-inline: auto;
   line-height: 1.35;
 }
 
@@ -168,6 +214,7 @@
   flex-wrap: wrap;
   gap: 8px;
   justify-content: center;
+  padding-inline: 2px;
 }
 .metric-chip{
   display: inline-flex;
@@ -227,8 +274,7 @@
     padding: 24px;
     grid-template-rows: auto auto auto auto;
   }
-  .hero-headline{ font-size: 26px; max-width: 40ch; }
-  .hero-sub{ max-width: 46ch; }
+  .hero-headline{ font-size: 26px; }
 }
 
 /* Call to action hint (desktop hover) */
@@ -584,49 +630,6 @@
   --accentA: var(--neon,#39FF88);
 }
 
-/* Fullscreen hero for mobile */
-.fullscreen-hero{
-  min-height: 100svh; /* iOS dynamic viewport */
-  display: grid;
-  gap: 12px;
-  align-content: center; /* vertical centering of content block */
-  padding: var(--hero-pad-y) var(--hero-pad-x) max(28px, env(safe-area-inset-bottom));
-  background: var(--bg-elev-2);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 20px;
-  box-shadow: 0 10px 28px rgba(0,0,0,.28);
-  position: relative;
-}
-
-.hero-headline{
-  text-align:center;
-  color:var(--text-1);
-  font-weight:800;
-  font-size: clamp(18px, 5.4vw, 24px);
-  line-height:1.2;
-  margin:0 auto;
-  max-width: 32ch;
-}
-.hero-sub{
-  text-align:center;
-  color:var(--text-2);
-  line-height:1.35;
-  margin:0 auto;
-  max-width: 36ch;
-}
-
-.metrics-chips{
-  display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
-}
-.metric-chip{
-  display:inline-flex; gap:6px; align-items:baseline;
-  padding:8px 10px; border-radius:999px;
-  border:1px solid var(--accentA);
-  background: rgba(57,255,136,.08);
-}
-.metric-label{ font-size:12px; color:var(--text-2); }
-.metric-value{ font-weight:700; font-size:13px; color:var(--text-1); }
-
 .change-summary{
   text-align:center; color:var(--text-2); margin-top:2px;
 }
@@ -681,35 +684,47 @@
   display:flex; gap:12px; justify-content:center; margin-top:4px;
 }
 
-/* Scroll affordance */
+/* --------- SCROLL AFFORDANCE (always visible) --------- */
 .scroll-affordance{
-  position:absolute; left:0; right:0; bottom:6px;
-  display:flex; flex-direction:column; align-items:center; gap:2px;
+  position: absolute;
+  left: 0; right: 0;
+  /* Lift above bottom UI and safe area, and a little extra */
+  bottom: calc(var(--affordance-bottom) + var(--affordance-raise));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
   color: var(--text-2);
+  pointer-events: none; /* allow taps to pass through */
 }
+
 .scroll-affordance::before{
   content:'';
-  position:absolute; left:0; right:0; bottom:28px; height:40px;
+  position:absolute; left:0; right:0;
+  /* place scrim *above* affordance so gradient isn’t clipped by toolbars */
+  bottom: calc(var(--affordance-bottom) + var(--affordance-raise) + 28px);
+  height: 40px;
   background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.35) 100%);
-  pointer-events:none;
 }
-.chevron{
-  animation: bob 1.6s ease-in-out infinite;
-  line-height:1;
-}
-@keyframes bob{
-  0%,100% { transform: translateY(0); opacity:.7;}
-  50% { transform: translateY(4px); opacity:1;}
-}
+
+.chevron{ animation: bob 1.6s ease-in-out infinite; line-height: 1; }
+@keyframes bob{ 0%,100% { transform: translateY(0); opacity:.7;} 50% { transform: translateY(4px); opacity:1;} }
+
+/* Hide the affordance once user scrolls a bit */
+.fullscreen-hero.scrolled .scroll-affordance{ opacity: 0; transform: translateY(6px); transition: opacity .2s ease, transform .2s ease; }
 
 /* Reveal animation */
-.reveal{ opacity:0; transform: translateY(6px); transition: opacity .28s ease, transform .28s ease; }
-.reveal.reveal--in{ opacity:1; transform: translateY(0); }
+.reveal{ opacity: 0; transform: translateY(6px); transition: opacity .28s ease, transform .28s ease; }
+.reveal.reveal--in{ opacity: 1; transform: translateY(0); }
 
-/* Desktop: reduce the forced fullscreen so content breathes */
+/* --------- DESKTOP / WIDE --------- */
 @media (min-width: 900px){
-  .fullscreen-hero{ min-height: auto; padding:24px; }
-  .hero-headline{ font-size:28px; max-width: 44ch; }
-  .hero-sub{ max-width: 52ch; }
+  :root{ --pad-inline: clamp(22px, 3vw, 36px); }
+  .fullscreen-hero{
+    min-height: auto;          /* don’t force full screen on desktop */
+    padding-block: 24px 28px;
+  }
+  .hero-headline{ max-inline-size: 44ch; }
+  .hero-sub{      max-inline-size: 52ch; }
 }
 
