@@ -857,16 +857,157 @@ function runAll() {
   closeModal();
 }
 
-function adjustMonthlyContribution(amount){
-  setStore({ personalContribSelf: (fullMontyStore.personalContribSelf || 0) + amount });
+// ====== STATE & UTILITIES ======
+let baselineSnapshot = null;            // snapshot of inputs when results first render
+const actionStack = [];                 // for Undo (last change)
+let deltaContribEuro = 0;               // cumulative € change vs baseline
+let deltaRetireYears = 0;               // cumulative years change vs baseline
+const store = fullMontyStore;
+
+function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
+
+function announce(msg){
+  const live = document.getElementById('resultsView');
+  if (live) live.setAttribute('aria-label', msg); // quick SR announcement
+}
+
+function formatEUR(x){
+  try{ return new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(x); }
+  catch(e){ return '€'+Math.round(+x||0).toLocaleString('en-IE'); }
+}
+
+function recomputeAndRefreshUI(){
   runAll();
 }
 
-function delayRetirementYears(years){
-  setStore({ retireAge: (fullMontyStore.retireAge || 0) + years });
-  runAll();
+function withBusyState(button, fn){
+  if (!button) return fn();
+  button.disabled = true;
+  button.classList.add('is-busy');
+  Promise.resolve().then(fn).finally(()=>{
+    button.disabled = false;
+    button.classList.remove('is-busy');
+  });
 }
 
+// ====== MAX CONTRIBUTION HELPERS ======
+const CONTRIB_KEYS = {
+  monthlyEuro: ['personalContribSelf','personalMonthlyContribution','employeeContributionMonthly','contribMonthly'],
+  percent:     ['personalPctSelf','employeeContributionPct','personalContributionPct'],
+  maxMonthly:  ['maxContribMonthly','maxAllowedMonthlyContribution','taxRelievedMonthlyCap']
+};
+
+function getFirstKey(keys){ return keys.find(k => Object.prototype.hasOwnProperty.call(store, k)); }
+
+function getCurrentMonthlyContrib(){
+  const k = getFirstKey(CONTRIB_KEYS.monthlyEuro);
+  return k ? Number(store[k] || 0) : 0;
+}
+function setCurrentMonthlyContrib(val){
+  const k = getFirstKey(CONTRIB_KEYS.monthlyEuro);
+  if (k){
+    setStore({ [k]: Math.max(0, val) });
+    return true;
+  }
+  const pk = getFirstKey(CONTRIB_KEYS.percent);
+  const salary = Number(store.grossIncome || store.salary || 0);
+  if (pk && salary > 0){
+    const monthlySalary = salary/12;
+    const pct = Math.max(0, Math.min(100, (val/monthlySalary)*100));
+    setStore({ [pk]: pct });
+    return true;
+  }
+  return false;
+}
+
+function computeMaxTaxRelievedMonthly(s){
+  const dob = s.dobSelf || s.dob;
+  if(!dob) return Infinity;
+  const age = Math.floor((Date.now() - new Date(dob)) / (365.25*24*3600*1000));
+  const salary = Number(s.grossIncome || s.salary || 0);
+  const salaryCapped = Math.min(salary, MAX_SALARY_CAP);
+  const bands = [ { max:29,pct:0.15 }, { max:39,pct:0.20 }, { max:49,pct:0.25 }, { max:54,pct:0.30 }, { max:59,pct:0.35 }, { max:120,pct:0.40 } ];
+  const pct = bands.find(b => age <= b.max).pct;
+  return (salaryCapped * pct) / 12;
+}
+
+function getMaxMonthlyContrib(){
+  const k = getFirstKey(CONTRIB_KEYS.maxMonthly);
+  if (k) return Number(store[k] || 0);
+  return computeMaxTaxRelievedMonthly(store);
+}
+
+function contributionsAtMax(){
+  const cur = getCurrentMonthlyContrib();
+  const max = getMaxMonthlyContrib();
+  return (isFinite(max) && cur >= max - 1);
+}
+
+// ====== ACTION HANDLERS ======
+function increaseMonthlyContributionBy(deltaEuro){
+  const cur = getCurrentMonthlyContrib();
+  const max = getMaxMonthlyContrib();
+  let next = cur + deltaEuro;
+  if (isFinite(max) && next > max) next = max;
+  const ok = setCurrentMonthlyContrib(next);
+  if (!ok) return;
+  deltaContribEuro += (next - cur);
+  actionStack.push({ type:'contrib', delta: next - cur });
+  recomputeAndRefreshUI();
+  if (contributionsAtMax()){
+    announce('You have reached the maximum tax-relieved contribution for your current age.');
+  } else {
+    announce(`Contributions increased to ${formatEUR(next)} per month.`);
+  }
+}
+
+function delayRetirementByYears(years){
+  const key = 'retireAge';
+  const minAge = 50; const maxAge = 75;
+  const from = Number(store[key] || 65);
+  const to = Math.max(minAge, Math.min(maxAge, from + years));
+  if (to === from) return;
+  setStore({ [key]: to });
+  deltaRetireYears += (to - from);
+  actionStack.push({ type:'age', delta: (to - from) });
+  recomputeAndRefreshUI();
+  announce(`Retirement age set to ${to}.`);
+}
+
+function undoLast(){
+  const last = actionStack.pop();
+  if (!last) return;
+  if (last.type === 'contrib'){
+    const cur = getCurrentMonthlyContrib();
+    setCurrentMonthlyContrib(Math.max(0, cur - last.delta));
+    deltaContribEuro -= last.delta;
+  } else if (last.type === 'age'){
+    const key = 'retireAge';
+    setStore({ [key]: Number(store[key] || 65) - last.delta });
+    deltaRetireYears -= last.delta;
+  }
+  recomputeAndRefreshUI();
+  announce('Last change undone.');
+}
+
+function restoreBaseline(){
+  if (!baselineSnapshot) return;
+  const k = getFirstKey(CONTRIB_KEYS.monthlyEuro);
+  const pk = getFirstKey(CONTRIB_KEYS.percent);
+  const patch = {};
+  if (k && baselineSnapshot[k] !== undefined) patch[k] = baselineSnapshot[k];
+  if (pk && baselineSnapshot[pk] !== undefined) patch[pk] = baselineSnapshot[pk];
+  if (baselineSnapshot.retireAge !== undefined) patch.retireAge = baselineSnapshot.retireAge;
+  if (baselineSnapshot.useMaxContributions !== undefined) patch.useMaxContributions = baselineSnapshot.useMaxContributions;
+  setStore(patch);
+  deltaContribEuro = 0;
+  deltaRetireYears = 0;
+  actionStack.length = 0;
+  recomputeAndRefreshUI();
+  announce('Inputs restored to your original values.');
+}
+
+// ====== FAB VISIBILITY ======
 function showEditFab(onClick){
   const fab = document.getElementById('editInputsFab');
   if(!fab) return;
@@ -884,33 +1025,30 @@ function hideEditFab(){
 function makeMetricChip(label, value){
   const chip = document.createElement('div');
   chip.className = 'metric-chip';
-  const l = document.createElement('span');
-  l.className = 'metric-label';
-  l.textContent = label;
-  const v = document.createElement('span');
-  v.className = 'metric-value';
-  v.textContent = value;
-  chip.appendChild(l);
-  chip.appendChild(v);
+  chip.innerHTML = `<span class="metric-label">${label}</span><span class="metric-value">${value}</span>`;
   return chip;
 }
 
 function renderResults(container, data = {}){
   container.innerHTML = '';
 
-  const projectedPot = data.projectedPot || 0;
-  const fyTarget = data.fyTarget || 0;
-  const shortfall = Math.max(fyTarget - projectedPot, 0);
-  const retirementAge = data.retirementAge || 65;
+  if (!baselineSnapshot){
+    baselineSnapshot = deepClone(store);
+  }
+
+  const projectedPot  = Number(data.projectedPot || store.projectedPotAtRetirement || 0);
+  const fyTarget      = Number(data.fyTarget || store.financialFreedomTarget || 0);
+  const retirementAge = Number(data.retirementAge || store.retireAge || 65);
+  const shortfall     = Math.max(fyTarget - projectedPot, 0);
 
   const hero = document.createElement('section');
-  hero.className = 'results-hero';
+  hero.className = 'results-hero fullscreen-hero reveal';
 
   const headline = document.createElement('h2');
   headline.className = 'hero-headline';
   headline.textContent = shortfall > 0
     ? `You’re ${formatEUR(shortfall)} short of your FY target`
-    : `You’re on track — above your FY target by ${formatEUR(projectedPot - fyTarget)}`;
+    : `You’re on track — above target by ${formatEUR(projectedPot - fyTarget)}`;
   hero.appendChild(headline);
 
   const sub = document.createElement('p');
@@ -922,45 +1060,122 @@ function renderResults(container, data = {}){
   chips.className = 'metrics-chips';
   chips.appendChild(makeMetricChip('Projected pot', formatEUR(projectedPot)));
   chips.appendChild(makeMetricChip('FY target', formatEUR(fyTarget)));
-  if(shortfall > 0) chips.appendChild(makeMetricChip('Shortfall', formatEUR(shortfall)));
+  if (shortfall > 0) chips.appendChild(makeMetricChip('Shortfall', formatEUR(shortfall)));
   hero.appendChild(chips);
+
+  if (deltaContribEuro !== 0 || deltaRetireYears !== 0){
+    const change = document.createElement('p');
+    change.className = 'change-summary';
+    const parts = [];
+    if (deltaContribEuro) parts.push(`${deltaContribEuro > 0 ? '+' : ''}${formatEUR(deltaContribEuro)}/mo contributions`);
+    if (deltaRetireYears) parts.push(`${deltaRetireYears > 0 ? '+' : ''}${deltaRetireYears} yr${Math.abs(deltaRetireYears)===1?'':'s'} to retirement`);
+    change.textContent = `Changes: ${parts.join(', ')}`;
+    hero.appendChild(change);
+  }
 
   const actions = document.createElement('div');
   actions.className = 'actions-row';
 
-  const add200 = document.createElement('button');
-  add200.className = 'btn btn-pill btn-primary';
-  add200.textContent = 'Add €200/mo';
-  add200.addEventListener('click', () => adjustMonthlyContribution(200));
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn btn-pill btn-primary';
+  addBtn.type = 'button';
+  addBtn.setAttribute('aria-label','Increase contributions by €200 per month');
+  addBtn.innerHTML = `<span class="btn-icon" aria-hidden="true">＋</span> Add €200/mo`;
 
-  const delay1 = document.createElement('button');
-  delay1.className = 'btn btn-pill btn-secondary';
-  delay1.textContent = 'Delay retirement 1 yr';
-  delay1.addEventListener('click', () => delayRetirementYears(1));
+  const atMax = contributionsAtMax();
+  if (atMax){
+    addBtn.classList.add('is-disabled');
+    addBtn.disabled = true;
+    addBtn.setAttribute('aria-disabled','true');
+    addBtn.title = 'Max tax-relieved contribution reached for your current age.';
+  } else {
+    addBtn.addEventListener('click', () =>
+      withBusyState(addBtn, () => increaseMonthlyContributionBy(200))
+    );
+  }
 
-  actions.appendChild(add200);
-  actions.appendChild(delay1);
+  const delayBtn = document.createElement('button');
+  delayBtn.className = 'btn btn-pill btn-primary';
+  delayBtn.type = 'button';
+  delayBtn.setAttribute('aria-label','Delay retirement by 1 year');
+  delayBtn.innerHTML = `<span class="btn-icon" aria-hidden="true">⏵</span> Delay retirement 1 yr`;
+  delayBtn.addEventListener('click', () =>
+    withBusyState(delayBtn, () => delayRetirementByYears(1))
+  );
+
+  actions.appendChild(addBtn);
+  actions.appendChild(delayBtn);
   hero.appendChild(actions);
+
+  if (atMax && !store.useMaxContributions){
+    const note = document.createElement('div');
+    note.className = 'helper-note';
+    note.setAttribute('role','status');
+    note.innerHTML = `
+      <strong>Max contributions reached for your age.</strong><br/>
+      For higher contributions that rise with age, switch to the <em>Use max pension contributions</em> scenario.
+    `;
+
+    const switchRow = document.createElement('div');
+    switchRow.className = 'helper-actions';
+
+    const switchBtn = document.createElement('button');
+    switchBtn.className = 'btn btn-pill btn-outline';
+    switchBtn.type = 'button';
+    switchBtn.textContent = 'Enable “Use max contributions”';
+    switchBtn.addEventListener('click', () => {
+      store.useMaxContributions = true;
+      const chk = document.getElementById('maxContribsChk');
+      if (chk){ chk.checked = true; chk.dispatchEvent(new Event('change')); }
+      else if (typeof setMaxToggle === 'function') setMaxToggle(true);
+      recomputeAndRefreshUI();
+      announce('Max contributions scenario enabled.');
+    });
+
+    switchRow.appendChild(switchBtn);
+    note.appendChild(switchRow);
+    hero.appendChild(note);
+  }
+
+  if (actionStack.length || deltaContribEuro || deltaRetireYears){
+    const revertRow = document.createElement('div');
+    revertRow.className = 'revert-row';
+
+    const undoBtn = document.createElement('button');
+    undoBtn.className = 'btn btn-text';
+    undoBtn.type = 'button';
+    undoBtn.textContent = 'Undo last change';
+    undoBtn.addEventListener('click', undoLast);
+
+    const restoreBtn = document.createElement('button');
+    restoreBtn.className = 'btn btn-outline';
+    restoreBtn.type = 'button';
+    restoreBtn.textContent = 'Restore original inputs';
+    restoreBtn.addEventListener('click', restoreBaseline);
+
+    revertRow.appendChild(undoBtn);
+    revertRow.appendChild(restoreBtn);
+    hero.appendChild(revertRow);
+  }
+
+  const afford = document.createElement('div');
+  afford.className = 'scroll-affordance';
+  afford.innerHTML = `<span class="chevron" aria-hidden="true">⌄</span><span class="afford-text">Scroll for details</span>`;
+  hero.appendChild(afford);
 
   container.appendChild(hero);
 
-  const controls = typeof renderMaxContributionToggle === 'function' ? renderMaxContributionToggle(data) : null;
-  if(controls){
-    const section = document.createElement('section');
-    section.className = 'results-controls';
-    section.appendChild(controls);
-    container.appendChild(section);
+  const controlsWrap = document.createElement('section');
+  controlsWrap.className = 'results-controls';
+  if (typeof renderMaxContributionToggle === 'function'){
+    const toggleNode = renderMaxContributionToggle(store);
+    if (toggleNode) controlsWrap.appendChild(toggleNode);
   }
+  container.appendChild(controlsWrap);
 
-  hero.classList.add('reveal');
-  requestAnimationFrame(() => hero.classList.add('reveal--in'));
+  requestAnimationFrame(()=> hero.classList.add('reveal--in'));
 
   showEditFab(() => openFullMontyWizard());
-}
-
-function formatEUR(x){
-  try{ return new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(x); }
-  catch(e){ return '€'+Math.round(+x||0).toLocaleString('en-IE'); }
 }
 
 // ───────────────────────────────────────────────────────────────
@@ -986,8 +1201,6 @@ if (document.readyState !== 'loading') {
   document.addEventListener('DOMContentLoaded', openFullMontyWizard);
 }
 
-window.adjustMonthlyContribution = adjustMonthlyContribution;
-window.delayRetirementYears = delayRetirementYears;
 window.showEditFab = showEditFab;
 window.hideEditFab = hideEditFab;
 window.renderResults = renderResults;
