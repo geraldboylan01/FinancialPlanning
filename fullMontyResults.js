@@ -396,10 +396,11 @@ function simulateDrawdown({
 
 
 function drawCharts() {
-  if (!lastPensionOutput || !lastFYOutput) return;
-  setMaxToggle(useMax);
-  const g = $('#growthChart'), c = $('#contribChart');
-  if (!g || !c) { console.warn('[FM Results] canvases not found'); return; }
+  try {
+    if (!lastPensionOutput || !lastFYOutput) return;
+    setMaxToggle(useMax);
+    const g = $('#growthChart'), c = $('#contribChart');
+    if (!g || !c) { console.warn('[FM Results] canvases not found'); return; }
 
   const { retirementYear, contribsBase, growthBase, contribsMax, growthMax, sftLimit } = lastPensionOutput;
   const fy = lastFYOutput;
@@ -675,16 +676,21 @@ function drawCharts() {
   });
   setRetirementIncomeColorsForToggle(useMax);
 
-  updateRetirementBalanceConditions({
-    depletionAgeCurrent: simCur.depleteAge ?? null,
-    depletionAgeMax: simMax?.depleteAge ?? null
-  });
+    if (typeof updateRetirementBalanceConditions === 'function') {
+      updateRetirementBalanceConditions({
+        depletionAgeCurrent: simCur.depleteAge ?? null,
+        depletionAgeMax: simMax?.depleteAge ?? null
+      });
+    }
 
-  renderComplianceNotices(document.getElementById('compliance-notices'));
+    renderComplianceNotices(document.getElementById('compliance-notices'));
 
-  // Optional: console flag for depletion
-  if (simProj.depleteAge) {
-    console.warn(`[Drawdown] Projected pot depletes at age ${simProj.depleteAge}.`);
+    // Optional: console flag for depletion
+    if (simProj.depleteAge) {
+      console.warn(`[Drawdown] Projected pot depletes at age ${simProj.depleteAge}.`);
+    }
+  } catch (err) {
+    console.error('[FM Results] drawCharts failed:', err);
   }
 }
 
@@ -838,7 +844,8 @@ These projections are illustrative only — professional guidance is strongly re
 `;
 
   const warningsHTML = (earlyWarning || '') + (sftAssumpWarning || '') + mandatoryWarning;
-  document.getElementById('calcWarnings').innerHTML = warningsHTML;
+  const cw = document.getElementById('calcWarnings');
+  if (cw) cw.innerHTML = warningsHTML;
 
   lastPensionOutput.warningBlocks = [...document.querySelectorAll('#calcWarnings .warning-block')].map(el => {
     const strong = el.querySelector('strong');
@@ -851,16 +858,24 @@ These projections are illustrative only — professional guidance is strongly re
   });
 
   ensureMaxScenario();
-  drawCharts();
-  renderMaxTable(lastWizard);
+
+  try { drawCharts(); } catch (e) { console.error('[FM Results] drawCharts error:', e); }
+  try { renderMaxTable(lastWizard); } catch (e) { console.error('[FM Results] renderMaxTable error:', e); }
+
   ensureNoticesMount();
-  renderComplianceNotices(document.getElementById('compliance-notices'));
+  try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
+
+  // Always attempt hero render even if above steps errored
   if (window.renderResults) {
-    window.renderResults(document.getElementById('resultsView'), {
-      projectedPot: projectedAtRetirementValue(),
-      fyTarget: lastFYOutput?.requiredPot || 0,
-      retirementAge: lastWizard?.retireAge
-    });
+    try {
+      window.renderResults(document.getElementById('resultsView'), {
+        projectedPot: projectedAtRetirementValue(),
+        fyTarget: lastFYOutput?.requiredPot || 0,
+        retirementAge: lastWizard?.retireAge
+      });
+    } catch (e) {
+      console.error('[FM Results] renderResults (hero) failed:', e);
+    }
   }
 });
 
@@ -890,15 +905,23 @@ document.addEventListener('fm-run-fy', (e) => {
   fy._inputs = { ...d };
   lastFYOutput = fy;
   ensureMaxScenario();
-  drawCharts();
-  renderMaxTable(lastWizard);
+
+  try { drawCharts(); } catch (e) { console.error('[FM Results] drawCharts error:', e); }
+  try { renderMaxTable(lastWizard); } catch (e) { console.error('[FM Results] renderMaxTable error:', e); }
+
   ensureNoticesMount();
-  renderComplianceNotices(document.getElementById('compliance-notices'));
+  try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
+
+  // Always attempt hero render if we have pension output
   if (window.renderResults && lastPensionOutput) {
-    window.renderResults(document.getElementById('resultsView'), {
-      projectedPot: projectedAtRetirementValue(),
-      fyTarget: lastFYOutput?.requiredPot || 0,
-      retirementAge: lastWizard?.retireAge
-    });
+    try {
+      window.renderResults(document.getElementById('resultsView'), {
+        projectedPot: projectedAtRetirementValue(),
+        fyTarget: lastFYOutput?.requiredPot || 0,
+        retirementAge: lastWizard?.retireAge
+      });
+    } catch (e) {
+      console.error('[FM Results] renderResults (hero) failed:', e);
+    }
   }
 });
