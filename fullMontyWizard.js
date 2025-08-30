@@ -731,6 +731,7 @@ function yearsFrom(dobStr) {
 
 function render() {
   setUIMode('wizard');
+  hideEditFab();
   refreshSteps();
   if (cur >= steps.length) cur = steps.length - 1;
   const step = steps[cur];
@@ -856,6 +857,112 @@ function runAll() {
   closeModal();
 }
 
+function adjustMonthlyContribution(amount){
+  setStore({ personalContribSelf: (fullMontyStore.personalContribSelf || 0) + amount });
+  runAll();
+}
+
+function delayRetirementYears(years){
+  setStore({ retireAge: (fullMontyStore.retireAge || 0) + years });
+  runAll();
+}
+
+function showEditFab(onClick){
+  const fab = document.getElementById('editInputsFab');
+  if(!fab) return;
+  fab.style.display = 'flex';
+  fab.onclick = onClick;
+}
+
+function hideEditFab(){
+  const fab = document.getElementById('editInputsFab');
+  if(!fab) return;
+  fab.style.display = 'none';
+  fab.onclick = null;
+}
+
+function makeMetricChip(label, value){
+  const chip = document.createElement('div');
+  chip.className = 'metric-chip';
+  const l = document.createElement('span');
+  l.className = 'metric-label';
+  l.textContent = label;
+  const v = document.createElement('span');
+  v.className = 'metric-value';
+  v.textContent = value;
+  chip.appendChild(l);
+  chip.appendChild(v);
+  return chip;
+}
+
+function renderResults(container, data = {}){
+  container.innerHTML = '';
+
+  const projectedPot = data.projectedPot || 0;
+  const fyTarget = data.fyTarget || 0;
+  const shortfall = Math.max(fyTarget - projectedPot, 0);
+  const retirementAge = data.retirementAge || 65;
+
+  const hero = document.createElement('section');
+  hero.className = 'results-hero';
+
+  const headline = document.createElement('h2');
+  headline.className = 'hero-headline';
+  headline.textContent = shortfall > 0
+    ? `You’re ${formatEUR(shortfall)} short of your FY target`
+    : `You’re on track — above your FY target by ${formatEUR(projectedPot - fyTarget)}`;
+  hero.appendChild(headline);
+
+  const sub = document.createElement('p');
+  sub.className = 'hero-sub';
+  sub.textContent = `At age ${retirementAge}, projected pot is ${formatEUR(projectedPot)} vs target ${formatEUR(fyTarget)}.`;
+  hero.appendChild(sub);
+
+  const chips = document.createElement('div');
+  chips.className = 'metrics-chips';
+  chips.appendChild(makeMetricChip('Projected pot', formatEUR(projectedPot)));
+  chips.appendChild(makeMetricChip('FY target', formatEUR(fyTarget)));
+  if(shortfall > 0) chips.appendChild(makeMetricChip('Shortfall', formatEUR(shortfall)));
+  hero.appendChild(chips);
+
+  const actions = document.createElement('div');
+  actions.className = 'actions-row';
+
+  const add200 = document.createElement('button');
+  add200.className = 'btn btn-pill btn-primary';
+  add200.textContent = 'Add €200/mo';
+  add200.addEventListener('click', () => adjustMonthlyContribution(200));
+
+  const delay1 = document.createElement('button');
+  delay1.className = 'btn btn-pill btn-secondary';
+  delay1.textContent = 'Delay retirement 1 yr';
+  delay1.addEventListener('click', () => delayRetirementYears(1));
+
+  actions.appendChild(add200);
+  actions.appendChild(delay1);
+  hero.appendChild(actions);
+
+  container.appendChild(hero);
+
+  const controls = typeof renderMaxContributionToggle === 'function' ? renderMaxContributionToggle(data) : null;
+  if(controls){
+    const section = document.createElement('section');
+    section.className = 'results-controls';
+    section.appendChild(controls);
+    container.appendChild(section);
+  }
+
+  hero.classList.add('reveal');
+  requestAnimationFrame(() => hero.classList.add('reveal--in'));
+
+  showEditFab(() => openFullMontyWizard());
+}
+
+function formatEUR(x){
+  try{ return new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(x); }
+  catch(e){ return '€'+Math.round(+x||0).toLocaleString('en-IE'); }
+}
+
 // ───────────────────────────────────────────────────────────────
 // Public API
 // ----------------------------------------------------------------
@@ -878,4 +985,11 @@ if (document.readyState !== 'loading') {
 } else {
   document.addEventListener('DOMContentLoaded', openFullMontyWizard);
 }
+
+window.adjustMonthlyContribution = adjustMonthlyContribution;
+window.delayRetirementYears = delayRetirementYears;
+window.showEditFab = showEditFab;
+window.hideEditFab = hideEditFab;
+window.renderResults = renderResults;
+window.navigateToInputs = openFullMontyWizard;
 
