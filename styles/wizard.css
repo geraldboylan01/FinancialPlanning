@@ -1,3 +1,37 @@
+/* Global layout sanity */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+/* Prevent any child that mis-measures from creating horizontal scroll */
+html, body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;         /* modern & safe; falls back to hidden if unsupported */
+  /* overflow-x: hidden; */ /* uncomment if you need legacy behavior */
+}
+
+/* Images/SVG/canvas never exceed viewport width */
+img, svg, canvas, video {
+  max-inline-size: 100%;
+  block-size: auto;
+  display: block;
+}
+
+/* Utility: clamp inline padding and respect safe areas */
+:root{
+  --pad-inline: clamp(14px, 4.5vw, 22px);
+  --pad-block: 18px;
+  --bg-elev-1: rgba(255,255,255,0.04);
+  --bg-elev-2: rgba(255,255,255,0.08);
+  --text-1: #fff;
+  --text-2: rgba(255,255,255,0.72);
+  --accentA: var(--neon, #39FF88);
+  --danger: #ff4d4f;
+  --ok: #2ecc71;
+  --viewport-bottom-ui: 0px;
+}
+
 /* Risk step layout */
 .risk-step{
   display: grid;
@@ -119,78 +153,37 @@
 /* Blurb */
 .rc-blurb{ color:#cfcfcf; font-size:.95rem; line-height:1.35; }
 
-/* --------- GLOBAL TOKENS --------- */
-:root{
-  --bg-elev-1: rgba(255,255,255,0.04);
-  --bg-elev-2: rgba(255,255,255,0.08);
-  --text-1: #fff;
-  --text-2: rgba(255,255,255,0.72);
-  --accentA: var(--neon, #39FF88);
-  --danger: #ff4d4f;
-  --ok: #2ecc71;
-
-  /* Side padding that adapts per device width while respecting notches/safe areas */
-  --pad-inline: clamp(14px, 4.5vw, 24px);
-  --pad-block: 18px;
-
-  /* Will be set by JS to keep elements above browser toolbars */
-  --viewport-bottom-ui: 0px; /* dynamic; updated at runtime */
-
-  /* Affordance offset from very bottom; bump if the toolbar overlaps */
-  --affordance-bottom: calc(max(18px, env(safe-area-inset-bottom) + 12px) + var(--viewport-bottom-ui));
-  --affordance-raise: 12px; /* extra lift for comfort */
-}
-
+/* The page section that holds the hero */
 #resultsView{
-  padding: 12px 14px 28px;
-}
-
-.results-hero{
-  background: var(--bg-elev-2);
-  border-radius: 16px;
-  padding: 18px 16px;
-  border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-  display: grid;
-  gap: 12px;
-}
-
-/* --------- FULLSCREEN HERO --------- */
-.fullscreen-hero{
-  /* Fill *visible* height, including iOS URL bar collapse behavior */
-  min-height: 100svh; /* dynamic viewport unit */
-  /* Fallback for older iOS if needed: */
-  min-height: -webkit-fill-available;
-
-  /* Center content and keep it readable */
-  display: grid;
-  align-content: center;
-  gap: 12px;
-
-  /* Use logical padding so it respects LTR/RTL and safe areas */
-  padding-block: calc(var(--pad-block) + env(safe-area-inset-top)) 
-                 calc(max(var(--pad-block), env(safe-area-inset-bottom)) + 20px);
   padding-inline: calc(var(--pad-inline) + env(safe-area-inset-left))
                   calc(var(--pad-inline) + env(safe-area-inset-right));
+  padding-block: 8px max(18px, env(safe-area-inset-bottom));
+  /* Ensure nothing inside can force a horizontal scroll */
+  overflow-x: clip;
+}
 
-  /* Keep text away from rounded corners; limit line length on large phones */
-  max-inline-size: 680px;         /* absolute max for very large devices */
-  margin-inline: auto;            /* center on tablet/landscape */
-
+/* Make the hero feel like a centered card, not full-bleed */
+.fullscreen-hero{
+  inline-size: 100%;
+  max-inline-size: 640px;        /* ↓ tweak this (e.g., 600–680px) to taste */
+  margin-inline: auto;           /* centers on all devices */
+  border-radius: 20px;
   background: var(--bg-elev-2);
   border: 1px solid rgba(255,255,255,.08);
-  border-radius: 20px;
   box-shadow: 0 10px 28px rgba(0,0,0,.28);
+  display: grid;
+  gap: 12px;
+
+  /* Comfortable padding that adapts with safe areas */
+  padding-inline: clamp(14px, 5.5vw, 24px);
+  padding-block: 18px 28px;
+
+  /* Fill visible height on mobile but don’t over-constrain width */
+  min-block-size: 100svh;
   position: relative;
 }
 
-.hero-content{
-  max-inline-size: 560px;
-  margin-inline: auto;
-  width: 100%;
-  padding-inline: 0; /* inherits outer padding already */
-}
-
+/* Headline/sub keep readable line length */
 .hero-headline{
   font-size: clamp(18px, 5vw, 22px);
   font-weight: 800;
@@ -209,11 +202,10 @@
   line-height: 1.35;
 }
 
-.hero-shortfall{
-  text-align:center;
-  color: var(--text-2);
-  font-size: 0.95rem;
-  margin-top: 4px;
+/* Avoid chips or buttons pushing the card wider than its max width */
+.metrics-chips, .actions-row, .nudge-row{
+  max-inline-size: 560px;
+  margin-inline: auto;
 }
 
 .metrics-chips{
@@ -223,6 +215,48 @@
   justify-content: center;
   padding-inline: 2px;
 }
+
+/* Scroll affordance: keep inside the card and never cause overflow */
+.scroll-affordance{
+  position: absolute;
+  inset-inline: 0;
+  bottom: calc(18px + var(--viewport-bottom-ui));
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  pointer-events: none;
+}
+.scroll-affordance::before{
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: calc(44px + var(--viewport-bottom-ui));
+  block-size: 40px;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,.35) 100%);
+}
+
+/* Guard against any accidental full-viewport widths inside charts/sections */
+.section,
+.chart-wrap,
+.legend-wrap {
+  max-inline-size: 100%;
+  overflow-x: clip;
+}
+
+/* --------- FULLSCREEN HERO --------- */
+
+.hero-content{
+  max-inline-size: 560px;
+  margin-inline: auto;
+  width: 100%;
+  padding-inline: 0; /* inherits outer padding already */
+}
+
+.hero-shortfall{
+  text-align:center;
+  color: var(--text-2);
+  font-size: 0.95rem;
+  margin-top: 4px;
+}
+
 .metric-chip{
   display: inline-flex;
   gap: 6px;
@@ -232,6 +266,7 @@
   border: 1px solid var(--accentA);
   background: rgba(57,255,136,0.08);
 }
+
 .metric-label{
   font-size: 12px;
   color: var(--text-2);
@@ -283,12 +318,13 @@
 
 
 @media (min-width: 900px){
-  #resultsView{ padding: 24px 28px 48px; }
-  .results-hero{
-    padding: 24px;
-    grid-template-rows: auto auto auto auto;
+  .fullscreen-hero{
+    min-block-size: auto;
+    padding-block: 24px 28px;
+    max-inline-size: 720px;  /* a little wider looks good on desktop */
   }
-  .hero-headline{ font-size: 26px; }
+  .hero-headline{ font-size: 26px; max-inline-size: 44ch; }
+  .hero-sub{ max-inline-size: 52ch; }
 }
 
 /* Call to action hint (desktop hover) */
@@ -634,16 +670,6 @@
   margin: 4px 0 0;
 }
 
-/* Layout tokens */
-:root{
-  --hero-pad-x: 16px;
-  --hero-pad-y: 18px;
-  --text-1:#fff; --text-2:rgba(255,255,255,.72);
-  --bg-elev-1: rgba(255,255,255,.04);
-  --bg-elev-2: rgba(255,255,255,.08);
-  --accentA: var(--neon,#39FF88);
-}
-
 .change-summary{
   text-align:center; color:var(--text-2); margin-top:2px;
 }
@@ -727,15 +753,4 @@
 /* Reveal animation */
 .reveal{ opacity: 0; transform: translateY(6px); transition: opacity .28s ease, transform .28s ease; }
 .reveal.reveal--in{ opacity: 1; transform: translateY(0); }
-
-/* --------- DESKTOP / WIDE --------- */
-@media (min-width: 900px){
-  :root{ --pad-inline: clamp(22px, 3vw, 36px); }
-  .fullscreen-hero{
-    min-height: auto;          /* don’t force full screen on desktop */
-    padding-block: 24px 28px;
-  }
-  .hero-headline{ max-inline-size: 44ch; }
-  .hero-sub{      max-inline-size: 52ch; }
-}
 
