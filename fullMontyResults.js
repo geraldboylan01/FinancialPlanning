@@ -1,6 +1,7 @@
 // fullMontyResults.js
 import { fyRequiredPot } from './shared/fyRequiredPot.js';
 import { sftForYear, CPI, STATE_PENSION, SP_START, MAX_SALARY_CAP } from './shared/assumptions.js';
+import { setUIMode } from './uiMode.js';
 
 const AGE_BANDS = [
   { max: 29,  pct: 0.15 },
@@ -249,6 +250,7 @@ const $ = (s)=>document.querySelector(s);
 console.debug('[FM Results] loaded');
 
 document.addEventListener('DOMContentLoaded', () => {
+  setUIMode('results');
   const chk = document.querySelector('#maxContribsChk');
   const note = document.querySelector('#maxToggleNote');
   const btn = document.querySelector('#editInputsBtn');
