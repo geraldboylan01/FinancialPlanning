@@ -838,3 +838,15 @@
   color: var(--text-2, rgba(255,255,255,.72));
   margin-top: 4px;
 }
+
+.helper-note{
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--bg-elev-1, rgba(255,255,255,.06));
+  border: 1px dashed rgba(255,255,255,.22);
+  color: var(--text-2, rgba(255,255,255,.72));
+}
+.helper-note strong{ color: var(--text-1, #fff); display:block; margin-bottom:4px; }
+.helper-sub{ margin-top: 2px; }
+.helper-actions{ display:flex; justify-content:center; margin-top:8px; }

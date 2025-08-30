@@ -1128,7 +1128,7 @@ function styleAndOrderNudges({ shortfall, atMaxContrib, minAgeReached, maxAgeRea
     btnAdd200.classList.add('btn-outline','is-disabled');
     btnAdd200.disabled = true;
     btnAdd200.setAttribute('aria-disabled','true');
-    btnAdd200.title = 'Max tax-relieved contribution reached for your current age.';
+    btnAdd200.title = 'Max tax-relievable contribution reached for your current age.';
   }
   if (minAgeReached){
     btnEarlier.classList.add('is-disabled'); btnEarlier.disabled = true;
@@ -1244,6 +1244,30 @@ function renderResults(container, storeRef){
   actionsWrap.appendChild(rowTop);
   actionsWrap.appendChild(rowBottom);
   hero.appendChild(actionsWrap);
+
+  // Show helper when at current-age tax-relievable max
+  if (atMaxContrib){
+    const note = document.createElement('div');
+    note.className = 'helper-note';
+    note.setAttribute('role','status');
+    note.innerHTML = `
+      <strong>You’re at the maximum tax-relievable contributions for your age.</strong>
+      <div class="helper-sub">To contribute more as you get older, switch to the <em>Use max pension contributions</em> setting.</div>
+    `;
+
+    const noteActions = document.createElement('div');
+    noteActions.className = 'helper-actions';
+
+    const enableMaxBtn = document.createElement('button');
+    enableMaxBtn.className = 'btn btn-pill btn-green';
+    enableMaxBtn.type = 'button';
+    enableMaxBtn.textContent = 'Enable “Use max contributions”';
+    enableMaxBtn.addEventListener('click', () => setUseMaxContributions(true));
+
+    noteActions.appendChild(enableMaxBtn);
+    note.appendChild(noteActions);
+    hero.appendChild(note);
+  }
 
   // ----- Undo / Restore row -----
   if (actionStack.length || Object.values(nudgeCounts).some(v=>v>0)){
