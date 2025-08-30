@@ -826,7 +826,10 @@
   <!-- listener that handles fm-run-pension and emits fm-pension-output -->
   <script type="module" src="./pensionProjection.js"></script>
 
-  <script type="module" src="./fullMontyResults.js"></script>
+  <!-- define renderResults FIRST -->
   <script type="module" src="./fullMontyWizard.js"></script>
+
+  <!-- then attach results listeners that call window.renderResults -->
+  <script type="module" src="./fullMontyResults.js"></script>
 </body>
 </html>
