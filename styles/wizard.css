@@ -739,3 +739,67 @@
   .hero-sub{      max-inline-size: 52ch; }
 }
 
+/* ---------- HERO (shortfall-first) ---------- */
+.hero-number{
+  font-size: clamp(28px, 7vw, 36px);
+  font-weight: 800;
+  color: var(--accentA, #39FF88);
+  text-align: center;
+  margin: 0;
+}
+.hero-headline-text{
+  text-align: center;
+  margin: 2px 0 8px;
+  color: var(--text-1, #fff);
+}
+.hero-sub{
+  text-align: center;
+  color: var(--text-2, rgba(255,255,255,.72));
+  line-height: 1.35;
+  max-width: 36ch;
+  margin-inline: auto;
+}
+
+/* ---------- Actions layout ---------- */
+.actions-row{ display: grid; gap: 10px; justify-content: center; }
+.nudge-row{ display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* ---------- Buttons (base + variants) ---------- */
+.btn{
+  font: inherit; border: 0; cursor: pointer;
+  padding: 12px 16px; border-radius: 999px; white-space: nowrap;
+  transition: transform .1s ease, box-shadow .12s ease, opacity .2s ease;
+}
+.btn:active{ transform: translateY(1px) scale(.99); }
+.btn-pill{ border-radius: 999px; }
+
+/* Recommended (solid green) */
+.btn-green{
+  background: var(--accentA, #39FF88);
+  color: #08110b;
+  box-shadow: 0 6px 16px rgba(57,255,136,.28);
+}
+
+/* Not-recommended (outline) */
+.btn-outline{
+  background: transparent;
+  color: var(--text-1, #fff);
+  border: 1px solid rgba(255,255,255,.22);
+  box-shadow: none;
+}
+
+/* Busy/disabled */
+.btn.is-busy{ opacity: .7; pointer-events: none; }
+.btn[disabled], .btn.is-disabled{ opacity: .55; cursor: not-allowed; box-shadow: none; }
+
+/* Chips still tidy */
+.metrics-chips{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; }
+.metric-chip{
+  display:inline-flex; gap:6px; align-items:baseline;
+  padding:8px 10px; border-radius:999px;
+  border:1px solid var(--accentA, #39FF88);
+  background: rgba(57,255,136,.08);
+}
+.metric-label{ font-size:12px; color: var(--text-2, rgba(255,255,255,.72)); }
+.metric-value{ font-weight:700; font-size:13px; color: var(--text-1, #fff); }
+
