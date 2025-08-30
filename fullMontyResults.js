@@ -287,15 +287,15 @@ function renderKPIs({ projValue, balances }, fyRequired) {
   const root = $('#kpis');
   if (!root) return;
   root.innerHTML = `
-    <div class="kpi-card">
+    <div class="kpi-card metric">
       <div class="kpi-label">Projected pot @ ${ageAtRet}</div>
       <div class="kpi-val">${fmtEuro(projValue)}</div>
     </div>
-    <div class="kpi-card">
+    <div class="kpi-card metric">
       <div class="kpi-label">FY Target</div>
       <div class="kpi-val">${fyRequired ? fmtEuro(fyRequired) : 'No extra pot needed'}</div>
     </div>
-    <div class="kpi-card ${cls}">
+    <div class="kpi-card metric ${cls}">
       <div class="kpi-label">${gap>=0?'Surplus vs FY':'Shortfall vs FY'}</div>
       <div class="kpi-val">${fmtEuro(Math.abs(gap))}</div>
     </div>

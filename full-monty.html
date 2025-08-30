@@ -569,7 +569,8 @@
     </div>
   </div>
   <section id="fullMontyResults" class="fm-results">
-    <div class="results-shell">
+    <main id="fm-results" class="fm-results-root">
+      <div class="results-shell">
       <!-- Top Summary / Actions row -->
       <div id="resultsSummary" class="summary-row" aria-live="polite"></div>
 
@@ -584,29 +585,29 @@
           </span>
         </label>
         <div id="maxToggleNote" class="toggle-note" aria-live="polite"></div>
-        <button id="editInputsBtn" class="btn-primary small fab-edit" aria-label="Edit inputs">
-          Edit inputs
-        </button>
+        <button id="editInputsBtn" class="fab-edit-inputs" type="button">Edit inputs</button>
       </div>
 
       <!-- ===== BEFORE RETIREMENT ===== -->
       <section class="results-phase" id="phase-pre">
-        <div class="phase-head">
-          <div>
-            <h2 class="phase-title">Before retirement — Building your pension</h2>
-            <p class="phase-subline">
+        <header class="fm-section-head">
+          <div class="fm-section-title">
+            <h2>Before retirement —</h2>
+            <h3>Building your pension</h3>
+            <p class="fm-section-sub">
               From today to retirement, see how your pension grows and what drives it (your contributions vs. investment growth).
             </p>
           </div>
-          <div class="phase-chips">
-            <span class="chip">Now → Age <strong id="chipRetAgeA">65</strong></span>
-            <span class="chip" id="chipAssumptionWrap">Assumption: <strong id="chipAssumption">Current contributions</strong></span>
+
+          <div class="fm-section-tools">
+            <span class="range-badge">Now → Age <strong id="chipRetAgeA">65</strong></span>
+            <span class="assumption-chip" id="chipAssumptionWrap"><strong>Assumption:</strong> <span id="chipAssumption">Current contributions</span></span>
           </div>
-        </div>
+        </header>
 
         <div class="phase-grid">
           <!-- MOVE your existing Projected Pension Value block here -->
-          <div class="chart-wrapper" id="chart-pension-value">
+          <div class="chart-wrapper chart-card" id="chart-pension-value">
             <div class="chart-header">
               <h3 class="chart-headline">Will my pension reach my Financial Freedom Target?</h3>
               <span class="info-icon" tabindex="0" aria-label="Chart information">i</span>
@@ -633,7 +634,7 @@
           </div>
 
           <!-- MOVE your existing Annual Contributions & Investment Growth block here -->
-          <div class="chart-wrapper" id="chart-annual-contrib">
+          <div class="chart-wrapper chart-card" id="chart-annual-contrib">
             <div class="chart-header">
               <h3 class="chart-headline">How much comes from me vs. my money working for me?</h3>
               <span class="info-icon" tabindex="0" aria-label="Chart information">i</span>
@@ -656,21 +657,23 @@
 
       <!-- ===== DURING RETIREMENT ===== -->
       <section class="results-phase" id="phase-post">
-        <div class="phase-head">
-          <div>
-            <h2 class="phase-title">During retirement — Staying funded to age 100</h2>
-            <p class="phase-subline">
+        <header class="fm-section-head">
+          <div class="fm-section-title">
+            <h2>During retirement —</h2>
+            <h3>Staying funded to age 100</h3>
+            <p class="fm-section-sub">
               From retirement to age 100, track your pension balance and yearly income against your inflation-adjusted income requirement.
             </p>
           </div>
-          <div class="phase-chips">
-            <span class="chip">Age <strong id="chipRetAgeB">65</strong> → <strong>100</strong></span>
+
+          <div class="fm-section-tools">
+            <span class="range-badge">Age <strong id="chipRetAgeB">65</strong> → <strong>100</strong></span>
           </div>
-        </div>
+        </header>
 
         <div class="phase-grid">
           <!-- MOVE your existing Projected Balance in Retirement block here -->
-          <div class="chart-wrapper" id="chart-retirement-balance">
+          <div class="chart-wrapper chart-card" id="chart-retirement-balance">
             <div class="chart-header">
               <h3 class="chart-headline">Will my pension last to age 100?</h3>
               <span class="info-icon" tabindex="0" aria-label="Chart information">i</span>
@@ -694,7 +697,7 @@
           </div>
 
           <!-- MOVE your existing Annual Retirement Income block here -->
-          <div class="chart-wrapper" id="chart-retirement-income">
+          <div class="chart-wrapper chart-card" id="chart-retirement-income">
             <div class="chart-header">
               <h3 class="chart-headline">Will my income cover my lifestyle in retirement?</h3>
               <span class="info-icon" tabindex="0" aria-label="Chart information">i</span>
@@ -722,7 +725,8 @@
         <!-- JS will inject a heading + table OR a helpful message -->
       </section>
       <div id="calcWarnings" style="display:none;"></div>
-    </div>
+      </div>
+    </main>
 
   </section>
 
