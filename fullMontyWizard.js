@@ -1054,6 +1054,37 @@ function makeMetricChip(label, value){
   return chip;
 }
 
+/* ---- Dynamic bottom UI compensation using visualViewport ---- */
+function updateViewportChromeOffset(){
+  try{
+    const vv = window.visualViewport;
+    if (!vv) return; // older browsers
+    // The amount of layout viewport hidden by bottom browser UI (rough estimate):
+    const bottomUI = Math.max(0, (window.innerHeight - vv.height - vv.offsetTop));
+    document.documentElement.style.setProperty('--viewport-bottom-ui', bottomUI + 'px');
+  }catch(e){}
+}
+
+// Call on load, resize, and orientation changes
+window.addEventListener('DOMContentLoaded', updateViewportChromeOffset, { once:true });
+window.addEventListener('resize', updateViewportChromeOffset);
+if (window.visualViewport){
+  window.visualViewport.addEventListener('resize', updateViewportChromeOffset);
+  window.visualViewport.addEventListener('scroll', updateViewportChromeOffset);
+}
+
+/* ---- Hide the scroll affordance once the user starts scrolling ---- */
+function attachHeroScrollAffordance(heroEl){
+  if (!heroEl) return;
+  const onScroll = () => {
+    if (window.scrollY > 10) {
+      heroEl.classList.add('scrolled');
+      window.removeEventListener('scroll', onScroll);
+    }
+  };
+  window.addEventListener('scroll', onScroll, { passive:true });
+}
+
 function renderResults(container, data = {}){
   container.innerHTML = '';
 
@@ -1069,24 +1100,28 @@ function renderResults(container, data = {}){
   const hero = document.createElement('section');
   hero.className = 'results-hero fullscreen-hero reveal';
 
+  const content = document.createElement('div');
+  content.className = 'hero-content';
+  hero.appendChild(content);
+
   const headline = document.createElement('h2');
   headline.className = 'hero-headline';
   headline.textContent = shortfall > 0
     ? `You’re ${formatEUR(shortfall)} short of your FY target`
     : `You’re on track — above target by ${formatEUR(projectedPot - fyTarget)}`;
-  hero.appendChild(headline);
+  content.appendChild(headline);
 
   const sub = document.createElement('p');
   sub.className = 'hero-sub';
   sub.textContent = `At age ${retirementAge}, projected pot is ${formatEUR(projectedPot)} vs target ${formatEUR(fyTarget)}.`;
-  hero.appendChild(sub);
+  content.appendChild(sub);
 
   const chips = document.createElement('div');
   chips.className = 'metrics-chips';
   chips.appendChild(makeMetricChip('Projected pot', formatEUR(projectedPot)));
   chips.appendChild(makeMetricChip('FY target', formatEUR(fyTarget)));
   if (shortfall > 0) chips.appendChild(makeMetricChip('Shortfall', formatEUR(shortfall)));
-  hero.appendChild(chips);
+  content.appendChild(chips);
 
   if (deltaContribEuro !== 0 || deltaRetireYears !== 0){
     const change = document.createElement('p');
@@ -1095,7 +1130,7 @@ function renderResults(container, data = {}){
     if (deltaContribEuro) parts.push(`${deltaContribEuro > 0 ? '+' : ''}${formatEUR(deltaContribEuro)}/mo contributions`);
     if (deltaRetireYears) parts.push(`${deltaRetireYears > 0 ? '+' : ''}${deltaRetireYears} yr${Math.abs(deltaRetireYears)===1?'':'s'} to retirement`);
     change.textContent = `Changes: ${parts.join(', ')}`;
-    hero.appendChild(change);
+    content.appendChild(change);
   }
 
   const actions = document.createElement('div');
@@ -1130,7 +1165,7 @@ function renderResults(container, data = {}){
 
   actions.appendChild(addBtn);
   actions.appendChild(delayBtn);
-  hero.appendChild(actions);
+  content.appendChild(actions);
 
   if (atMax && !store.useMaxContributions){
     const note = document.createElement('div');
@@ -1154,7 +1189,7 @@ function renderResults(container, data = {}){
 
     switchRow.appendChild(switchBtn);
     note.appendChild(switchRow);
-    hero.appendChild(note);
+    content.appendChild(note);
   }
 
   if (actionStack.length || deltaContribEuro || deltaRetireYears){
@@ -1175,7 +1210,7 @@ function renderResults(container, data = {}){
 
     revertRow.appendChild(undoBtn);
     revertRow.appendChild(restoreBtn);
-    hero.appendChild(revertRow);
+    content.appendChild(revertRow);
   }
 
   const afford = document.createElement('div');
@@ -1184,6 +1219,10 @@ function renderResults(container, data = {}){
   hero.appendChild(afford);
 
   container.appendChild(hero);
+
+  // Ensure the affordance sits above bottom UI and hides after scroll
+  updateViewportChromeOffset();
+  attachHeroScrollAffordance(hero);
 
   const controlsWrap = document.createElement('section');
   controlsWrap.className = 'results-controls';
