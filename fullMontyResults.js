@@ -63,6 +63,24 @@ function projectedAtRetirementValue(){
   return lastPensionOutput.projValue ?? null;
 }
 
+function renderHero(payload){
+  const mount = document.getElementById('resultsView');
+  if (typeof window.renderResults === 'function') {
+    window.renderResults(mount, payload);
+  } else {
+    // queue once; flush when renderer announces readiness
+    window.__pendingHeroPayload = payload;
+  }
+}
+
+window.addEventListener('fm-renderer-ready', () => {
+  if (window.__pendingHeroPayload) {
+    const mount = document.getElementById('resultsView');
+    window.renderResults(mount, window.__pendingHeroPayload);
+    window.__pendingHeroPayload = null;
+  }
+});
+
 function renderComplianceNotices(container){
   container = ensureNoticesMount() || container || document.getElementById('compliance-notices');
   if (!container || !lastPensionOutput) return;
@@ -866,16 +884,14 @@ These projections are illustrative only — professional guidance is strongly re
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
 
   // Always attempt hero render even if above steps errored
-  if (window.renderResults) {
-    try {
-      window.renderResults(document.getElementById('resultsView'), {
-        projectedPot: projectedAtRetirementValue(),
-        fyTarget: lastFYOutput?.requiredPot || 0,
-        retirementAge: lastWizard?.retireAge
-      });
-    } catch (e) {
-      console.error('[FM Results] renderResults (hero) failed:', e);
-    }
+  try {
+    renderHero({
+      projectedPot: projectedAtRetirementValue(),
+      fyTarget: lastFYOutput?.requiredPot || 0,
+      retirementAge: lastWizard?.retireAge
+    });
+  } catch (e) {
+    console.error('[FM Results] renderResults (hero) failed:', e);
   }
 });
 
@@ -913,9 +929,9 @@ document.addEventListener('fm-run-fy', (e) => {
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
 
   // Always attempt hero render if we have pension output
-  if (window.renderResults && lastPensionOutput) {
+  if (lastPensionOutput) {
     try {
-      window.renderResults(document.getElementById('resultsView'), {
+      renderHero({
         projectedPot: projectedAtRetirementValue(),
         fyTarget: lastFYOutput?.requiredPot || 0,
         retirementAge: lastWizard?.retireAge

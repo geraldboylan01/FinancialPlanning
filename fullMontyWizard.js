@@ -1296,6 +1296,9 @@ function renderResults(container, storeRef){
   }
 }
 
+window.renderResults = renderResults;
+window.dispatchEvent(new Event('fm-renderer-ready'));
+
 // ───────────────────────────────────────────────────────────────
 // Public API
 // ----------------------------------------------------------------
@@ -1321,7 +1324,6 @@ if (document.readyState !== 'loading') {
 
 window.showEditFab = showEditFab;
 window.hideEditFab = hideEditFab;
-window.renderResults = renderResults;
 window.navigateToInputs = openFullMontyWizard;
 window.setUseMaxContributions = setUseMaxContributions;
 
