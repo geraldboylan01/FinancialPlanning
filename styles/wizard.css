@@ -362,6 +362,18 @@
   }
 }
 
+/* --- Edit Inputs FAB visibility control --- */
+.fab-edit-inputs {
+  display: none;                 /* default: hidden everywhere */
+}
+
+/* Show only when body has results mode */
+body.is-results .fab-edit-inputs {
+  display: inline-flex;          /* matches your existing FAB styling */
+}
+
+/* Keep your existing FAB position/style rules below as-is (position: fixed, bottom/right, etc.) */
+
 /* Floating Edit Inputs button */
 .fab-edit-inputs {
   position: fixed;

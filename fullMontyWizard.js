@@ -7,6 +7,7 @@ import { animate, addKeyboardNav } from './wizardCore.js';
 import { currencyInput, percentInput, numFromInput, clampPercent } from './ui-inputs.js';
 import { renderStepPensionRisk } from './stepPensionRisk.js';
 import { MAX_SALARY_CAP } from './shared/assumptions.js';
+import { setUIMode } from './uiMode.js';
 
 // Temporary debug flag: set true to emit fake pension output without engine
 const FM_DEBUG_FAKE_PENSION_OUTPUT = false;
@@ -273,6 +274,7 @@ function closeModal() {
   modal.classList.remove('is-open');
   if (window.__destroyFmWizardUX) window.__destroyFmWizardUX();
   document.body.classList.remove('modal-open');
+  setUIMode('results');
 }
 
 function initFmWizardMobileUX(){
@@ -728,6 +730,7 @@ function yearsFrom(dobStr) {
 // Wizard navigation ------------------------------------------------
 
 function render() {
+  setUIMode('wizard');
   refreshSteps();
   if (cur >= steps.length) cur = steps.length - 1;
   const step = steps[cur];
