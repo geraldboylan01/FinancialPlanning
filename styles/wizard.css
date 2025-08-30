@@ -803,3 +803,38 @@
 .metric-label{ font-size:12px; color: var(--text-2, rgba(255,255,255,.72)); }
 .metric-value{ font-weight:700; font-size:13px; color: var(--text-1, #fff); }
 
+/* Layout of actions */
+.actions-wrap { display: grid; gap: 12px; justify-content: center; }
+.actions-row  { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* Buttons (reuse your existing base .btn rules) */
+.btn { position: relative; }
+.btn-green{
+  background: var(--accentA, #39FF88);
+  color:#08110b;
+  box-shadow: 0 6px 16px rgba(57,255,136,.28);
+}
+.btn-outline{
+  background: transparent;
+  color: var(--text-1, #fff);
+  border: 1px solid rgba(255,255,255,.22);
+}
+
+/* Small count badge: “×3” etc. */
+.btn .badge{
+  margin-left: 8px;
+  font-weight: 800;
+  font-size: .95em;
+  opacity: .95;
+}
+
+/* Undo/Restore row */
+.revert-row { display: flex; gap: 12px; justify-content: center; }
+.btn-text   { background: transparent; color: var(--text-2, rgba(255,255,255,.72)); text-decoration: underline; }
+
+/* Optional: change-summary under chips */
+.change-summary{
+  text-align:center;
+  color: var(--text-2, rgba(255,255,255,.72));
+  margin-top: 4px;
+}
