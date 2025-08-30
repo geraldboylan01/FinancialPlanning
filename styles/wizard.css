@@ -209,6 +209,13 @@
   line-height: 1.35;
 }
 
+.hero-shortfall{
+  text-align:center;
+  color: var(--text-2);
+  font-size: 0.95rem;
+  margin-top: 4px;
+}
+
 .metrics-chips{
   display: flex;
   flex-wrap: wrap;
@@ -236,9 +243,16 @@
 }
 
 .actions-row{
-  display: flex;
+  display: grid;
   gap: 10px;
   justify-content: center;
+}
+
+.nudge-row{
+  display:flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 .btn{
   font: inherit;
@@ -634,9 +648,6 @@
   text-align:center; color:var(--text-2); margin-top:2px;
 }
 
-.actions-row{
-  display:flex; gap:10px; justify-content:center; margin-top:6px;
-}
 
 /* Unified solid pills */
 .btn{
