@@ -571,25 +571,10 @@
   <section id="fullMontyResults" class="fm-results">
     <main id="fm-results" class="fm-results-root">
       <div class="results-shell">
-      <!-- Top Summary / Actions row -->
-      <div id="resultsSummary" class="summary-row" aria-live="polite"></div>
-
-      <div id="kpis" class="kpi-row"></div>
-
-      <div class="results-controls">
-        <label class="toggle max-toggle toggle--max" id="maxContribsToggle">
-          <input type="checkbox" id="maxContribsChk" />
-          <span class="track">
-            <span class="label"><span class="toggle-text">Use max pension contributions</span></span>
-            <span class="knob"></span>
-          </span>
-        </label>
-        <div id="maxToggleNote" class="toggle-note" aria-live="polite"></div>
-        <button id="editInputsBtn" class="fab-edit-inputs" type="button">Edit inputs</button>
-      </div>
+        <section id="resultsView" aria-live="polite"></section>
 
       <!-- ===== BEFORE RETIREMENT ===== -->
-      <section class="results-phase" id="phase-pre">
+        <section class="results-phase" id="phase-pre">
         <header class="fm-section-head">
           <div class="fm-section-title">
             <h2>Before retirement —</h2>
@@ -727,7 +712,7 @@
       <div id="calcWarnings" style="display:none;"></div>
       </div>
     </main>
-
+    <button id="editInputsFab" class="fab-edit-inputs" type="button">Edit inputs</button>
   </section>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.js"></script>

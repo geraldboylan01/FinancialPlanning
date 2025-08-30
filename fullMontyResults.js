@@ -253,7 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
   setUIMode('results');
   const chk = document.querySelector('#maxContribsChk');
   const note = document.querySelector('#maxToggleNote');
-  const btn = document.querySelector('#editInputsBtn');
 
   if (chk) {
     chk.addEventListener('change', () => {
@@ -275,34 +274,57 @@ document.addEventListener('DOMContentLoaded', () => {
     onMaxContribsToggleChanged(false);
   }
 
-  if (btn) {
-    btn.addEventListener('click', () => {
-      document.dispatchEvent(new CustomEvent('fm-open-wizard'));
-    });
-  }
 });
 
-function renderKPIs({ projValue, balances }, fyRequired) {
-  const ageAtRet = balances?.at(-1)?.age ?? '';
-  const gap = Math.round((projValue||0) - (fyRequired||0));
-  const cls = gap >= 0 ? 'ok' : (gap < -0.15*(fyRequired||1) ? 'danger' : 'warn');
-  const root = $('#kpis');
-  if (!root) return;
-  root.innerHTML = `
-    <div class="kpi-card metric">
-      <div class="kpi-label">Projected pot @ ${ageAtRet}</div>
-      <div class="kpi-val">${fmtEuro(projValue)}</div>
-    </div>
-    <div class="kpi-card metric">
-      <div class="kpi-label">FY Target</div>
-      <div class="kpi-val">${fyRequired ? fmtEuro(fyRequired) : 'No extra pot needed'}</div>
-    </div>
-    <div class="kpi-card metric ${cls}">
-      <div class="kpi-label">${gap>=0?'Surplus vs FY':'Shortfall vs FY'}</div>
-      <div class="kpi-val">${fmtEuro(Math.abs(gap))}</div>
-    </div>
-  `;
+function renderMaxContributionToggle(){
+  const wrap = document.createElement('div');
+
+  const label = document.createElement('label');
+  label.className = 'toggle max-toggle toggle--max';
+  label.id = 'maxContribsToggle';
+
+  const chk = document.createElement('input');
+  chk.type = 'checkbox';
+  chk.id = 'maxContribsChk';
+  label.appendChild(chk);
+
+  const track = document.createElement('span');
+  track.className = 'track';
+  const lab = document.createElement('span');
+  lab.className = 'label';
+  const txt = document.createElement('span');
+  txt.className = 'toggle-text';
+  txt.textContent = 'Use max pension contributions';
+  lab.appendChild(txt);
+  const knob = document.createElement('span');
+  knob.className = 'knob';
+  track.appendChild(lab);
+  track.appendChild(knob);
+  label.appendChild(track);
+  wrap.appendChild(label);
+
+  const note = document.createElement('div');
+  note.id = 'maxToggleNote';
+  note.className = 'toggle-note';
+  note.setAttribute('aria-live','polite');
+  wrap.appendChild(note);
+
+  chk.addEventListener('change', () => {
+    useMax = chk.checked;
+    setMaxToggle(useMax);
+    note.textContent = useMax
+      ? 'Max contributions applied — see the detailed age-band limits below.'
+      : '';
+    ensureMaxScenario();
+    drawCharts();
+    onMaxContribsToggleChanged(useMax);
+    renderMaxTable(lastWizard);
+    renderComplianceNotices(document.getElementById('compliance-notices'));
+  });
+
+  return wrap;
 }
+window.renderMaxContributionToggle = renderMaxContributionToggle;
 
 function activeProjection() {
   if (!lastPensionOutput) return {};
@@ -388,41 +410,6 @@ function simulateDrawdown({
   }
 
   return { ages, balances, pensionDraw, otherInc, reqLine, depleteAge };
-}
-
-function renderSummary() {
-  if (!lastFYOutput || !lastPensionOutput) return;
-  const root = document.getElementById('resultsSummary');
-  if (!root) return;
-
-  const ap = activeProjection();
-  const fy = lastFYOutput.requiredPot || 0;
-  const gap = ap.valueAtRet - fy;
-  const cls = gap >= 0 ? 'ok' : (gap < -0.15*(fy||1) ? 'danger' : 'warn');
-
-  const msg = gap >= 0
-    ? `You’re on track. Projected pot is ${fmtEuro(ap.valueAtRet)} — about ${fmtEuro(Math.abs(gap))} above your FY target.`
-    : `Possible shortfall. Projected pot is ${fmtEuro(ap.valueAtRet)} — about ${fmtEuro(Math.abs(gap))} below your FY target.`;
-
-  const actions = gap >= 0
-    ? `<button class="action-btn" id="actExplore">Explore “what-if”</button>`
-    : `<button class="action-btn" id="actContrib">Add €200/mo</button>
-       <button class="action-btn" id="actDelay">Delay retirement 1 yr</button>`;
-
-  root.className = `summary-row ${cls}`;
-  root.innerHTML = `
-    <div class="headline">${msg}</div>
-    <div class="actions">${actions}</div>
-  `;
-
-  document.getElementById('actContrib')?.addEventListener('click', () => {
-    document.getElementById('fullMontyModal')?.classList.add('is-open');
-    document.body.classList.add('modal-open');
-  });
-  document.getElementById('actDelay')?.addEventListener('click', () => {
-    document.getElementById('fullMontyModal')?.classList.add('is-open');
-    document.body.classList.add('modal-open');
-  });
 }
 
 
@@ -523,8 +510,6 @@ function drawCharts() {
       }
     }
   });
-
-  renderKPIs({ projValue: ap.valueAtRet, balances: showMax ? lastPensionOutput.maxBalances : lastPensionOutput.balances }, fy.requiredPot);
 
   // ---------- Retirement-phase (drawdown) charts ----------
   const balCan = document.querySelector('#ddBalanceChart');
@@ -713,7 +698,6 @@ function drawCharts() {
     depletionAgeMax: simMax?.depleteAge ?? null
   });
 
-  renderSummary();
   renderComplianceNotices(document.getElementById('compliance-notices'));
 
   // Optional: console flag for depletion
@@ -889,6 +873,13 @@ These projections are illustrative only — professional guidance is strongly re
   renderMaxTable(lastWizard);
   ensureNoticesMount();
   renderComplianceNotices(document.getElementById('compliance-notices'));
+  if (window.renderResults) {
+    window.renderResults(document.getElementById('resultsView'), {
+      projectedPot: projectedAtRetirementValue(),
+      fyTarget: lastFYOutput?.requiredPot || 0,
+      retirementAge: lastWizard?.retireAge
+    });
+  }
 });
 
 document.addEventListener('fm-run-fy', (e) => {
@@ -921,4 +912,11 @@ document.addEventListener('fm-run-fy', (e) => {
   renderMaxTable(lastWizard);
   ensureNoticesMount();
   renderComplianceNotices(document.getElementById('compliance-notices'));
+  if (window.renderResults && lastPensionOutput) {
+    window.renderResults(document.getElementById('resultsView'), {
+      projectedPot: projectedAtRetirementValue(),
+      fyTarget: lastFYOutput?.requiredPot || 0,
+      retirementAge: lastWizard?.retireAge
+    });
+  }
 });
