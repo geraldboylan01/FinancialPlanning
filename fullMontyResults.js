@@ -142,48 +142,40 @@ function renderComplianceNotices(container){
   // FY target (required pension)
   const fyReq = lastFYOutput?.requiredPot ?? null;
 
-  // Which scenario is shown (for the "projected" comparison)
-  const scenarioLabel = useMax ? 'Max contributions' : 'Base case';
-
   // Decide severity + reason
   let sftLevel = 'warn';
-  let reasonHTML = '';     // why we showed the notice
-  let overAmt = 0;
-  let nearAmt = 0;
+  let reasonHTML = '';
 
   if (sftLimit != null) {
     const reqOver = (fyReq != null) && (fyReq > sftLimit);
     const projOver = (projAtRet != null) && (projAtRet > sftLimit);
 
-    if (reqOver || projOver) {
+    if (reqOver) {
       sftLevel = 'danger';
-      const val = reqOver ? fyReq : projAtRet ?? 0;
-      overAmt = Math.max(0, Math.round(val - sftLimit));
-      reasonHTML = reqOver
-        ? `Your <b>required pension</b> (to fund your retirement income) exceeds the current SFT limit by <b>${formatEUR(overAmt)}</b>.`
-        : `On your current path (<b>${scenarioLabel}</b>), your <b>projected pension</b> at retirement exceeds the current SFT limit by <b>${formatEUR(overAmt)}</b>.`;
+      reasonHTML = 'Your target (required) pension is projected to be above the Standard Fund Threshold (SFT).';
+    } else if (projOver) {
+      sftLevel = 'danger';
+      reasonHTML = 'Your projected pension is projected to be above the Standard Fund Threshold (SFT).';
     } else if (fyReq != null || projAtRet != null) {
       const val = Math.max(fyReq ?? 0, projAtRet ?? 0);
       const ratio = val / sftLimit;
       if (ratio >= 0.8) {
         sftLevel = 'warn';
-        nearAmt = Math.max(0, Math.round(sftLimit - val));
-        reasonHTML = `You’re getting close to the SFT (within <b>${formatEUR(nearAmt)}</b>).`;
+        reasonHTML = 'You are getting close to the Standard Fund Threshold (SFT).';
       } else {
         sftLevel = 'ok';
-        reasonHTML = `You are currently below the SFT.`;
+        reasonHTML = 'You are currently below the Standard Fund Threshold (SFT).';
       }
     }
   } else {
     // No SFT value available (still render an info card)
     sftLevel = 'warn';
-    reasonHTML = `We couldn’t compare your pension to the SFT right now.`;
+    reasonHTML = 'We couldn’t compare your pension to the Standard Fund Threshold (SFT).';
   }
 
   // --- Card copy (no retirement-year callout) ---
   const definitionHTML = `
-    <p><b>What is the SFT?</b> The Standard Fund Threshold (SFT) is the maximum <b>pension</b> you can hold in Ireland before extra tax applies.</p>
-    <p><b>Why it matters:</b> Any amount above the SFT at the point your pension is “crystallised” (typically retirement) is subject to a <b>40% tax charge</b> on the <em>excess</em>.</p>
+    <p>The Standard Fund Threshold (SFT) is the cap on pension savings in Ireland. Any amount above it when your pension is “crystallised” (typically retirement) is taxed at <b>40%</b>.</p>
   `;
 
   const compareLineHTML = (sftLimit != null)
@@ -192,7 +184,12 @@ function renderComplianceNotices(container){
 
   const pathNoteHTML = `
     <p class="dim">
-      <em>Reference:</em> Current policy increases the SFT by <b>€200k</b> per year from <b>€2.0m</b> (2025) to <b>€2.8m</b> (2029). For <b>2030+</b> we conservatively hold the SFT at <b>€2.8m</b> pending official guidance.
+      <em>Reference:</em> The Irish Government has legislated that the <b>Standard Fund Threshold (SFT)</b> will increase by
+      <b>€200,000 each year</b> — rising from <b>€2.0m in 2025</b> to <b>€2.8m in 2029</b>.
+      Beyond 2029, the Government has said the SFT will be linked to wage inflation,
+      but they have not published how this will be calculated or what figures will apply,
+      and future Budgets could change the rules.
+      To avoid giving a misleading picture, this tool takes a <b>conservative approach</b> and assumes the SFT stays fixed at <b>€2.8m from 2030 onward</b>, until official guidance is released.
     </p>
   `;
 
