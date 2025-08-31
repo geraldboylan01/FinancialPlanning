@@ -911,6 +911,93 @@ function formatEUR(x){
   }catch(e){ return `€${(Number(x)||0).toLocaleString()}`; }
 }
 
+function getSftLimitForYear(year) {
+  // Government path: €2.0m (2025) -> +€200k p.a. -> €2.8m (2029). After 2029, hold €2.8m.
+  if (year <= 2025) return 2000000;
+  if (year >= 2029) return 2800000;
+  return 2000000 + (year - 2025) * 200000; // 2026–2028 linear by +200k
+}
+
+function getEffectiveSftLimit(contextYear, hasPartner) {
+  const base = getSftLimitForYear(contextYear);
+  return hasPartner ? base * 2 : base;
+}
+
+function setHidden(el, hidden) {
+  if (!el) return;
+  el.hidden = !!hidden;
+}
+
+function scrollToAssumptionSft() {
+  const el = document.getElementById('assumption-sft');
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderSftAssumptionText() {
+  const slot = document.getElementById('assumptionSftBody');
+  if (!slot) return;
+
+  slot.innerHTML = `
+    <p>The SFT is the maximum pension pot you can build in Ireland before extra tax charges apply. If your pension is above this limit at retirement, the excess is taxed at 40%.</p>
+    <p><strong>Current path:</strong> The SFT increases by €200,000 each year, rising from €2.0m in 2025 to €2.8m in 2029. For years after 2029, the Government has said it will link the SFT to wage inflation, but no figures are confirmed. In this tool, we conservatively hold the limit at €2.8m until official guidance is released.</p>
+  `;
+}
+
+function formatEuro(n) {
+  try {
+    return new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+  } catch {
+    return `€${Math.round(n).toLocaleString()}`;
+  }
+}
+
+function updateSftMiniWarning(state) {
+  const pill = document.getElementById('sft-mini-warning');
+  const btn = document.getElementById('sftMiniLink');
+  if (!pill || !btn || !state) return;
+
+  const year = Number.isFinite(state.retirementAge)
+    ? (new Date().getFullYear() + Math.max(0, state.retirementAge - (state.currentAge || state.retirementAge)))
+    : new Date().getFullYear();
+
+  const limit = getEffectiveSftLimit(year, !!state.hasPartner);
+
+  const projectedOver = Number.isFinite(state.projectedPot) && state.projectedPot > limit;
+  const requiredOver  = Number.isFinite(state.requiredPot)  && state.requiredPot  > limit;
+
+  const nearBand = 0.9 * limit;
+  const projectedNear = !projectedOver && Number.isFinite(state.projectedPot) && state.projectedPot >= nearBand;
+  const requiredNear  = !requiredOver  && Number.isFinite(state.requiredPot)  && state.requiredPot  >= nearBand;
+
+  let text = '';
+  let tone = '';
+
+  if (projectedOver) {
+    const diff = state.projectedPot - limit;
+    text = `Your pension is projected to exceed the SFT by ${formatEuro(diff)}. What’s this?`;
+    tone = 'over';
+  } else if (requiredOver) {
+    const diff = state.requiredPot - limit;
+    text = `Your target (required) pot exceeds the SFT by ${formatEuro(diff)}. What’s this?`;
+    tone = 'over';
+  } else if (projectedNear || requiredNear) {
+    text = `Close to the SFT limit. Learn more`;
+    tone = 'near';
+  }
+
+  pill.classList.remove('is-over', 'is-near');
+  if (tone === 'over') pill.classList.add('is-over');
+  if (tone === 'near') pill.classList.add('is-near');
+
+  const label = document.querySelector('.sft-mini-warning__text');
+  if (label) label.textContent = text || '';
+
+  setHidden(pill, !text);
+
+  btn.onclick = scrollToAssumptionSft;
+}
+
 // ----- Contribution accessors (align keys if needed) -----
 const CONTRIB_KEYS = {
   monthlyEuro: ['personalContribSelf','personalMonthlyContribution','employeeContributionMonthly','contribMonthly'],
@@ -958,6 +1045,17 @@ function recomputeAndRefreshUI(){
 
   if (typeof renderResultsCharts==='function') renderResultsCharts(store);
   else if (typeof updateCharts==='function') updateCharts(store);
+
+  if (typeof updateSftMiniWarning === 'function') {
+    const currentAge = store.dobSelf ? Math.floor((Date.now() - new Date(store.dobSelf)) / (1000*60*60*24*365.25)) : undefined;
+    updateSftMiniWarning({
+      projectedPot: Number(store.projectedPotAtRetirement ?? store.projectedPot ?? 0),
+      requiredPot:  Number(store.financialFreedomTarget   ?? store.fyTarget    ?? 0),
+      retirementAge: Number(store.retireAge ?? store.retirementAge ?? store.desiredRetirementAge ?? 65),
+      currentAge,
+      hasPartner: !!(store.partnerDOB || store.partnerIncluded || store.hasPartner)
+    });
+  }
 }
 
 function withBusy(btn, fn){
@@ -1187,6 +1285,7 @@ export function renderResults(mountEl, storeRef = {}) {
     const age       = Number(storeRef.desiredRetirementAge     ?? storeRef.retirementAge ?? storeRef.retireAge ?? 65);
     const deficit   = Math.max(required - projected, 0);
     const partnerIncluded = !!(storeRef.partnerDOB || storeRef.partnerIncluded || storeRef.hasPartner);
+    const currentAge = storeRef.dobSelf ? Math.floor((Date.now() - new Date(storeRef.dobSelf)) / (1000*60*60*24*365.25)) : null;
 
     const atMaxContrib = (() => {
       const k = firstKey(storeRef, CONTRIB_KEYS.monthlyEuro);
@@ -1236,6 +1335,20 @@ export function renderResults(mountEl, storeRef = {}) {
     chips.appendChild(makeMetricChip('Your pension', formatEUR(projected)));
     chips.appendChild(makeMetricChip('Required',     formatEUR(required)));
     hero.appendChild(chips);
+
+    const sftPill = document.createElement('div');
+    sftPill.id = 'sft-mini-warning';
+    sftPill.className = 'sft-mini-warning';
+    sftPill.setAttribute('role', 'note');
+    sftPill.setAttribute('aria-live', 'polite');
+    sftPill.hidden = true;
+    sftPill.innerHTML = `
+      <button class="sft-mini-warning__btn" id="sftMiniLink" type="button" aria-label="Learn about the SFT and potential charges">
+        <span class="sft-mini-warning__icon">⚠️</span>
+        <span class="sft-mini-warning__text">Potential SFT charge — What’s this?</span>
+      </button>
+    `;
+    hero.appendChild(sftPill);
 
     const parts = [];
     if (nudgeCounts['contrib+200']>0 || nudgeCounts['contrib-200']>0){
@@ -1333,6 +1446,15 @@ export function renderResults(mountEl, storeRef = {}) {
     }
 
     mountEl.appendChild(hero);
+
+    renderSftAssumptionText();
+    updateSftMiniWarning({
+      projectedPot: projected,
+      requiredPot: required,
+      retirementAge: age,
+      currentAge,
+      hasPartner: partnerIncluded
+    });
 
     const revealHero = () => hero.classList.add('reveal--in');
     if (typeof requestAnimationFrame === 'function') {
