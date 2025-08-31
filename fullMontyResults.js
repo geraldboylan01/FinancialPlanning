@@ -125,6 +125,7 @@ function renderHeroNowOrQueue(){
 }
 
 window.addEventListener('fm-renderer-ready', renderHeroNowOrQueue);
+window.addEventListener('fm-renderer-ready', mountBelowHeroToggle);
 
 function renderComplianceNotices(container){
   container = ensureNoticesMount() || container || document.getElementById('compliance-notices');
@@ -354,20 +355,58 @@ function ensureMaxScenario() {
   lastPensionOutput.growthMax   = growthMax;
 }
 
+function setUseMaxContributions(on){
+  useMax = !!on;
+
+  // Ensure the max path exists when turning ON
+  if (useMax) ensureMaxScenario();
+
+  // Flip wording/colors across UI
+  try { window.onMaxContribsToggleChanged?.(useMax); } catch {}
+  try { window.setMaxToggle?.(useMax); } catch {}
+  try { updateAssumptionChip?.(useMax); } catch {}
+
+  // Theme flag for CSS hooks
+  document.body.setAttribute('data-scenario', useMax ? 'max' : 'current');
+
+  // Redraw charts and refresh the hero payload
+  try { drawCharts(); } catch (e) { console.error('[FM Results] redraw after toggle failed', e); }
+  try { scheduleHeroRender(); } catch {}
+}
+window.setUseMaxContributions = setUseMaxContributions;
+
 const $ = (s)=>document.querySelector(s);
 
 console.debug('[FM Results] loaded');
 
+function mountBelowHeroToggle(){
+  const host = document.getElementById('belowHeroControls');
+  if (!host || host.dataset.mounted === '1') return;
+
+  // Build the original skinny toggle (this factory already exists in your file)
+  const node = window.renderMaxContributionToggle
+    ? window.renderMaxContributionToggle({ useMaxContributions: useMax })
+    : null;
+
+  if (!node) return;
+
+  host.appendChild(node);
+  host.dataset.mounted = '1';
+
+  // Wire change event to the controller
+  const chk = host.querySelector('#maxContribsChk');
+  if (chk){
+    chk.checked = !!useMax;
+    chk.addEventListener('change', (e)=> setUseMaxContributions(e.target.checked));
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   setUIMode('results');
+  mountBelowHeroToggle();
   const chk = document.querySelector('#maxContribsChk');
   if (chk) {
-    useMax = chk.checked;
-    chk.addEventListener('change', (e) => {
-      setUseMaxContributions(e.target.checked);
-    });
-    if (typeof setMaxToggle === 'function') setMaxToggle(chk.checked);
-    if (typeof onMaxContribsToggleChanged === 'function') onMaxContribsToggleChanged(chk.checked);
+    setUseMaxContributions(chk.checked);
   }
 });
 
@@ -972,6 +1011,7 @@ These projections are illustrative only — professional guidance is strongly re
   try { renderMaxTable(lastWizard); } catch (e) { console.error('[FM Results] renderMaxTable error:', e); }
 
   ensureNoticesMount();
+  mountBelowHeroToggle();
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
 
   // DO NOT call renderHeroNowOrQueue here directly
@@ -1009,6 +1049,7 @@ document.addEventListener('fm-run-fy', (e) => {
   try { renderMaxTable(lastWizard); } catch (e) { console.error('[FM Results] renderMaxTable error:', e); }
 
   ensureNoticesMount();
+  mountBelowHeroToggle();
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
 
   // Only render hero when both datasets present
