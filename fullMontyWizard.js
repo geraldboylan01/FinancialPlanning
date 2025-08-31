@@ -1404,225 +1404,165 @@ export function renderResults(mountEl, storeRef = {}) {
 window.renderResults = renderResults;
 window.dispatchEvent(new Event('fm-renderer-ready'));
 
-/* =========================
-   [FMControls] Results Controls
-   Restores:
-   - Scenario toggle: Current vs Max Tax-Relief
-   - +€200 chips with tap counter & Revert
-   - Cap notice for Irish age-bands (salary cap €115,000)
-   ========================= */
-(function FMControls(){
-  const SELECTORS = {
-    root: '#fm-contrib-controls',
-    toggleBtns: '.fm-toggle-btn',
-    chipsRow: '.fm-chips-row',
-    chip: '.fm-chip',
-    revert: '#fmRevert',
-    capNotice: '#fmCapNotice',
-    switchToMax: '#fmSwitchToMax',
-    chipHint: '#fmChipHint',
-    chipCount: '#fmChipCount'
-  };
-
-  // Guard: only on Results view. Try both a results container or body flag.
+// === [FM Results Controls] restore original toggle & chip logic ===
+(function restoreFMResultsControls(){
+  // Run only on results view
   const resultsRoot = document.querySelector('#results, .results, [data-view="results"]');
-  const controls = document.querySelector(SELECTORS.root);
-  if (!resultsRoot || !controls) return;
+  if (!resultsRoot) return;
 
-  // Reveal controls now that we know we're in results
-  controls.hidden = false;
+  // Elements (resolve flexibly)
+  const maxToggle = document.querySelector('#maxContribToggle, .js-max-contrib-toggle, [data-role="max-toggle"], #toggle-max');
+  // Hero chips – use data attributes if present, else fallbacks by id/text
+  function findButton(sel, textFallback){
+    return document.querySelector(sel) || Array.from(document.querySelectorAll('button, [role="button"]')).find(b => (b.textContent||'').trim().includes(textFallback));
+  }
+  const btnAdd200 = findButton('[data-increment="+200"], #btnAdd200', 'Add €200');
+  const btnRemove200 = findButton('[data-increment="-200"], #btnRemove200', 'Remove €200');
 
-  // —— Config (Ireland limits) ——
-  const SALARY_CAP = 115000; // per project spec
-  const AGE_BANDS = [
-    { min: 0,  max: 29, pct: 0.15 },
-    { min: 30, max: 39, pct: 0.20 },
-    { min: 40, max: 49, pct: 0.25 },
-    { min: 50, max: 54, pct: 0.30 },
-    { min: 55, max: 59, pct: 0.35 },
-    { min: 60, max: 200, pct: 0.40 }
-  ];
+  // Notice area (existing)
+  const noticeHost = document.querySelector('#resultsNoticeArea, .results-notices, #assumptionPills, [data-slot="results-notices"]') || resultsRoot;
 
-  // —— State ——
-  const state = {
-    scenario: 'current',              // 'current' | 'max'
-    baseMonthly: null,                // original monthly personal contribution
-    currentMonthly: null,             // live monthly personal contribution
-    monthlyStepCount: 0,              // how many chip taps this session
-    age: null,
-    grossSalary: null,
-    capMonthly: null
-  };
-
-  // Helpers to find existing inputs from your pipeline.
-  function getInputs() {
-    // Try to read from your existing central object or DOM.
-    // Replace with your real getters if they exist:
-    const ui = window.FullMonty?.inputs || {};
-    const salary = Number(ui?.grossSalary ?? document.querySelector('[data-field="grossSalary"]')?.value ?? 0);
-    const age = Number(ui?.age ?? document.querySelector('[data-field="age"]')?.value ?? 0);
-    const monthlyPersonal = Number(ui?.personalMonthly ?? document.querySelector('[data-field="personalMonthly"]')?.value ?? 0);
-    return { salary, age, monthlyPersonal };
+  // Access central inputs
+  const store = (window.FullMonty && window.FullMonty.inputs) ? window.FullMonty.inputs : {};
+  const getNum = v => Math.max(0, Number(v || 0));
+  function getAge(){ return getNum(store.age ?? document.querySelector('[data-field="age"]')?.value); }
+  function getSalary(){ return getNum(store.grossSalary ?? document.querySelector('[data-field="grossSalary"]')?.value); }
+  function getPersonalMonthly(){ return getNum(store.personalMonthly ?? document.querySelector('[data-field="personalMonthly"]')?.value); }
+  function setPersonalMonthly(n){
+    if (window.FullMonty && window.FullMonty.inputs) window.FullMonty.inputs.personalMonthly = n;
+    const el = document.querySelector('[data-field="personalMonthly"]');
+    if (el) el.value = n;
   }
 
-  function setPersonalMonthly(value) {
-    // Update your single source of truth:
-    if (window.FullMonty?.inputs) {
-      window.FullMonty.inputs.personalMonthly = value;
-    }
-    const domInput = document.querySelector('[data-field="personalMonthly"]');
-    if (domInput) domInput.value = value;
-  }
-
-  function recalcNow() {
-    // Call your existing re-calc/update hooks. Try the common ones safely.
+  function recalc(){
     if (typeof window.updateAll === 'function') return window.updateAll();
     if (typeof window.recalcResults === 'function') return window.recalcResults();
-    // Fallback: dispatch an event many modules listen to
     window.dispatchEvent(new CustomEvent('fm:inputs:changed'));
   }
 
-  function pctForAge(age){
-    const b = AGE_BANDS.find(x => age >= x.min && age <= x.max);
-    return b ? b.pct : 0.15;
+  // Caps
+  const BANDS = [
+    {min:0,max:29,pct:.15},{min:30,max:39,pct:.20},{min:40,max:49,pct:.25},
+    {min:50,max:54,pct:.30},{min:55,max:59,pct:.35},{min:60,max:200,pct:.40}
+  ];
+  function pctForAge(a){ const b = BANDS.find(x=>a>=x.min && a<=x.max); return b?b.pct:.15; }
+  function monthlyCap(){
+    const capAnnual = Math.min(getSalary(), 115000) * pctForAge(getAge());
+    return Math.round(capAnnual/12);
   }
 
-  function computeCapMonthly(age, salary){
-    const pct = pctForAge(age);
-    const capAnnual = Math.min(salary, SALARY_CAP) * pct;
-    return Math.round(capAnnual / 12);
-  }
+  // Session state
+  const sid = (window.FullMonty && window.FullMonty.sessionId) ? window.FullMonty.sessionId : 'default';
+  const KEY = `FM_SESSION_CONTRIB_STATE_${sid}`;
+  const baseMonthly = getPersonalMonthly();
+  let state = { currentMonthly: baseMonthly, tapCount: 0, maxToggleOn: false };
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(KEY) || '{}');
+    state = { ...state, ...saved };
+  } catch {}
 
-  function setScenario(scn){
-    state.scenario = scn;
-    // Toggle active button UI
-    document.querySelectorAll(SELECTORS.toggleBtns).forEach(b=>{
-      b.classList.toggle('is-active', b.dataset.scenario === scn);
-    });
-
-    // Apply scenario
-    if (scn === 'current') {
-      setPersonalMonthly(state.baseMonthly);
-      state.currentMonthly = state.baseMonthly;
-      state.monthlyStepCount = 0;
-      updateChipUI();
-      hideCapNotice();
-      recalcNow();
-    } else if (scn === 'max') {
-      // Set contribution to cap
-      setPersonalMonthly(state.capMonthly);
-      state.currentMonthly = state.capMonthly;
-      state.monthlyStepCount = 0;
-      updateChipUI();
-      hideCapNotice();
-      recalcNow();
-    }
-  }
-
-  function showCapNotice(){
-    const el = document.querySelector(SELECTORS.capNotice);
-    if (el) el.hidden = false;
-  }
-  function hideCapNotice(){
-    const el = document.querySelector(SELECTORS.capNotice);
-    if (el) el.hidden = true;
-  }
-
-  function updateChipUI(){
-    // Enable/disable revert
-    const revertBtn = document.querySelector(SELECTORS.revert);
-    if (revertBtn) {
-      const canRevert = state.currentMonthly !== state.baseMonthly;
-      revertBtn.setAttribute('aria-disabled', canRevert ? 'false' : 'true');
-    }
-    // Update microcopy counter
-    const hint = document.querySelector(SELECTORS.chipHint);
-    const count = document.querySelector(SELECTORS.chipCount);
-    if (hint && count) {
-      hint.hidden = false;
-      count.textContent = state.monthlyStepCount > 0 ? `(taps: ${state.monthlyStepCount})` : '';
-    }
-  }
-
-  function applyIncrement(incr){
-    const next = Math.max(0, Number(state.currentMonthly || 0) + incr);
-    setPersonalMonthly(next);
-    state.currentMonthly = next;
-    state.monthlyStepCount += 1;
-    updateChipUI();
-
-    // Cap check
-    if (state.currentMonthly > state.capMonthly + 1 /* rounding wiggle */) {
-      showCapNotice();
-    } else {
-      hideCapNotice();
-    }
-
-    recalcNow();
-  }
-
-  function revert(){
-    setPersonalMonthly(state.baseMonthly);
-    state.currentMonthly = state.baseMonthly;
-    state.monthlyStepCount = 0;
-    updateChipUI();
-    hideCapNotice();
-    recalcNow();
-  }
-
-  // Event wiring (delegated for resilience)
-  controls.addEventListener('click', (e)=>{
-    const btn = e.target.closest('button');
-    if (!btn) return;
-
-    // Scenario toggle
-    if (btn.matches(SELECTORS.toggleBtns)) {
-      const scn = btn.dataset.scenario;
-      if (scn && scn !== state.scenario) setScenario(scn);
-      return;
-    }
-
-    // Chips
-    if (btn.matches(SELECTORS.chip)) {
-      if (btn.dataset.action === 'revert' && btn.getAttribute('aria-disabled') !== 'true') {
-        return revert();
+  // Notice helpers (reuse existing pill styles)
+  let revertPill, capPill;
+  function ensureRevertPill(){
+    if (revertPill) return;
+    revertPill = document.createElement('div');
+    revertPill.className = 'pill pill--info';
+    revertPill.innerHTML = `You’ve adjusted your monthly contribution. <button class="pill--link" data-action="revert-base">Revert to original</button>`;
+    revertPill.hidden = true;
+    noticeHost.appendChild(revertPill);
+    revertPill.addEventListener('click', (e)=>{
+      if (e.target.matches('[data-action="revert-base"]')) {
+        setPersonalMonthly(baseMonthly);
+        state.currentMonthly = baseMonthly;
+        state.tapCount = 0;
+        persist();
+        hideRevertPill();
+        hideCapPill();
+        if (maxToggle) setMaxToggle(false);
+        recalc();
       }
-      const inc = Number(btn.dataset.increment || 0);
-      if (inc) applyIncrement(inc);
+    });
+  }
+  function showRevertPill(){ ensureRevertPill(); revertPill.hidden = false; }
+  function hideRevertPill(){ if (revertPill) revertPill.hidden = true; }
+
+  function ensureCapPill(){
+    if (capPill) return;
+    capPill = document.createElement('div');
+    capPill.className = 'pill pill--warn';
+    capPill.innerHTML = `Above tax-relief limit for your age band. <button class="pill--link" data-action="switch-max">Switch on Max Contributions</button>`;
+    capPill.hidden = true;
+    noticeHost.appendChild(capPill);
+    capPill.addEventListener('click', (e)=>{
+      if (e.target.matches('[data-action="switch-max"]')) {
+        if (maxToggle) setMaxToggle(true);
+      }
+    });
+  }
+  function showCapPill(){ ensureCapPill(); capPill.hidden = false; }
+  function hideCapPill(){ if (capPill) capPill.hidden = true; }
+
+  function persist(){
+    sessionStorage.setItem(KEY, JSON.stringify(state));
+  }
+
+  function applyMonthly(n){
+    setPersonalMonthly(n);
+    state.currentMonthly = n;
+    persist();
+    // Cap check (ignore when Max is ON)
+    if (!state.maxToggleOn && n > (monthlyCap() + 1)) showCapPill(); else hideCapPill();
+    recalc();
+  }
+
+  function setMaxToggle(on){
+    state.maxToggleOn = !!on;
+    persist();
+    // Update the visual switch if it supports aria-pressed/checked
+    if (maxToggle){
+      if ('ariaPressed' in maxToggle) maxToggle.ariaPressed = on ? 'true' : 'false';
+      if ('checked' in maxToggle) maxToggle.checked = on;
+      maxToggle.classList.toggle('is-on', on);
     }
-  });
-
-  const switchToMax = document.querySelector(SELECTORS.switchToMax);
-  if (switchToMax) {
-    switchToMax.addEventListener('click', ()=> setScenario('max'));
+    if (on){
+      hideRevertPill();
+      hideCapPill();
+      applyMonthly(monthlyCap());
+    } else {
+      applyMonthly(baseMonthly);
+    }
   }
 
-  // Initial load — snapshot base & compute caps
-  function init(){
-    const { salary, age, monthlyPersonal } = getInputs();
-    state.grossSalary = Number(salary || 0);
-    state.age = Number(age || 0);
-    state.baseMonthly = Number(monthlyPersonal || 0);
-    state.currentMonthly = state.baseMonthly;
-    state.capMonthly = computeCapMonthly(state.age, state.grossSalary);
-
-    updateChipUI();
-    hideCapNotice();
-
-    // Ensure the default toggle reflects the currently selected scenario.
-    // If your app has a stored scenario, read it and call setScenario(stored).
-    setScenario('current');
+  // Wire events (don’t change DOM)
+  if (maxToggle){
+    // Support both checkbox and button styles
+    maxToggle.addEventListener('click', ()=>{
+      const now = !state.maxToggleOn;
+      setMaxToggle(now);
+    });
   }
 
-  // If your results view is dynamically mounted, re-init on ‘results-ready’.
-  window.addEventListener('fm:results:ready', init, { once: true });
+  function handleIncrement(delta){
+    // If Max is ON, first turn it OFF to allow manual fine-tuning from base
+    if (state.maxToggleOn && maxToggle) setMaxToggle(false);
+    const next = Math.max(0, getPersonalMonthly() + delta);
+    state.tapCount += 1;
+    persist();
+    if (state.tapCount > 0) showRevertPill();
+    applyMonthly(next);
+  }
 
-  // If the results are already present, init immediately.
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    init();
+  if (btnAdd200){ btnAdd200.addEventListener('click', ()=> handleIncrement(+200)); }
+  if (btnRemove200){ btnRemove200.addEventListener('click', ()=> handleIncrement(-200)); }
+
+  // Initial sync: respect saved state; ensure UI reflects switch
+  if (maxToggle && state.maxToggleOn){
+    setMaxToggle(true);
   } else {
-    document.addEventListener('DOMContentLoaded', init, { once: true });
+    // ensure currentMonthly is actually applied (in case storage had a different number)
+    applyMonthly(state.currentMonthly);
   }
+  if (state.tapCount > 0) showRevertPill(); else hideRevertPill();
 })();
 
 // ───────────────────────────────────────────────────────────────
