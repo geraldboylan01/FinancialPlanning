@@ -128,23 +128,87 @@ window.addEventListener('fm-renderer-ready', renderHeroNowOrQueue);
 
 function renderComplianceNotices(container){
   container = ensureNoticesMount() || container || document.getElementById('compliance-notices');
-  if (!container || !lastPensionOutput) return;
+  if (!container) return;
 
-  const valueAtRet   = projectedAtRetirementValue();
-  const retireAge    = lastWizard?.retireAge ?? null;
+  const projAtRet = projectedAtRetirementValue(); // number or null
+  const retireAge = lastWizard?.retireAge ?? null;
   const retirementYr = lastPensionOutput?.retirementYear ?? null;
 
-  // Year-aware SFT: prefer lastPensionOutput.sftLimit if present, else compute from year
+  // Year-aware SFT (do not print the year in the prose)
   const sftLimit = (lastPensionOutput?.sftLimit != null)
     ? lastPensionOutput.sftLimit
     : (retirementYr != null ? sftForYear(retirementYr) : null);
 
-  // --- SFT severity vs projected pension at retirement
+  // FY target (required pension)
+  const fyReq = lastFYOutput?.requiredPot ?? null;
+
+  // Which scenario is shown (for the "projected" comparison)
+  const scenarioLabel = useMax ? 'Max contributions' : 'Base case';
+
+  // Decide severity + reason
   let sftLevel = 'warn';
-  if (valueAtRet != null && sftLimit != null){
-    const r = valueAtRet / sftLimit;
-    sftLevel = r >= 1 ? 'danger' : (r >= 0.8 ? 'warn' : 'ok');
+  let reasonHTML = '';     // why we showed the notice
+  let overAmt = 0;
+  let nearAmt = 0;
+
+  if (sftLimit != null) {
+    const reqOver = (fyReq != null) && (fyReq > sftLimit);
+    const projOver = (projAtRet != null) && (projAtRet > sftLimit);
+
+    if (reqOver || projOver) {
+      sftLevel = 'danger';
+      const val = reqOver ? fyReq : projAtRet ?? 0;
+      overAmt = Math.max(0, Math.round(val - sftLimit));
+      reasonHTML = reqOver
+        ? `Your <b>required pension</b> (to fund your retirement income) exceeds the current SFT limit by <b>${formatEUR(overAmt)}</b>.`
+        : `On your current path (<b>${scenarioLabel}</b>), your <b>projected pension</b> at retirement exceeds the current SFT limit by <b>${formatEUR(overAmt)}</b>.`;
+    } else if (fyReq != null || projAtRet != null) {
+      const val = Math.max(fyReq ?? 0, projAtRet ?? 0);
+      const ratio = val / sftLimit;
+      if (ratio >= 0.8) {
+        sftLevel = 'warn';
+        nearAmt = Math.max(0, Math.round(sftLimit - val));
+        reasonHTML = `You’re getting close to the SFT (within <b>${formatEUR(nearAmt)}</b>).`;
+      } else {
+        sftLevel = 'ok';
+        reasonHTML = `You are currently below the SFT.`;
+      }
+    }
+  } else {
+    // No SFT value available (still render an info card)
+    sftLevel = 'warn';
+    reasonHTML = `We couldn’t compare your pension to the SFT right now.`;
   }
+
+  // --- Card copy (no retirement-year callout) ---
+  const definitionHTML = `
+    <p><b>What is the SFT?</b> The Standard Fund Threshold (SFT) is the maximum <b>pension</b> you can hold in Ireland before extra tax applies.</p>
+    <p><b>Why it matters:</b> Any amount above the SFT at the point your pension is “crystallised” (typically retirement) is subject to a <b>40% tax charge</b> on the <em>excess</em>.</p>
+  `;
+
+  const compareLineHTML = (sftLimit != null)
+    ? `<p>${reasonHTML} We’re comparing against a current SFT limit of <b>${formatEUR(sftLimit)}</b> based on today’s rules.</p>`
+    : `<p>${reasonHTML}</p>`;
+
+  const pathNoteHTML = `
+    <p class="dim">
+      <em>Reference:</em> Current policy increases the SFT by <b>€200k</b> per year from <b>€2.0m</b> (2025) to <b>€2.8m</b> (2029). For <b>2030+</b> we conservatively hold the SFT at <b>€2.8m</b> pending official guidance.
+    </p>
+  `;
+
+  const sftCard = `
+    <div class="notice-card ${sftLevel==='danger'?'danger':(sftLevel==='warn'?'warn':'ok')}">
+      <div class="title">Standard Fund Threshold (SFT)</div>
+      <div class="meta">
+        ${definitionHTML}
+        ${compareLineHTML}
+        ${pathNoteHTML}
+      </div>
+    </div>
+  `;
+
+  // --- Age card + assumptions card (unchanged except wording already updated earlier) ---
+  // (keep your existing age selection logic and assWB fallback)
 
   // --- Age severity (unchanged)
   let ageLevel='ok';
@@ -159,29 +223,6 @@ function renderComplianceNotices(container){
   const ageWB = findWB(t => t.includes('retiring before age 50') || t.includes('retiring between age 50') || t.includes('over 70') || t.includes('75 and over'));
   const assWB = findWB(t => t.includes('standard fund threshold (sft) assumptions'));
 
-  // “pension”-worded meta, year-aware
-  const scenario = useMax ? 'Max contributions' : 'Base case';
-  const sftMeta = (valueAtRet!=null && sftLimit!=null)
-    ? `Projected (${scenario}) pension at retirement: <b>${formatEUR(valueAtRet)}</b> vs SFT for <b>${retirementYr ?? 'year n/a'}</b>: <b>${formatEUR(sftLimit)}</b>.`
-    : (sftLimit!=null
-        ? `SFT for <b>${retirementYr ?? 'year n/a'}</b> is <b>${formatEUR(sftLimit)}</b>; projection not available yet.`
-        : 'No SFT comparison available.');
-
-  const sftTail = (sftLevel==='danger')
-    ? ' Your projected pension exceeds the configured limit at retirement.'
-    : (sftLevel==='warn' ? ' Your projected pension is getting close to the limit.' : '');
-
-  const sftCard = `
-    <div class="notice-card ${sftLevel==='danger'?'danger':(sftLevel==='warn'?'warn':'')}">
-      <div class="title">Standard Fund Threshold</div>
-      <div class="meta">
-        ${sftMeta}${sftTail}
-        <br><br>
-        <em>Reference:</em> SFT increases by <b>€200k p.a.</b> from <b>€2.0m</b> in <b>2025</b> to <b>€2.8m</b> in <b>2029</b>. For <b>2030+</b>, we conservatively hold the SFT at <b>€2.8m</b> pending official guidance.
-      </div>
-    </div>
-  `;
-
   const ageBody = ageWB ? ageWB.body : (
     retireAge==null
       ? 'No retirement age selected.'
@@ -195,7 +236,7 @@ function renderComplianceNotices(container){
   );
 
   const ageCard = (ageLevel==='ok' && !ageWB) ? '' : `
-    <div class="notice-card ${ageLevel==='danger'?'danger':(ageLevel==='warn'?'warn':'')}">
+    <div class="notice-card ${ageLevel==='danger'?'danger':(ageLevel==='warn'?'warn':'ok')}">
       <div class="title">Retirement age selection</div>
       <div class="meta">${ageBody}</div>
     </div>
@@ -223,13 +264,13 @@ function renderComplianceNotices(container){
   container.innerHTML = `
     <div class="notice-cards">
       ${sftCard}
-      ${ageCard}
-      ${assumpCard}
-      ${mandatoryCard}
+      ${ageCard ?? ''}
+      ${assumpCard ?? ''}
+      ${mandatoryCard ?? ''}
     </div>
   `;
 
-  // Remove legacy static SFT sections so only the new cards remain
+  // Ensure old static SFT sections are removed
   removeLegacySFTStatic();
 }
 
