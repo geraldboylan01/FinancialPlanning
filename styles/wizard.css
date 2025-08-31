@@ -690,6 +690,60 @@
 .helper-note strong{ color:var(--text-1); }
 .helper-actions{ display:flex; justify-content:center; margin-top:8px; }
 
+/* Mini SFT warning pill under the two oval chips */
+.sft-mini-warning {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.sft-mini-warning__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 77, 77, 0.12); /* subtle red glass */
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1;
+  backdrop-filter: saturate(120%) blur(4px);
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.sft-mini-warning__btn:hover,
+.sft-mini-warning__btn:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(255, 77, 77, 0.4);
+}
+
+.sft-mini-warning__icon {
+  font-size: 1.05rem;
+}
+
+/* State colours */
+.sft-mini-warning.is-over .sft-mini-warning__btn {
+  background: rgba(255, 77, 77, 0.18); /* over = redder */
+}
+
+.sft-mini-warning.is-near .sft-mini-warning__btn {
+  background: rgba(255, 170, 0, 0.18); /* near = amber */
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .sft-mini-warning__btn {
+    transition: none;
+  }
+}
+
+/* Assumption card typographic polish (optional) */
+#assumption-sft .assumption-body p {
+  margin: 0 0 8px 0;
+}
+
 /* Undo/restore row */
 .revert-row{
   display:flex; gap:12px; justify-content:center; margin-top:4px;
@@ -855,3 +909,57 @@
 .helper-note strong{ color: var(--text-1, #fff); display:block; margin-bottom:4px; }
 .helper-sub{ margin-top: 2px; }
 .helper-actions{ display:flex; justify-content:center; margin-top:8px; }
+
+/* Mini SFT warning pill under the two oval chips */
+.sft-mini-warning {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.sft-mini-warning__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 77, 77, 0.12); /* subtle red glass */
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1;
+  backdrop-filter: saturate(120%) blur(4px);
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.sft-mini-warning__btn:hover,
+.sft-mini-warning__btn:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(255, 77, 77, 0.4);
+}
+
+.sft-mini-warning__icon {
+  font-size: 1.05rem;
+}
+
+/* State colours */
+.sft-mini-warning.is-over .sft-mini-warning__btn {
+  background: rgba(255, 77, 77, 0.18); /* over = redder */
+}
+
+.sft-mini-warning.is-near .sft-mini-warning__btn {
+  background: rgba(255, 170, 0, 0.18); /* near = amber */
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .sft-mini-warning__btn {
+    transition: none;
+  }
+}
+
+/* Assumption card typographic polish (optional) */
+#assumption-sft .assumption-body p {
+  margin: 0 0 8px 0;
+}
