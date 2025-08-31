@@ -1186,7 +1186,6 @@ export function renderResults(mountEl, storeRef = {}) {
     const required  = Number(storeRef.financialFreedomTarget   ?? storeRef.fyTarget    ?? 0);
     const age       = Number(storeRef.desiredRetirementAge     ?? storeRef.retirementAge ?? storeRef.retireAge ?? 65);
     const deficit   = Math.max(required - projected, 0);
-    const surplus   = Math.max(projected - required, 0);
     const partnerIncluded = !!(storeRef.partnerDOB || storeRef.partnerIncluded || storeRef.hasPartner);
 
     const atMaxContrib = (() => {
@@ -1206,8 +1205,20 @@ export function renderResults(mountEl, storeRef = {}) {
     const prefix = document.createElement('p');
     prefix.className = 'hero-prefix';
     prefix.textContent = "You're";
-    const num = document.createElement('h2'); num.className='hero-number';
-    num.textContent = deficit ? formatEUR(deficit) : formatEUR(surplus);
+
+    // Big headline number
+    const num = document.createElement('div');
+    num.className = 'hero-number';
+
+    if (deficit > 0) {
+      num.textContent = formatEUR(deficit);
+      num.classList.add('shortfall');
+    } else {
+      const surplusValue = required > 0 ? (projected - required) : projected;
+      num.textContent = formatEUR(surplusValue);
+      num.classList.add('surplus');
+    }
+
     const line = document.createElement('p'); line.className='hero-headline-text';
     line.textContent = deficit ? 'below your retirement needs' : 'above your retirement needs';
     hero.appendChild(prefix); hero.appendChild(num); hero.appendChild(line);
