@@ -65,6 +65,24 @@ function ensureNoticesMount(){
   return el;
 }
 
+function removeLegacySFTStatic() {
+  // Prefer explicit IDs/classes if present
+  document.querySelectorAll('#sftArticle, #sftAssumptions, .sft-static, .sft-assumptions-static')
+    .forEach(el => el.remove());
+
+  // Fallback: text-based removal for headings not inside our cards
+  const heads = Array.from(document.querySelectorAll('h1,h2,h3'));
+  heads
+    .filter(h => /standard fund threshold/i.test(h.textContent) || /sft assumptions/i.test(h.textContent))
+    .filter(h => !h.closest('.notice-card'))
+    .map(h => h.closest('section') || h.parentElement)
+    .forEach(el => {
+      if (!el) return;
+      if (el.id === 'compliance-notices' || el.closest('#compliance-notices')) return;
+      el.remove();
+    });
+}
+
 function projectedAtRetirementValue(){
   if (!lastPensionOutput) return null;
   if (useMax && Array.isArray(lastPensionOutput.maxBalances) && lastPensionOutput.maxBalances.length){
@@ -112,39 +130,45 @@ function renderComplianceNotices(container){
   if (!container || !lastPensionOutput) return;
 
   const valueAtRet   = projectedAtRetirementValue();
-  const sftLimit     = lastPensionOutput?.sftLimit ?? null;
-  const scenario     = useMax ? 'Max contributions' : 'Base case';
   const retireAge    = lastWizard?.retireAge ?? null;
   const retirementYr = lastPensionOutput?.retirementYear ?? null;
 
-  // --- SFT severity
-  let sftLevel = 'warn'; // default to “warn” when we can’t compare
+  // Year-aware SFT: prefer lastPensionOutput.sftLimit if present, else compute from year
+  const sftLimit = (lastPensionOutput?.sftLimit != null)
+    ? lastPensionOutput.sftLimit
+    : (retirementYr != null ? sftForYear(retirementYr) : null);
+
+  // --- SFT severity vs projected pension at retirement
+  let sftLevel = 'warn';
   if (valueAtRet != null && sftLimit != null){
     const r = valueAtRet / sftLimit;
     sftLevel = r >= 1 ? 'danger' : (r >= 0.8 ? 'warn' : 'ok');
   }
 
-  // --- Age severity
+  // --- Age severity (unchanged)
   let ageLevel='ok';
   if (retireAge != null){
     if (retireAge < 50 || retireAge >= 75) ageLevel='danger';
     else if ((retireAge >= 50 && retireAge < 60) || (retireAge >= 70 && retireAge < 75)) ageLevel='warn';
   }
 
-  // Pull legacy blocks for body copy (PDF-compatible source of truth)
+  // Pull legacy blocks for body copy (keep as-is)
   const wb = lastPensionOutput?.warningBlocks || [];
   const findWB = (pred) => wb.find(w => pred((w.title||'').toLowerCase()));
-  const ageWB   = findWB(t => t.includes('retiring before age 50') || t.includes('retiring between age 50') || t.includes('over 70') || t.includes('75 and over'));
-  const assWB   = findWB(t => t.includes('standard fund threshold (sft) assumptions'));
+  const ageWB = findWB(t => t.includes('retiring before age 50') || t.includes('retiring between age 50') || t.includes('over 70') || t.includes('75 and over'));
+  const assWB = findWB(t => t.includes('standard fund threshold (sft) assumptions'));
 
-  // --- Cards
+  // “pension”-worded meta, year-aware
+  const scenario = useMax ? 'Max contributions' : 'Base case';
   const sftMeta = (valueAtRet!=null && sftLimit!=null)
-    ? `Projected (${scenario}): <b>${formatEUR(valueAtRet)}</b> vs SFT: <b>${formatEUR(sftLimit)}</b>.`
-    : (sftLimit!=null ? `SFT configured at <b>${formatEUR(sftLimit)}</b>; projection not available yet.` : 'No SFT comparison available.');
+    ? `Projected (${scenario}) pension at retirement: <b>${formatEUR(valueAtRet)}</b> vs SFT for <b>${retirementYr ?? 'year n/a'}</b>: <b>${formatEUR(sftLimit)}</b>.`
+    : (sftLimit!=null
+        ? `SFT for <b>${retirementYr ?? 'year n/a'}</b> is <b>${formatEUR(sftLimit)}</b>; projection not available yet.`
+        : 'No SFT comparison available.');
 
   const sftTail = (sftLevel==='danger')
-    ? ' Your projection exceeds the configured limit.'
-    : (sftLevel==='warn' ? ' You are getting close to the limit.' : '');
+    ? ' Your projected pension exceeds the configured limit at retirement.'
+    : (sftLevel==='warn' ? ' Your projected pension is getting close to the limit.' : '');
 
   const sftCard = `
     <div class="notice-card ${sftLevel==='danger'?'danger':(sftLevel==='warn'?'warn':'')}">
@@ -152,8 +176,7 @@ function renderComplianceNotices(container){
       <div class="meta">
         ${sftMeta}${sftTail}
         <br><br>
-        <em>Reference:</em> current path increases by <b>€200k p.a.</b> from <b>€2.0m</b> to <b>€2.8m</b> in <b>2029</b>.
-        For years <b>2030+</b> we conservatively hold the SFT at <b>€2.8m</b> pending official guidance.
+        <em>Reference:</em> SFT increases by <b>€200k p.a.</b> from <b>€2.0m</b> in <b>2025</b> to <b>€2.8m</b> in <b>2029</b>. For <b>2030+</b>, we conservatively hold the SFT at <b>€2.8m</b> pending official guidance.
       </div>
     </div>
   `;
@@ -169,6 +192,7 @@ function renderComplianceNotices(container){
                   ? 'Many schemes must be drawn by age 70; PRSAs may defer to 75.'
                   : 'All pensions must be accessed by age 75; automatic vesting applies.')))
   );
+
   const ageCard = (ageLevel==='ok' && !ageWB) ? '' : `
     <div class="notice-card ${ageLevel==='danger'?'danger':(ageLevel==='warn'?'warn':'')}">
       <div class="title">Retirement age selection</div>
@@ -181,7 +205,7 @@ function renderComplianceNotices(container){
       <div class="title">SFT assumptions notice</div>
       <div class="meta">
         ${assWB ? assWB.body :
-          'Official SFT values are confirmed to 2029. Beyond that, Government indicates linkage to wage inflation but no definitive schedule exists. We therefore hold the SFT at €2.8m in projections for 2030+.'}
+          'Official SFT values are confirmed to 2029 (+€200k per year to €2.8m). For 2030+ we hold the SFT at €2.8m pending guidance.'}
       </div>
     </div>
   ` : '';
@@ -190,8 +214,7 @@ function renderComplianceNotices(container){
     <div class="notice-card warn">
       <div class="title">Mandatory withdrawals (ARF / vested PRSA)</div>
       <div class="meta">
-        Minimum annual drawdowns apply in retirement under Revenue’s imputed-distribution rules (rates rise with age and can vary with total ARF/vested PRSA size).
-        Our charts do <b>not</b> model these minimum withdrawals, so real-world net income and fund paths may differ.
+        Minimum annual drawdowns apply in retirement under Revenue’s imputed-distribution rules. Our charts do <b>not</b> model these minimum withdrawals.
       </div>
     </div>
   `;
@@ -204,6 +227,9 @@ function renderComplianceNotices(container){
       ${mandatoryCard}
     </div>
   `;
+
+  // Remove legacy static SFT sections so only the new cards remain
+  removeLegacySFTStatic();
 }
 
 // Public: update retirement income chart colors for max-toggle
@@ -466,7 +492,7 @@ function drawCharts() {
 
   if (fy.requiredPot && fy.requiredPot > 0) {
     datasets.push({
-      label: `FY Target (${fmtEuro(fy.requiredPot)})`,
+      label: `Required pension (${fmtEuro(fy.requiredPot)})`,
       data: labels.map(() => fy.requiredPot),
       borderColor: '#c000ff',
       borderDash: [6,6],
@@ -553,7 +579,7 @@ function drawCharts() {
   const partnerCurAge = d.partnerDob ? yrDiff(new Date(d.partnerDob), now) : null;
   const partnerAgeAtRet = (partnerCurAge != null) ? (partnerCurAge + yrsToRet) : null;
 
-  // Sim paths: FY pot (requiredPot) vs projected accumulation pot
+  // Sim paths: Required pension vs projected accumulation
   const retireAge = +d.retireAge || (lastPensionOutput?.balances?.[0]?.age ?? 65);
   const endAge = 100;
   const growthRate = Number.isFinite(+d.growthRate) ? +d.growthRate : (lastPensionOutput?.growth ?? 0.05);
@@ -619,7 +645,7 @@ function drawCharts() {
 
   const depletionDataset = (depletionIndex > 0) ? {
     type: 'line',
-    label: `Projected pot depletes @ age ${simProj.depleteAge}`,
+    label: `Projected pension depletes @ age ${simProj.depleteAge}`,
     data: simProj.ages.map((_, i) => i === depletionIndex ? simProj.balances[i] : null),
     borderColor: '#ff4d4d',
     backgroundColor: '#ff4d4d',
@@ -636,7 +662,7 @@ function drawCharts() {
       labels: simProj.ages.map(a => `Age ${a}`),
       datasets: [
           {
-            label: showMax ? 'Balance (Max contribs)' : 'Balance (Projected pot)',
+            label: showMax ? 'Balance (Max contribs)' : 'Balance (Projected pension)',
             data: simProj.balances,
             borderColor: showMax ? '#0099ff' : '#00ff88',
             backgroundColor: showMax ? 'rgba(0,153,255,0.10)' : 'rgba(0,255,136,0.10)',
@@ -644,7 +670,7 @@ function drawCharts() {
             tension: 0.28
           },
         {
-          label: 'Balance (FY pot)',
+          label: 'Balance (Required pension)',
           data: simFY.balances,
           borderColor: '#c000ff',
           borderDash: [6,6],
@@ -731,7 +757,7 @@ function drawCharts() {
 
     // Optional: console flag for depletion
     if (simProj.depleteAge) {
-      console.warn(`[Drawdown] Projected pot depletes at age ${simProj.depleteAge}.`);
+      console.warn(`[Drawdown] Projected pension depletes at age ${simProj.depleteAge}.`);
     }
   } catch (err) {
     console.error('[FM Results] drawCharts failed:', err);

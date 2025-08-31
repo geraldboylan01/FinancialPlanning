@@ -39,3 +39,23 @@
 .notice-card .title{ font-weight:800; margin-bottom:4px; }
 .notice-card .meta{ font-size:.9rem; opacity:.9; }
 .notice-card .actions{ display:none !important; } /* remove any mini-buttons if present */
+
+.hero-sft-chip{
+  background: #4e2b2b;
+  color: #ffdede;
+  border: 1px solid rgba(255,0,0,.35);
+  border-radius: 16px;
+  padding: .65rem .9rem;
+  margin: .6rem auto 0;
+  max-width: 32rem;
+  text-align: center;
+  font-weight: 700;
+}
+.hero-sft-chip .link-btn{
+  background: transparent;
+  border: 0;
+  color: #fff;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
