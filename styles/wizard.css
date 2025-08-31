@@ -965,3 +965,24 @@
 #assumption-sft .assumption-body p {
   margin: 0 0 8px 0;
 }
+/* Tap counter badge applied inside hero buttons */
+.tap-badge {
+  display:inline-flex; align-items:center; justify-content:center;
+  margin-left:.4rem; padding:.05rem .45rem;
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:999px; font-size:.8rem; line-height:1;
+  background:rgba(255,255,255,.08); color:#eaeaea;
+}
+.tap-badge.hidden { display:none; }
+
+/* Inline warning nudge below hero */
+.inline-warn {
+  display:inline-flex; align-items:center; gap:.5rem;
+  padding:.35rem .6rem; border-radius:999px;
+  background:rgba(255,180,0,.12); border:1px solid rgba(255,180,0,.35);
+  color:#ffd38a; font-weight:700;
+}
+.inline-warn button {
+  background:transparent; border:0; color:inherit; text-decoration:underline; cursor:pointer;
+  padding:0 .15rem; font:inherit;
+}

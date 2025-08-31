@@ -17,6 +17,46 @@ let lastFYOutput = null;
 let lastWizard = {};
 let useMax = false;
 
+// --- Hero nudge state (session-scoped) ---
+let heroNetSteps = 0;         // +1 per "+200" tap, -1 per "remove"
+let heroBaseMonthly = null;   // derived from results on first mount
+let heroCapMonthly  = null;   // age-band cap monthly
+const HERO_KEY = () => `FM_HERO_STEPS_${(window.FullMonty?.sessionId || 'default')}`;
+
+function saveHeroState(){
+  try { sessionStorage.setItem(HERO_KEY(), JSON.stringify({ heroNetSteps })); } catch {}
+}
+function loadHeroState(){
+  try {
+    const s = JSON.parse(sessionStorage.getItem(HERO_KEY())||'{}');
+    heroNetSteps = Number.isFinite(+s.heroNetSteps) ? +s.heroNetSteps : 0;
+  } catch { heroNetSteps = 0; }
+}
+
+function currentAgeFromBalances(){
+  const b = lastPensionOutput?.balances;
+  return Array.isArray(b) && b.length ? b[0].age : null;
+}
+
+function deriveHeroBaseMonthly(){
+  // Use first year of base contributions (FM flow currently personal-only)
+  const base = lastPensionOutput?.contribsBase;
+  heroBaseMonthly = (Array.isArray(base) && base.length) ? Math.round((base[0]||0)/12) : 0;
+}
+
+function computeMonthlyCap(){
+  const dob = lastWizard?.dob ? new Date(lastWizard.dob) : null;
+  const ageNow = dob ? Math.floor(yrDiff(dob, new Date())) : (currentAgeFromBalances() || 0);
+  const pct = maxPctForAge(ageNow);
+  const capAnnual = Math.min(+lastWizard?.salary || 0, MAX_SALARY_CAP) * pct;
+  heroCapMonthly = Math.round(capAnnual/12);
+}
+
+function heroNetMonthly(){
+  if (heroBaseMonthly == null) deriveHeroBaseMonthly();
+  return Math.max(0, (heroBaseMonthly || 0) + heroNetSteps * 200);
+}
+
 let _heroRenderScheduled = false;
 function haveAllResults(){ return !!(lastPensionOutput && lastFYOutput); }
 
@@ -126,6 +166,9 @@ function renderHeroNowOrQueue(){
 
 window.addEventListener('fm-renderer-ready', renderHeroNowOrQueue);
 window.addEventListener('fm-renderer-ready', mountBelowHeroToggle);
+window.addEventListener('fm-renderer-ready', () => {
+  deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); renderRevertAndCap();
+});
 
 function renderComplianceNotices(container){
   container = ensureNoticesMount() || container || document.getElementById('compliance-notices');
@@ -372,8 +415,142 @@ function setUseMaxContributions(on){
   // Redraw charts and refresh the hero payload
   try { drawCharts(); } catch (e) { console.error('[FM Results] redraw after toggle failed', e); }
   try { scheduleHeroRender(); } catch {}
+  // Reset hero nudges whenever scenario flips
+  resetHeroNudges();
 }
 window.setUseMaxContributions = setUseMaxContributions;
+
+function findHeroButtons(){
+  // Prefer explicit data attributes if present
+  const addBtn = document.querySelector('#resultsView [data-increment="+200"], #resultsView #btnAdd200') ||
+                 Array.from(document.querySelectorAll('#resultsView button, #resultsView [role="button"]'))
+                      .find(b => /add\s*€?\s*200/i.test(b.textContent||''));
+  const remBtn = document.querySelector('#resultsView [data-increment="-200"], #resultsView #btnRemove200') ||
+                 Array.from(document.querySelectorAll('#resultsView button, #resultsView [role="button"]'))
+                      .find(b => /(remove|−|-)\s*€?\s*200/i.test(b.textContent||''));
+  return { addBtn, remBtn };
+}
+
+function ensureBadge(el){
+  if (!el) return null;
+  let b = el.querySelector('.tap-badge');
+  if (!b){
+    b = document.createElement('span');
+    b.className = 'tap-badge hidden';
+    el.appendChild(b);
+  }
+  return b;
+}
+
+function updateTapBadges(){
+  const { addBtn, remBtn } = findHeroButtons();
+  const pos = heroNetSteps > 0;
+  const neg = heroNetSteps < 0;
+
+  const addBadge = ensureBadge(addBtn);
+  const remBadge = ensureBadge(remBtn);
+
+  if (addBadge){
+    addBadge.textContent = `×${Math.abs(heroNetSteps)}`;
+    addBadge.classList.toggle('hidden', !pos);
+  }
+  if (remBadge){
+    remBadge.textContent = `×${Math.abs(heroNetSteps)}`;
+    remBadge.classList.toggle('hidden', !neg);
+  }
+}
+
+function ensureBelowHeroControls(){
+  return document.getElementById('belowHeroControls');
+}
+
+let revertBtn, capNudge;
+function renderRevertAndCap(){
+  const host = ensureBelowHeroControls();
+  if (!host) return;
+
+  // Revert button (ghost pill)
+  if (!revertBtn){
+    revertBtn = document.createElement('button');
+    revertBtn.type = 'button';
+    revertBtn.id = 'heroRevertBtn';
+    revertBtn.className = 'btn-secondary small';
+    revertBtn.textContent = 'Revert to original';
+    revertBtn.style.display = 'none';
+    revertBtn.addEventListener('click', handleRevert);
+    host.appendChild(revertBtn);
+  }
+  revertBtn.style.display = heroNetSteps !== 0 ? '' : 'none';
+
+  // Cap nudge
+  if (!capNudge){
+    capNudge = document.createElement('span');
+    capNudge.className = 'inline-warn';
+    capNudge.style.display = 'none';
+    capNudge.innerHTML = `Above your age-band limit — <button type="button" id="nudgeMaxBtn">Switch on Max</button>`;
+    host.appendChild(capNudge);
+    capNudge.addEventListener('click', (e)=>{
+      const tgt = e.target;
+      if (tgt && tgt.id === 'nudgeMaxBtn'){
+        window.setUseMaxContributions?.(true);
+        // Reset local hero state when moving to Max
+        heroNetSteps = 0; saveHeroState(); updateTapBadges(); renderRevertAndCap();
+      }
+    });
+  }
+
+  // Show/hide nudge based on cap
+  computeMonthlyCap();
+  const overCap = heroNetMonthly() > (heroCapMonthly || Infinity) + 1;
+  capNudge.style.display = (overCap && !useMax) ? '' : 'none';
+}
+
+function applyStep(delta){
+  // If Max is on, switch it off (the hero nudges are for "current" path)
+  if (useMax) window.setUseMaxContributions?.(false);
+
+  heroNetSteps = (heroNetSteps || 0) + (delta > 0 ? 1 : -1);
+  saveHeroState();
+  updateTapBadges();
+  renderRevertAndCap();
+  // The hero buttons' own handlers will already trigger the recalcs.
+}
+
+function handleRevert(){
+  const { addBtn, remBtn } = findHeroButtons();
+  if (!addBtn || !remBtn) { heroNetSteps = 0; saveHeroState(); updateTapBadges(); renderRevertAndCap(); return; }
+
+  // Programmatically click the opposite button N times to return to baseline.
+  const steps = Math.abs(heroNetSteps);
+  const clickTarget = (heroNetSteps > 0) ? remBtn : addBtn;
+  for (let i=0; i<steps; i++) clickTarget.click();
+
+  heroNetSteps = 0;
+  saveHeroState();
+  updateTapBadges();
+  renderRevertAndCap();
+}
+
+// Delegate clicks from the hero container (handles re-renders)
+function bindHeroTapDelegation(){
+  const root = document.getElementById('resultsView');
+  if (!root) return;
+  root.addEventListener('click', (e)=>{
+    const tgt = e.target;
+    const btn = tgt && tgt.closest ? tgt.closest('button,[role="button"]') : null;
+    if (!btn) return;
+    const txt = (btn.textContent||'').toLowerCase();
+    if (/\badd\b.*200/.test(txt) || btn.matches('[data-increment="+200"]')) {
+      applyStep(+200);
+    } else if (/\bremove\b.*200/.test(txt) || btn.matches('[data-increment="-200"]')) {
+      applyStep(-200);
+    }
+  });
+}
+
+function resetHeroNudges(){
+  heroNetSteps = 0; saveHeroState(); updateTapBadges(); renderRevertAndCap();
+}
 
 const $ = (s)=>document.querySelector(s);
 
@@ -408,6 +585,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (chk) {
     setUseMaxContributions(chk.checked);
   }
+  loadHeroState();
+  bindHeroTapDelegation();
+  setTimeout(()=>{ deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); renderRevertAndCap(); }, 0);
 });
 
 function renderMaxContributionToggle(storeRef){
@@ -1011,6 +1191,7 @@ These projections are illustrative only — professional guidance is strongly re
   try { renderMaxTable(lastWizard); } catch (e) { console.error('[FM Results] renderMaxTable error:', e); }
 
   ensureNoticesMount();
+  deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); renderRevertAndCap();
   mountBelowHeroToggle();
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
 
@@ -1049,6 +1230,7 @@ document.addEventListener('fm-run-fy', (e) => {
   try { renderMaxTable(lastWizard); } catch (e) { console.error('[FM Results] renderMaxTable error:', e); }
 
   ensureNoticesMount();
+  deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); renderRevertAndCap();
   mountBelowHeroToggle();
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
 
