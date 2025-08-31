@@ -1203,11 +1203,11 @@ export function renderResults(mountEl, storeRef = {}) {
     hero.className = 'results-hero fullscreen-hero reveal';
 
     const prefix = document.createElement('p');
-    prefix.className = 'hero-prefix';
-    prefix.textContent = "You're";
+    prefix.className = 'hero-headline-text';
+    prefix.textContent = 'You are';
 
     // Big headline number
-    const num = document.createElement('div');
+    const num  = document.createElement('h2');
     num.className = 'hero-number';
 
     if (deficit > 0) {
@@ -1219,9 +1219,12 @@ export function renderResults(mountEl, storeRef = {}) {
       num.classList.add('surplus');
     }
 
-    const line = document.createElement('p'); line.className='hero-headline-text';
+    const line = document.createElement('p');
+    line.className = 'hero-headline-text';
     line.textContent = deficit ? 'below your retirement needs' : 'above your retirement needs';
-    hero.appendChild(prefix); hero.appendChild(num); hero.appendChild(line);
+    hero.appendChild(prefix);
+    hero.appendChild(num);
+    hero.appendChild(line);
 
     const pensionLabel   = partnerIncluded ? 'your combined projected pensions are' : 'your projected pension is';
     const lifestyleLabel = partnerIncluded ? 'your household’s desired lifestyle'   : 'your desired lifestyle';
