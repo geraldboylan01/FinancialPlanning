@@ -740,11 +740,8 @@
 }
 
 /* ---------- HERO (shortfall-first) ---------- */
-.hero-prefix{
-  text-align: center;
-  color: var(--text-2, rgba(255,255,255,.72));
-  margin: 0 0 2px 0;
-  font-size: clamp(14px, 3.6vw, 16px);
+.hero-prefix{ /* keep as an alias for safety */
+  composes: hero-headline-text;
 }
 .hero-number{
   font-size: clamp(28px, 7vw, 36px);
@@ -754,9 +751,11 @@
   margin: 0;
 }
 .hero-headline-text{
-  text-align: center;
-  margin: 2px 0 8px;
-  color: var(--text-1, #fff);
+  text-align:center;
+  color: var(--text-2, rgba(255,255,255,.72));
+  margin: 0 0 6px 0;
+  font-size: clamp(14px, 3.6vw, 16px);
+  line-height: 1.2;
 }
 .hero-sub{
   text-align: center;

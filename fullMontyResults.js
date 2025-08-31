@@ -17,6 +17,19 @@ let lastFYOutput = null;
 let lastWizard = {};
 let useMax = false;
 
+let _heroRenderScheduled = false;
+function haveAllResults(){ return !!(lastPensionOutput && lastFYOutput); }
+
+function scheduleHeroRender(){
+  if (!haveAllResults()) return;
+  if (_heroRenderScheduled) return;
+  _heroRenderScheduled = true;
+  requestAnimationFrame(() => {
+    _heroRenderScheduled = false;
+    renderHeroNowOrQueue();
+  });
+}
+
 let growthChart = null;
 let contribChart = null;
 let ddBalanceChart = null;
@@ -63,11 +76,16 @@ function projectedAtRetirementValue(){
   return lastPensionOutput.projValue ?? null;
 }
 
-function buildHeroPayload() {
+function buildHeroPayload(){
+  const projected = projectedAtRetirementValue();
+  const fyReq     = lastFYOutput?.requiredPot;
+
+  if (projected == null || fyReq == null) return null;
+
   return {
-    projectedPotAtRetirement: projectedAtRetirementValue(),
-    projectedPot: projectedAtRetirementValue(),
-    fyTarget: lastFYOutput?.requiredPot || 0,
+    projectedPotAtRetirement: projected,
+    projectedPot: projected,
+    fyTarget: fyReq,
     desiredRetirementAge: lastWizard?.retireAge,
     retirementAge: lastWizard?.retireAge,
     partnerIncluded: !!lastFYOutput?._inputs?.hasPartner,
@@ -76,13 +94,12 @@ function buildHeroPayload() {
   };
 }
 
-function renderHeroNowOrQueue() {
-  const mount = document.getElementById('resultsView');
+function renderHeroNowOrQueue(){
   const payload = buildHeroPayload();
-
-  if (typeof window.renderResults === 'function') {
+  if (!payload) return;
+  const mount = document.getElementById('resultsView');
+  if (typeof window.renderResults === 'function'){
     window.renderResults(mount, payload);
-    window.__pendingHeroPayload = null;
   } else {
     window.__pendingHeroPayload = payload;
   }
@@ -892,8 +909,8 @@ These projections are illustrative only — professional guidance is strongly re
   ensureNoticesMount();
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
 
-  // Always route through the safe helper
-  renderHeroNowOrQueue();
+  // DO NOT call renderHeroNowOrQueue here directly
+  scheduleHeroRender();
 });
 
 document.addEventListener('fm-run-fy', (e) => {
@@ -929,7 +946,6 @@ document.addEventListener('fm-run-fy', (e) => {
   ensureNoticesMount();
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
 
-  if (lastPensionOutput) {
-    renderHeroNowOrQueue();
-  }
+  // Only render hero when both datasets present
+  scheduleHeroRender();
 });
