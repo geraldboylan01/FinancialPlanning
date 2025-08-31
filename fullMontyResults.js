@@ -63,12 +63,26 @@ function projectedAtRetirementValue(){
   return lastPensionOutput.projValue ?? null;
 }
 
-function renderHero(payload){
+function buildHeroPayload() {
+  return {
+    projectedPotAtRetirement: projectedAtRetirementValue(),
+    projectedPot: projectedAtRetirementValue(),
+    fyTarget: lastFYOutput?.requiredPot || 0,
+    desiredRetirementAge: lastWizard?.retireAge,
+    retirementAge: lastWizard?.retireAge,
+    partnerIncluded: !!lastFYOutput?._inputs?.hasPartner,
+    partnerDOB: lastFYOutput?._inputs?.partnerDob || null,
+    useMaxContributions: !!useMax
+  };
+}
+
+function renderHeroNowOrQueue() {
   const mount = document.getElementById('resultsView');
+  const payload = buildHeroPayload();
+
   if (typeof window.renderResults === 'function') {
     window.renderResults(mount, payload);
   } else {
-    // queue once; flush when renderer announces readiness
     window.__pendingHeroPayload = payload;
   }
 }
@@ -883,16 +897,8 @@ These projections are illustrative only — professional guidance is strongly re
   ensureNoticesMount();
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
 
-  // Always attempt hero render even if above steps errored
-  try {
-    renderHero({
-      projectedPot: projectedAtRetirementValue(),
-      fyTarget: lastFYOutput?.requiredPot || 0,
-      retirementAge: lastWizard?.retireAge
-    });
-  } catch (e) {
-    console.error('[FM Results] renderResults (hero) failed:', e);
-  }
+  // Always route through the safe helper
+  renderHeroNowOrQueue();
 });
 
 document.addEventListener('fm-run-fy', (e) => {
@@ -928,16 +934,7 @@ document.addEventListener('fm-run-fy', (e) => {
   ensureNoticesMount();
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
 
-  // Always attempt hero render if we have pension output
   if (lastPensionOutput) {
-    try {
-      renderHero({
-        projectedPot: projectedAtRetirementValue(),
-        fyTarget: lastFYOutput?.requiredPot || 0,
-        retirementAge: lastWizard?.retireAge
-      });
-    } catch (e) {
-      console.error('[FM Results] renderResults (hero) failed:', e);
-    }
+    renderHeroNowOrQueue();
   }
 });
