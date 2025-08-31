@@ -744,6 +744,24 @@
   margin: 0 0 8px 0;
 }
 
+/* [FM] Contribution controls */
+.fm-contrib-controls { margin-block: 1rem 1.25rem; display: grid; gap: .75rem; }
+.fm-toggle-row { display: inline-flex; border: 1px solid var(--accentA, #0f0); border-radius: 999px; padding: .25rem; }
+.fm-toggle-btn { appearance: none; border: 0; background: transparent; padding: .5rem .9rem; border-radius: 999px; font: inherit; cursor: pointer; }
+.fm-toggle-btn.is-active { background: rgba(0,0,0,.06); outline: 2px solid transparent; }
+.fm-chips-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+.fm-chip { border: 1px dashed var(--accentA, #0f0); border-radius: 999px; padding: .45rem .8rem; background: transparent; cursor: pointer; font: inherit; }
+.fm-chip:hover, .fm-chip:focus { outline: 2px solid transparent; background: rgba(0,0,0,.04); }
+.fm-chip.is-revert[aria-disabled="true"] { opacity: .5; cursor: not-allowed; }
+.fm-inline-notice { border-left: 3px solid var(--accentB, #6c5ce7); padding: .5rem .75rem; background: rgba(108,92,231,.08); border-radius: .25rem; }
+.fm-notice-text { margin: 0; display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+.fm-notice-cta { appearance: none; border: 0; border-bottom: 1px solid currentColor; background: transparent; cursor: pointer; padding: 0 .15rem; }
+.fm-microcopy { font-size: .875rem; opacity: .85; }
+@media (max-width: 480px) {
+  .fm-toggle-row { width: 100%; justify-content: space-between; }
+  .fm-chips-row { gap: .4rem; }
+}
+
 /* Undo/restore row */
 .revert-row{
   display:flex; gap:12px; justify-content:center; margin-top:4px;
