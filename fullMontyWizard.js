@@ -1142,23 +1142,32 @@ function styleAndOrderNudges({ shortfall, atMaxContrib, minAgeReached, maxAgeRea
   }
 }
 
-function renderResults(container, storeRef){
-  container.innerHTML = '';
+export function renderResults(mountEl, storeRef = {}) {
+  try {
+    if (!mountEl) return;
 
-  // Snapshot baseline once
-  if (!baselineSnapshot) baselineSnapshot = deepClone(store);
+    mountEl.innerHTML = '';
 
-  // Pull values from your model
-  const store = storeRef || {};
-  const projected = Number(store.projectedPotAtRetirement || store.projectedPot || 0);
-  const required  = Number(store.financialFreedomTarget   || store.fyTarget    || 0);
-  const age       = Number(store.desiredRetirementAge || store.retirementAge || store.retireAge || 65);
-  const deficit   = Math.max(required - projected, 0);
-  const surplus   = Math.max(projected - required, 0);
-  const partnerIncluded = !!(store.partnerDOB || store.partnerIncluded || store.hasPartner);
+    if (!baselineSnapshot) baselineSnapshot = deepClone(storeRef);
 
-  try{
-    // ----- build hero (shortfall-first + partner-aware text) -----
+    const projected = Number(storeRef.projectedPotAtRetirement ?? storeRef.projectedPot ?? 0);
+    const required  = Number(storeRef.financialFreedomTarget   ?? storeRef.fyTarget    ?? 0);
+    const age       = Number(storeRef.desiredRetirementAge     ?? storeRef.retirementAge ?? storeRef.retireAge ?? 65);
+    const deficit   = Math.max(required - projected, 0);
+    const surplus   = Math.max(projected - required, 0);
+    const partnerIncluded = !!(storeRef.partnerDOB || storeRef.partnerIncluded || storeRef.hasPartner);
+
+    const atMaxContrib = (() => {
+      const k = firstKey(storeRef, CONTRIB_KEYS.monthlyEuro);
+      const cur = k ? Number(storeRef[k] || 0) : 0;
+      const mk = firstKey(storeRef, CONTRIB_KEYS.maxMonthly);
+      let max = mk ? Number(storeRef[mk] || 0) : Infinity;
+      if (!mk && typeof computeMaxTaxRelievedMonthly === 'function') {
+        max = computeMaxTaxRelievedMonthly(storeRef);
+      }
+      return (isFinite(max) && cur >= max - 1);
+    })();
+
     const hero = document.createElement('section');
     hero.className = 'results-hero fullscreen-hero reveal';
 
@@ -1179,7 +1188,6 @@ function renderResults(container, storeRef){
     chips.appendChild(makeMetricChip('Required',     formatEUR(required)));
     hero.appendChild(chips);
 
-    // Change summary (derived from counters)
     const parts = [];
     if (nudgeCounts['contrib+200']>0 || nudgeCounts['contrib-200']>0){
       const net = (nudgeCounts['contrib+200'] - nudgeCounts['contrib-200']) * 200;
@@ -1196,12 +1204,10 @@ function renderResults(container, storeRef){
       hero.appendChild(cs);
     }
 
-    // ----- Actions (build buttons, add count badges, then style+order) -----
     const actionsWrap = document.createElement('div'); actionsWrap.className='actions-wrap';
     const rowTop     = document.createElement('div'); rowTop.className='actions-row';
     const rowBottom  = document.createElement('div'); rowBottom.className='actions-row';
 
-    // Buttons
     const btnRemove200 = document.createElement('button');
     btnRemove200.className='btn btn-pill'; btnRemove200.textContent='– Remove €200/mo';
     btnRemove200.addEventListener('click', ()=> withBusy(btnRemove200, ()=> increaseMonthlyContributionBy(-200)));
@@ -1218,7 +1224,6 @@ function renderResults(container, storeRef){
     btnLater.className='btn btn-pill'; btnLater.textContent='⏩ Retire 1 yr later';
     btnLater.addEventListener('click', ()=> withBusy(btnLater, ()=> delayRetirementByYears(1)));
 
-    // Add count badges
     function applyBadge(btn, count){
       let b = btn.querySelector('.badge');
       if (!b){ b = document.createElement('span'); b.className='badge'; btn.appendChild(b); }
@@ -1229,8 +1234,6 @@ function renderResults(container, storeRef){
     applyBadge(btnLater,     nudgeCounts['age+1']);
     applyBadge(btnEarlier,   nudgeCounts['age-1']);
 
-    // Style/order by context
-    const atMaxContrib = contributionsAtMax();
     const minAge=50, maxAge=75;
     styleAndOrderNudges(
       {
@@ -1246,7 +1249,6 @@ function renderResults(container, storeRef){
     actionsWrap.appendChild(rowBottom);
     hero.appendChild(actionsWrap);
 
-    // Show helper when at current-age tax-relievable max
     if (atMaxContrib){
       const note = document.createElement('div');
       note.className = 'helper-note';
@@ -1270,7 +1272,6 @@ function renderResults(container, storeRef){
       hero.appendChild(note);
     }
 
-    // ----- Undo / Restore row -----
     if (actionStack.length || Object.values(nudgeCounts).some(v=>v>0)){
       const rev = document.createElement('div'); rev.className='revert-row';
       const undoBtn = document.createElement('button'); undoBtn.className='btn btn-text'; undoBtn.textContent='Undo last change';
@@ -1282,17 +1283,15 @@ function renderResults(container, storeRef){
       hero.appendChild(rev);
     }
 
-    container.appendChild(hero);
+    mountEl.appendChild(hero);
 
-    // Ensure reveal animation always runs
     const revealHero = () => hero.classList.add('reveal--in');
     if (typeof requestAnimationFrame === 'function') {
       requestAnimationFrame(revealHero);
     }
-    // Fallback in case rAF is skipped
     setTimeout(revealHero, 200);
-  }catch(err){
-    console.error('Error building results hero', err);
+  } catch (e) {
+    console.error('[FM Results] renderResults (hero) failed:', e);
   }
 }
 
