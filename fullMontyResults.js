@@ -106,6 +106,7 @@ function buildHeroPayload(){
     fyTarget: fyReq,
     desiredRetirementAge: lastWizard?.retireAge,
     retirementAge: lastWizard?.retireAge,
+    retirementYear: lastPensionOutput?.retirementYear ?? null,
     partnerIncluded: !!lastFYOutput?._inputs?.hasPartner,
     partnerDOB: lastFYOutput?._inputs?.partnerDob || null,
     useMaxContributions: !!useMax

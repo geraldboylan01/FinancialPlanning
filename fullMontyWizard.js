@@ -1210,6 +1210,10 @@ export function renderResults(mountEl, storeRef = {}) {
     const projected = Number(storeRef.projectedPotAtRetirement ?? storeRef.projectedPot ?? 0);
     const required  = Number(storeRef.financialFreedomTarget   ?? storeRef.fyTarget    ?? 0);
     const age       = Number(storeRef.desiredRetirementAge     ?? storeRef.retirementAge ?? storeRef.retireAge ?? 65);
+    const retirementYear = Number(storeRef.retirementYear ?? storeRef.year ?? NaN);
+    const useMaxOn = !!storeRef.useMaxContributions;
+    if (typeof setMaxToggle === 'function') setMaxToggle(useMaxOn);
+    if (typeof onMaxContribsToggleChanged === 'function') onMaxContribsToggleChanged(useMaxOn);
     const deficit   = Math.max(required - projected, 0);
     const partnerIncluded = !!(storeRef.partnerDOB || storeRef.partnerIncluded || storeRef.hasPartner);
 
@@ -1262,24 +1266,24 @@ export function renderResults(mountEl, storeRef = {}) {
     chips.appendChild(makeMetricChip('Required',     formatEUR(required)));
     hero.appendChild(chips);
 
-    const retirementYear = storeRef.retirementYear || (lastPensionOutput?.retirementYear) || null;
-    const yearAwareSFT   = (retirementYear != null) ? sftForYear(retirementYear) : null;
-
-    // Optional hero warning chip if FY target breaches SFT for that year
-    if (required && yearAwareSFT && required > yearAwareSFT) {
-      const over = required - yearAwareSFT;
-      const warn = document.createElement('div');
-      warn.className = 'hero-sft-chip';
-      warn.setAttribute('role','note');
-      warn.innerHTML = `
-        <span class="icon" aria-hidden="true">⚠️</span>
-        Your target (required) <b>pension</b> exceeds the SFT for ${retirementYear} by <b>${formatEUR(over)}</b>. <button class="link-btn" type="button" id="sftInfoBtn">What’s this?</button>
-      `;
-      hero.appendChild(warn);
-
-      warn.querySelector('#sftInfoBtn')?.addEventListener('click', () => {
-        document.getElementById('compliance-notices')?.scrollIntoView({ behavior:'smooth', block:'start' });
-      });
+    // year-aware SFT chip (no globals!)
+    if (Number.isFinite(retirementYear)) {
+      const sftY = sftForYear(retirementYear);
+      if (sftY && required && required > sftY) {
+        const over = required - sftY;
+        const warn = document.createElement('div');
+        warn.className = 'hero-sft-chip';
+        warn.setAttribute('role','note');
+        warn.innerHTML = `
+          <span class="icon" aria-hidden="true">⚠️</span>
+          Your target (required) <b>pension</b> exceeds the SFT for ${retirementYear} by <b>${formatEUR(over)}</b>.
+          <button class="link-btn" type="button" id="sftInfoBtn">What’s this?</button>
+        `;
+        hero.appendChild(warn);
+        warn.querySelector('#sftInfoBtn')?.addEventListener('click', () => {
+          document.getElementById('compliance-notices')?.scrollIntoView({ behavior:'smooth', block:'start' });
+        });
+      }
     }
 
     const parts = [];
@@ -1343,7 +1347,7 @@ export function renderResults(mountEl, storeRef = {}) {
     actionsWrap.appendChild(rowBottom);
     hero.appendChild(actionsWrap);
 
-    if (atMaxContrib){
+    if (atMaxContrib && !useMaxOn){
       const note = document.createElement('div');
       note.className = 'helper-note';
       note.setAttribute('role','status');
