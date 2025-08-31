@@ -866,6 +866,38 @@ const nudgeCounts = { 'contrib+200':0, 'contrib-200':0, 'age+1':0, 'age-1':0 };
 
 const store = fullMontyStore;
 
+// Allow the hero to nudge contributions / retirement age via the Wizard.
+window.fmApplyNudge = function fmApplyNudge({ contribDelta = 0, ageDelta = 0 } = {}) {
+  try {
+    // Adjust monthly contribution in the Wizard's store (align key names as in your code)
+    if (contribDelta) {
+      const k = ['personalContribSelf','personalMonthlyContribution','employeeContributionMonthly','contribMonthly']
+        .find(key => Object.prototype.hasOwnProperty.call(store, key));
+      if (k) store[k] = Math.max(0, Number(store[k] || 0) + contribDelta);
+    }
+
+    // Adjust desired retirement age (respect bounds)
+    if (ageDelta) {
+      const key = 'retireAge';
+      const minAge = 50, maxAge = 75;
+      const cur = Number(store[key] || 65);
+      store[key] = Math.max(minAge, Math.min(maxAge, cur + ageDelta));
+    }
+
+    // Re-run the model so Results receives fm-* events and re-renders
+    if (typeof recomputeAndRefreshUI === 'function') {
+      recomputeAndRefreshUI();
+    } else if (typeof runAll === 'function') {
+      runAll();
+    } else if (typeof computeResults === 'function') {
+      computeResults(store);
+      document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: {} }));
+    }
+  } catch (e) {
+    console.error('[Wizard] fmApplyNudge failed:', e);
+  }
+};
+
 function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
 
 function announce(msg){
@@ -1171,14 +1203,17 @@ export function renderResults(mountEl, storeRef = {}) {
     const hero = document.createElement('section');
     hero.className = 'results-hero fullscreen-hero reveal';
 
+    const prefix = document.createElement('p');
+    prefix.className = 'hero-prefix';
+    prefix.textContent = "You're";
     const num = document.createElement('h2'); num.className='hero-number';
     num.textContent = deficit ? formatEUR(deficit) : formatEUR(surplus);
     const line = document.createElement('p'); line.className='hero-headline-text';
-    line.textContent = deficit ? 'below your retirement goal' : 'above your retirement goal';
-    hero.appendChild(num); hero.appendChild(line);
+    line.textContent = deficit ? 'below your retirement needs' : 'above your retirement needs';
+    hero.appendChild(prefix); hero.appendChild(num); hero.appendChild(line);
 
     const pensionLabel   = partnerIncluded ? 'your combined projected pensions are' : 'your projected pension is';
-    const lifestyleLabel = partnerIncluded ? 'your household’s lifestyle'           : 'your desired lifestyle';
+    const lifestyleLabel = partnerIncluded ? 'your household’s desired lifestyle'   : 'your desired lifestyle';
     const sub = document.createElement('p'); sub.className='hero-sub';
     sub.textContent = `At age ${age}, ${pensionLabel} ${formatEUR(projected)}. To sustain ${lifestyleLabel} in retirement, we estimate you’ll need ${formatEUR(required)}.`;
     hero.appendChild(sub);
@@ -1210,19 +1245,19 @@ export function renderResults(mountEl, storeRef = {}) {
 
     const btnRemove200 = document.createElement('button');
     btnRemove200.className='btn btn-pill'; btnRemove200.textContent='– Remove €200/mo';
-    btnRemove200.addEventListener('click', ()=> withBusy(btnRemove200, ()=> increaseMonthlyContributionBy(-200)));
+    btnRemove200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: -200 }));
 
     const btnAdd200 = document.createElement('button');
     btnAdd200.className='btn btn-pill'; btnAdd200.textContent='+ Add €200/mo';
-    btnAdd200.addEventListener('click', ()=> withBusy(btnAdd200, ()=> increaseMonthlyContributionBy(200)));
+    btnAdd200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: +200 }));
 
     const btnEarlier = document.createElement('button');
     btnEarlier.className='btn btn-pill'; btnEarlier.textContent='⏪ Retire 1 yr earlier';
-    btnEarlier.addEventListener('click', ()=> withBusy(btnEarlier, ()=> delayRetirementByYears(-1)));
+    btnEarlier.addEventListener('click', () => window.fmApplyNudge?.({ ageDelta: -1 }));
 
     const btnLater = document.createElement('button');
     btnLater.className='btn btn-pill'; btnLater.textContent='⏩ Retire 1 yr later';
-    btnLater.addEventListener('click', ()=> withBusy(btnLater, ()=> delayRetirementByYears(1)));
+    btnLater.addEventListener('click', () => window.fmApplyNudge?.({ ageDelta: +1 }));
 
     function applyBadge(btn, count){
       let b = btn.querySelector('.badge');
