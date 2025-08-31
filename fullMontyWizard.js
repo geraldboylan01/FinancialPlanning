@@ -1389,6 +1389,8 @@ export function renderResults(mountEl, storeRef = {}) {
 
     renderSftAssumptionText();
 
+    window.dispatchEvent(new CustomEvent('fm:results:ready'));
+
     const revealHero = () => hero.classList.add('reveal--in');
     if (typeof requestAnimationFrame === 'function') {
       requestAnimationFrame(revealHero);
@@ -1401,6 +1403,227 @@ export function renderResults(mountEl, storeRef = {}) {
 
 window.renderResults = renderResults;
 window.dispatchEvent(new Event('fm-renderer-ready'));
+
+/* =========================
+   [FMControls] Results Controls
+   Restores:
+   - Scenario toggle: Current vs Max Tax-Relief
+   - +€200 chips with tap counter & Revert
+   - Cap notice for Irish age-bands (salary cap €115,000)
+   ========================= */
+(function FMControls(){
+  const SELECTORS = {
+    root: '#fm-contrib-controls',
+    toggleBtns: '.fm-toggle-btn',
+    chipsRow: '.fm-chips-row',
+    chip: '.fm-chip',
+    revert: '#fmRevert',
+    capNotice: '#fmCapNotice',
+    switchToMax: '#fmSwitchToMax',
+    chipHint: '#fmChipHint',
+    chipCount: '#fmChipCount'
+  };
+
+  // Guard: only on Results view. Try both a results container or body flag.
+  const resultsRoot = document.querySelector('#results, .results, [data-view="results"]');
+  const controls = document.querySelector(SELECTORS.root);
+  if (!resultsRoot || !controls) return;
+
+  // Reveal controls now that we know we're in results
+  controls.hidden = false;
+
+  // —— Config (Ireland limits) ——
+  const SALARY_CAP = 115000; // per project spec
+  const AGE_BANDS = [
+    { min: 0,  max: 29, pct: 0.15 },
+    { min: 30, max: 39, pct: 0.20 },
+    { min: 40, max: 49, pct: 0.25 },
+    { min: 50, max: 54, pct: 0.30 },
+    { min: 55, max: 59, pct: 0.35 },
+    { min: 60, max: 200, pct: 0.40 }
+  ];
+
+  // —— State ——
+  const state = {
+    scenario: 'current',              // 'current' | 'max'
+    baseMonthly: null,                // original monthly personal contribution
+    currentMonthly: null,             // live monthly personal contribution
+    monthlyStepCount: 0,              // how many chip taps this session
+    age: null,
+    grossSalary: null,
+    capMonthly: null
+  };
+
+  // Helpers to find existing inputs from your pipeline.
+  function getInputs() {
+    // Try to read from your existing central object or DOM.
+    // Replace with your real getters if they exist:
+    const ui = window.FullMonty?.inputs || {};
+    const salary = Number(ui?.grossSalary ?? document.querySelector('[data-field="grossSalary"]')?.value ?? 0);
+    const age = Number(ui?.age ?? document.querySelector('[data-field="age"]')?.value ?? 0);
+    const monthlyPersonal = Number(ui?.personalMonthly ?? document.querySelector('[data-field="personalMonthly"]')?.value ?? 0);
+    return { salary, age, monthlyPersonal };
+  }
+
+  function setPersonalMonthly(value) {
+    // Update your single source of truth:
+    if (window.FullMonty?.inputs) {
+      window.FullMonty.inputs.personalMonthly = value;
+    }
+    const domInput = document.querySelector('[data-field="personalMonthly"]');
+    if (domInput) domInput.value = value;
+  }
+
+  function recalcNow() {
+    // Call your existing re-calc/update hooks. Try the common ones safely.
+    if (typeof window.updateAll === 'function') return window.updateAll();
+    if (typeof window.recalcResults === 'function') return window.recalcResults();
+    // Fallback: dispatch an event many modules listen to
+    window.dispatchEvent(new CustomEvent('fm:inputs:changed'));
+  }
+
+  function pctForAge(age){
+    const b = AGE_BANDS.find(x => age >= x.min && age <= x.max);
+    return b ? b.pct : 0.15;
+  }
+
+  function computeCapMonthly(age, salary){
+    const pct = pctForAge(age);
+    const capAnnual = Math.min(salary, SALARY_CAP) * pct;
+    return Math.round(capAnnual / 12);
+  }
+
+  function setScenario(scn){
+    state.scenario = scn;
+    // Toggle active button UI
+    document.querySelectorAll(SELECTORS.toggleBtns).forEach(b=>{
+      b.classList.toggle('is-active', b.dataset.scenario === scn);
+    });
+
+    // Apply scenario
+    if (scn === 'current') {
+      setPersonalMonthly(state.baseMonthly);
+      state.currentMonthly = state.baseMonthly;
+      state.monthlyStepCount = 0;
+      updateChipUI();
+      hideCapNotice();
+      recalcNow();
+    } else if (scn === 'max') {
+      // Set contribution to cap
+      setPersonalMonthly(state.capMonthly);
+      state.currentMonthly = state.capMonthly;
+      state.monthlyStepCount = 0;
+      updateChipUI();
+      hideCapNotice();
+      recalcNow();
+    }
+  }
+
+  function showCapNotice(){
+    const el = document.querySelector(SELECTORS.capNotice);
+    if (el) el.hidden = false;
+  }
+  function hideCapNotice(){
+    const el = document.querySelector(SELECTORS.capNotice);
+    if (el) el.hidden = true;
+  }
+
+  function updateChipUI(){
+    // Enable/disable revert
+    const revertBtn = document.querySelector(SELECTORS.revert);
+    if (revertBtn) {
+      const canRevert = state.currentMonthly !== state.baseMonthly;
+      revertBtn.setAttribute('aria-disabled', canRevert ? 'false' : 'true');
+    }
+    // Update microcopy counter
+    const hint = document.querySelector(SELECTORS.chipHint);
+    const count = document.querySelector(SELECTORS.chipCount);
+    if (hint && count) {
+      hint.hidden = false;
+      count.textContent = state.monthlyStepCount > 0 ? `(taps: ${state.monthlyStepCount})` : '';
+    }
+  }
+
+  function applyIncrement(incr){
+    const next = Math.max(0, Number(state.currentMonthly || 0) + incr);
+    setPersonalMonthly(next);
+    state.currentMonthly = next;
+    state.monthlyStepCount += 1;
+    updateChipUI();
+
+    // Cap check
+    if (state.currentMonthly > state.capMonthly + 1 /* rounding wiggle */) {
+      showCapNotice();
+    } else {
+      hideCapNotice();
+    }
+
+    recalcNow();
+  }
+
+  function revert(){
+    setPersonalMonthly(state.baseMonthly);
+    state.currentMonthly = state.baseMonthly;
+    state.monthlyStepCount = 0;
+    updateChipUI();
+    hideCapNotice();
+    recalcNow();
+  }
+
+  // Event wiring (delegated for resilience)
+  controls.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button');
+    if (!btn) return;
+
+    // Scenario toggle
+    if (btn.matches(SELECTORS.toggleBtns)) {
+      const scn = btn.dataset.scenario;
+      if (scn && scn !== state.scenario) setScenario(scn);
+      return;
+    }
+
+    // Chips
+    if (btn.matches(SELECTORS.chip)) {
+      if (btn.dataset.action === 'revert' && btn.getAttribute('aria-disabled') !== 'true') {
+        return revert();
+      }
+      const inc = Number(btn.dataset.increment || 0);
+      if (inc) applyIncrement(inc);
+    }
+  });
+
+  const switchToMax = document.querySelector(SELECTORS.switchToMax);
+  if (switchToMax) {
+    switchToMax.addEventListener('click', ()=> setScenario('max'));
+  }
+
+  // Initial load — snapshot base & compute caps
+  function init(){
+    const { salary, age, monthlyPersonal } = getInputs();
+    state.grossSalary = Number(salary || 0);
+    state.age = Number(age || 0);
+    state.baseMonthly = Number(monthlyPersonal || 0);
+    state.currentMonthly = state.baseMonthly;
+    state.capMonthly = computeCapMonthly(state.age, state.grossSalary);
+
+    updateChipUI();
+    hideCapNotice();
+
+    // Ensure the default toggle reflects the currently selected scenario.
+    // If your app has a stored scenario, read it and call setScenario(stored).
+    setScenario('current');
+  }
+
+  // If your results view is dynamically mounted, re-init on ‘results-ready’.
+  window.addEventListener('fm:results:ready', init, { once: true });
+
+  // If the results are already present, init immediately.
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    init();
+  } else {
+    document.addEventListener('DOMContentLoaded', init, { once: true });
+  }
+})();
 
 // ───────────────────────────────────────────────────────────────
 // Public API
