@@ -1403,168 +1403,6 @@ export function renderResults(mountEl, storeRef = {}) {
 
 window.renderResults = renderResults;
 window.dispatchEvent(new Event('fm-renderer-ready'));
-
-// === [FM Results Controls] restore original toggle & chip logic ===
-(function restoreFMResultsControls(){
-  // Run only on results view
-  const resultsRoot = document.querySelector('#results, .results, [data-view="results"]');
-  if (!resultsRoot) return;
-
-  // Elements (resolve flexibly)
-  const maxToggle = document.querySelector('#maxContribToggle, .js-max-contrib-toggle, [data-role="max-toggle"], #toggle-max');
-  // Hero chips – use data attributes if present, else fallbacks by id/text
-  function findButton(sel, textFallback){
-    return document.querySelector(sel) || Array.from(document.querySelectorAll('button, [role="button"]')).find(b => (b.textContent||'').trim().includes(textFallback));
-  }
-  const btnAdd200 = findButton('[data-increment="+200"], #btnAdd200', 'Add €200');
-  const btnRemove200 = findButton('[data-increment="-200"], #btnRemove200', 'Remove €200');
-
-  // Notice area (existing)
-  const noticeHost = document.querySelector('#resultsNoticeArea, .results-notices, #assumptionPills, [data-slot="results-notices"]') || resultsRoot;
-
-  // Access central inputs
-  const store = (window.FullMonty && window.FullMonty.inputs) ? window.FullMonty.inputs : {};
-  const getNum = v => Math.max(0, Number(v || 0));
-  function getAge(){ return getNum(store.age ?? document.querySelector('[data-field="age"]')?.value); }
-  function getSalary(){ return getNum(store.grossSalary ?? document.querySelector('[data-field="grossSalary"]')?.value); }
-  function getPersonalMonthly(){ return getNum(store.personalMonthly ?? document.querySelector('[data-field="personalMonthly"]')?.value); }
-  function setPersonalMonthly(n){
-    if (window.FullMonty && window.FullMonty.inputs) window.FullMonty.inputs.personalMonthly = n;
-    const el = document.querySelector('[data-field="personalMonthly"]');
-    if (el) el.value = n;
-  }
-
-  function recalc(){
-    if (typeof window.updateAll === 'function') return window.updateAll();
-    if (typeof window.recalcResults === 'function') return window.recalcResults();
-    window.dispatchEvent(new CustomEvent('fm:inputs:changed'));
-  }
-
-  // Caps
-  const BANDS = [
-    {min:0,max:29,pct:.15},{min:30,max:39,pct:.20},{min:40,max:49,pct:.25},
-    {min:50,max:54,pct:.30},{min:55,max:59,pct:.35},{min:60,max:200,pct:.40}
-  ];
-  function pctForAge(a){ const b = BANDS.find(x=>a>=x.min && a<=x.max); return b?b.pct:.15; }
-  function monthlyCap(){
-    const capAnnual = Math.min(getSalary(), 115000) * pctForAge(getAge());
-    return Math.round(capAnnual/12);
-  }
-
-  // Session state
-  const sid = (window.FullMonty && window.FullMonty.sessionId) ? window.FullMonty.sessionId : 'default';
-  const KEY = `FM_SESSION_CONTRIB_STATE_${sid}`;
-  const baseMonthly = getPersonalMonthly();
-  let state = { currentMonthly: baseMonthly, tapCount: 0, maxToggleOn: false };
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(KEY) || '{}');
-    state = { ...state, ...saved };
-  } catch {}
-
-  // Notice helpers (reuse existing pill styles)
-  let revertPill, capPill;
-  function ensureRevertPill(){
-    if (revertPill) return;
-    revertPill = document.createElement('div');
-    revertPill.className = 'pill pill--info';
-    revertPill.innerHTML = `You’ve adjusted your monthly contribution. <button class="pill--link" data-action="revert-base">Revert to original</button>`;
-    revertPill.hidden = true;
-    noticeHost.appendChild(revertPill);
-    revertPill.addEventListener('click', (e)=>{
-      if (e.target.matches('[data-action="revert-base"]')) {
-        setPersonalMonthly(baseMonthly);
-        state.currentMonthly = baseMonthly;
-        state.tapCount = 0;
-        persist();
-        hideRevertPill();
-        hideCapPill();
-        if (maxToggle) setMaxToggle(false);
-        recalc();
-      }
-    });
-  }
-  function showRevertPill(){ ensureRevertPill(); revertPill.hidden = false; }
-  function hideRevertPill(){ if (revertPill) revertPill.hidden = true; }
-
-  function ensureCapPill(){
-    if (capPill) return;
-    capPill = document.createElement('div');
-    capPill.className = 'pill pill--warn';
-    capPill.innerHTML = `Above tax-relief limit for your age band. <button class="pill--link" data-action="switch-max">Switch on Max Contributions</button>`;
-    capPill.hidden = true;
-    noticeHost.appendChild(capPill);
-    capPill.addEventListener('click', (e)=>{
-      if (e.target.matches('[data-action="switch-max"]')) {
-        if (maxToggle) setMaxToggle(true);
-      }
-    });
-  }
-  function showCapPill(){ ensureCapPill(); capPill.hidden = false; }
-  function hideCapPill(){ if (capPill) capPill.hidden = true; }
-
-  function persist(){
-    sessionStorage.setItem(KEY, JSON.stringify(state));
-  }
-
-  function applyMonthly(n){
-    setPersonalMonthly(n);
-    state.currentMonthly = n;
-    persist();
-    // Cap check (ignore when Max is ON)
-    if (!state.maxToggleOn && n > (monthlyCap() + 1)) showCapPill(); else hideCapPill();
-    recalc();
-  }
-
-  function setMaxToggle(on){
-    state.maxToggleOn = !!on;
-    persist();
-    // Update the visual switch if it supports aria-pressed/checked
-    if (maxToggle){
-      if ('ariaPressed' in maxToggle) maxToggle.ariaPressed = on ? 'true' : 'false';
-      if ('checked' in maxToggle) maxToggle.checked = on;
-      maxToggle.classList.toggle('is-on', on);
-    }
-    if (on){
-      hideRevertPill();
-      hideCapPill();
-      applyMonthly(monthlyCap());
-    } else {
-      applyMonthly(baseMonthly);
-    }
-  }
-
-  // Wire events (don’t change DOM)
-  if (maxToggle){
-    // Support both checkbox and button styles
-    maxToggle.addEventListener('click', ()=>{
-      const now = !state.maxToggleOn;
-      setMaxToggle(now);
-    });
-  }
-
-  function handleIncrement(delta){
-    // If Max is ON, first turn it OFF to allow manual fine-tuning from base
-    if (state.maxToggleOn && maxToggle) setMaxToggle(false);
-    const next = Math.max(0, getPersonalMonthly() + delta);
-    state.tapCount += 1;
-    persist();
-    if (state.tapCount > 0) showRevertPill();
-    applyMonthly(next);
-  }
-
-  if (btnAdd200){ btnAdd200.addEventListener('click', ()=> handleIncrement(+200)); }
-  if (btnRemove200){ btnRemove200.addEventListener('click', ()=> handleIncrement(-200)); }
-
-  // Initial sync: respect saved state; ensure UI reflects switch
-  if (maxToggle && state.maxToggleOn){
-    setMaxToggle(true);
-  } else {
-    // ensure currentMonthly is actually applied (in case storage had a different number)
-    applyMonthly(state.currentMonthly);
-  }
-  if (state.tapCount > 0) showRevertPill(); else hideRevertPill();
-})();
-
 // ───────────────────────────────────────────────────────────────
 // Public API
 // ----------------------------------------------------------------
@@ -1592,4 +1430,95 @@ window.showEditFab = showEditFab;
 window.hideEditFab = hideEditFab;
 window.navigateToInputs = openFullMontyWizard;
 window.setUseMaxContributions = setUseMaxContributions;
+
+// === [FM] Classic Max Contributions controller (skinny toggle) ===
+(function FM_MaxContribToggle(){
+  // Only bind on results view
+  const resultsRoot = document.querySelector('#resultsView, .results, #fm-results, [data-view="results"]') || document.getElementById('fm-results');
+  const toggleEl = document.getElementById('maxContribToggle');
+  if (!resultsRoot || !toggleEl) return;
+
+  // Accessors against your existing store/DOM
+  const store = (window.FullMonty && window.FullMonty.inputs) ? window.FullMonty.inputs : {};
+  const n = v => Math.max(0, Number(v || 0));
+  const getAge = () => n(store.age ?? document.querySelector('[data-field="age"]')?.value);
+  const getSalary = () => n(store.grossSalary ?? document.querySelector('[data-field="grossSalary"]')?.value);
+  const getPersonalMonthly = () => n(store.personalMonthly ?? document.querySelector('[data-field="personalMonthly"]')?.value);
+  const setPersonalMonthly = (val) => {
+    if (window.FullMonty && window.FullMonty.inputs) window.FullMonty.inputs.personalMonthly = val;
+    const el = document.querySelector('[data-field="personalMonthly"]');
+    if (el) el.value = val;
+  };
+  const recalc = () => {
+    if (typeof window.updateAll === 'function') return window.updateAll();
+    if (typeof window.recalcResults === 'function') return window.recalcResults();
+    window.dispatchEvent(new CustomEvent('fm:inputs:changed'));
+  };
+
+  // Ireland age-band limits with €115k salary cap
+  const BANDS = [
+    {min:0,max:29,pct:.15},{min:30,max:39,pct:.20},{min:40,max:49,pct:.25},
+    {min:50,max:54,pct:.30},{min:55,max:59,pct:.35},{min:60,max:200,pct:.40}
+  ];
+  const pctForAge = a => (BANDS.find(b => a>=b.min && a<=b.max)?.pct ?? .15);
+  const monthlyCap = () => Math.round(Math.min(getSalary(), 115000) * pctForAge(getAge()) / 12);
+
+  // Snapshot base monthly so OFF restores perfectly
+  const BASE = { personalMonthly: getPersonalMonthly() };
+
+  // Restore previous toggle state this session
+  const sid = (window.FullMonty && window.FullMonty.sessionId) ? window.FullMonty.sessionId : 'default';
+  const KEY = `FM_MAX_TOGGLE_${sid}`;
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(KEY) || '{}');
+    if (saved.on) {
+      toggleEl.checked = true;
+      setPersonalMonthly(monthlyCap());
+      window.updateAssumptionChip?.(true);
+      window.setMaxToggle?.(true);            // swaps chart wording/colors if implemented
+      document.body.setAttribute('data-scenario','max');
+      recalc();
+    }
+  } catch {}
+
+  const persist = (on) => sessionStorage.setItem(KEY, JSON.stringify({ on }));
+
+  function onToggleChange(){
+    const on = !!toggleEl.checked;
+    persist(on);
+    if (on) {
+      setPersonalMonthly(monthlyCap());
+    } else {
+      setPersonalMonthly(BASE.personalMonthly);
+    }
+    window.updateAssumptionChip?.(on);
+    window.setMaxToggle?.(on);
+    document.body.setAttribute('data-scenario', on ? 'max' : 'current');
+    recalc();
+  }
+  toggleEl.addEventListener('change', onToggleChange);
+
+  // If user taps existing “+/- €200/mo” hero chips while Max is ON,
+  // automatically switch OFF to allow manual fine-tuning from base.
+  const addBtn = document.querySelector('[data-increment="+200"], #btnAdd200');
+  const removeBtn = document.querySelector('[data-increment="-200"], #btnRemove200');
+  function autoOffIfNeeded(){
+    if (!toggleEl.checked) return;
+    toggleEl.checked = false;
+    persist(false);
+    window.updateAssumptionChip?.(false);
+    window.setMaxToggle?.(false);
+    document.body.setAttribute('data-scenario','current');
+    setPersonalMonthly(BASE.personalMonthly);
+    recalc();
+  }
+  if (addBtn) addBtn.addEventListener('click', autoOffIfNeeded);
+  if (removeBtn) removeBtn.addEventListener('click', autoOffIfNeeded);
+
+  // Optional: if results mount dynamically elsewhere, allow re-init
+  window.addEventListener('fm:results:ready', () => {
+    // ensure toggle state reapplies after a re-render
+    if (toggleEl.checked) onToggleChange();
+  });
+})();
 
