@@ -572,7 +572,9 @@
     <main id="fm-results" class="fm-results-root">
       <div class="results-shell">
         <section id="resultsView" aria-live="polite"></section>
-        <div id="belowHeroControls" class="results-controls" aria-live="polite"></div>
+        <section id="maxContribToggle">
+          <div id="belowHeroControls" class="results-controls" aria-live="polite"></div>
+        </section>
 
       <!-- ===== BEFORE RETIREMENT ===== -->
         <section class="results-phase" id="phase-pre">
@@ -714,8 +716,10 @@
       <section id="compliance-notices" aria-label="Important notices" class="notices-section"></section>
 
       <!-- Max table section (bottom of page) -->
-      <section id="maxTableSection" class="max-table-section" aria-live="polite">
-        <!-- JS will inject a heading + table OR a helpful message -->
+      <section id="taxReliefLimits">
+        <section id="maxTableSection" class="max-table-section" aria-live="polite">
+          <!-- JS will inject a heading + table OR a helpful message -->
+        </section>
       </section>
       <div id="calcWarnings" style="display:none;"></div>
       </div>

@@ -986,3 +986,86 @@
   background:transparent; border:0; color:inherit; text-decoration:underline; cursor:pointer;
   padding:0 .15rem; font:inherit;
 }
+
+/* ========== Hero Helper Chips ========== */
+.hero-helper-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px; /* small spacing under the ovals */
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px; /* pill */
+  font-size: clamp(12px, 1.2vw, 14px);
+  line-height: 1.2;
+  border: 1px solid var(--accentA, #39ff14); /* neon green fallback */
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: var(--text-on-dark, #eaf3ef);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, opacity 200ms ease;
+  box-shadow: 0 0 0 0 rgba(0,0,0,0); /* subtle default */
+}
+
+.chip:hover,
+.chip:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+  outline: none;
+}
+
+.chip:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+}
+
+/* Variants */
+.chip-action {
+  background: linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.25));
+}
+
+.chip-warning {
+  border-color: var(--accentWarn, #ffd166);
+  background: linear-gradient(180deg, rgba(255, 209, 102, 0.12), rgba(0,0,0,0.15));
+  color: #ffe9b4;
+}
+
+.chip-ghost {
+  border-color: rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.06);
+  color: #e8f0ec;
+}
+
+/* Entrance animation when chips first appear */
+.chip[aria-live],
+.hero-helper-chips .chip {
+  will-change: transform, opacity;
+}
+
+.chip--reveal {
+  animation: chipReveal 220ms ease-out forwards;
+}
+
+@keyframes chipReveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Keep hero tidy on mobile */
+@media (max-width: 560px) {
+  .hero-helper-chips {
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .chip {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}

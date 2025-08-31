@@ -859,6 +859,13 @@ function runAll() {
 
 // ====== STATE & UTILITIES ======
 let baselineSnapshot = null;   // captured first time results render
+let baselinePersonalContribution = 0;
+let chipRow = null;
+let chipRevert = null;
+let chipTaxLimit = null;
+let chipTryMax = null;
+const elMaxToggle      = document.getElementById('maxContribToggle');
+const elTaxLimitsTable = document.getElementById('taxReliefLimits');
 const actionStack = [];        // { type: 'contrib'|'age', delta: number }
 
 // Tap counters (since baseline). Keys: 'contrib+200','contrib-200','age+1','age-1'
@@ -893,6 +900,7 @@ window.fmApplyNudge = function fmApplyNudge({ contribDelta = 0, ageDelta = 0 } =
       computeResults(store);
       document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: {} }));
     }
+    refreshHeroChips();
   } catch (e) {
     console.error('[Wizard] fmApplyNudge failed:', e);
   }
@@ -934,6 +942,106 @@ function formatEuro(n) {
     return `€${Math.round(n).toLocaleString()}`;
   }
 }
+
+// Smooth scroll utility
+function smoothScrollTo(el) {
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function getUserAge() {
+  const dob = store.dobSelf || store.dob;
+  if (!dob) return 0;
+  return Math.floor((Date.now() - new Date(dob)) / (365.25 * 24 * 3600 * 1000));
+}
+
+function getUserGrossSalary() {
+  return Number(store.grossIncome || store.salary || 0);
+}
+
+function getCurrentPersonalContribution() {
+  return getCurrentMonthlyContrib() * 12;
+}
+
+function setCurrentPersonalContribution(val) {
+  setCurrentMonthlyContrib(val / 12);
+}
+
+function getBaselinePersonalContribution() {
+  const k = firstKey(baselineSnapshot || {}, CONTRIB_KEYS.monthlyEuro);
+  return k ? Number(baselineSnapshot[k] || 0) * 12 : 0;
+}
+
+const AGE_BANDS = [
+  { minAge: 0, maxAge: 29, pct: 15 },
+  { minAge: 30, maxAge: 39, pct: 20 },
+  { minAge: 40, maxAge: 49, pct: 25 },
+  { minAge: 50, maxAge: 54, pct: 30 },
+  { minAge: 55, maxAge: 59, pct: 35 },
+  { minAge: 60, maxAge: 200, pct: 40 }
+];
+
+function getAgeBandForAge(age) {
+  return AGE_BANDS.find(b => age >= b.minAge && age <= b.maxAge);
+}
+
+// Returns the age-related max personal contribution for tax relief
+function getAgeRelatedMaxForUser() {
+  const age = getUserAge();
+  const salary = getUserGrossSalary();
+  const cappedSalary = Math.min(115000, salary || 0);
+  const band = getAgeBandForAge(age);
+  const pct = band?.pct || 0;
+  return Math.round((cappedSalary * pct) / 100);
+}
+
+function isAboveTaxReliefLimit(currentPersonalContribution) {
+  const maxAllowed = getAgeRelatedMaxForUser();
+  return currentPersonalContribution > maxAllowed;
+}
+
+function setChipVisibility(el, visible) {
+  if (!el) return;
+  if (visible) {
+    el.hidden = false;
+    el.classList.add('chip--reveal');
+  } else {
+    el.hidden = true;
+    el.classList.remove('chip--reveal');
+  }
+}
+
+function formatCurrency(n){
+  return formatEUR(n);
+}
+
+function hasDeviatedFromBaseline() {
+  const current = getCurrentPersonalContribution();
+  return Number(current) !== Number(baselinePersonalContribution);
+}
+
+function refreshHeroChips() {
+  chipRow      = document.getElementById('heroHelperChips');
+  chipRevert   = document.getElementById('chipRevertBaseline');
+  chipTaxLimit = document.getElementById('chipTaxLimit');
+  chipTryMax   = document.getElementById('chipTryMax');
+
+  const current = getCurrentPersonalContribution();
+  const overLimit = isAboveTaxReliefLimit(current);
+
+  setChipVisibility(chipRevert, hasDeviatedFromBaseline());
+  setChipVisibility(chipTaxLimit, overLimit);
+  setChipVisibility(chipTryMax, overLimit);
+
+  if (overLimit && chipTaxLimit) {
+    const limit = getAgeRelatedMaxForUser();
+    chipTaxLimit.textContent = `⚠️ Above the tax-relief limit (> ${formatCurrency(limit)})`;
+  } else if (chipTaxLimit) {
+    chipTaxLimit.textContent = '⚠️ You’re above the tax-relief limit';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', refreshHeroChips);
 
 
 // ----- Contribution accessors (align keys if needed) -----
@@ -983,6 +1091,7 @@ function recomputeAndRefreshUI(){
 
   if (typeof renderResultsCharts==='function') renderResultsCharts(store);
   else if (typeof updateCharts==='function') updateCharts(store);
+  refreshHeroChips();
 }
 
 function withBusy(btn, fn){
@@ -1040,6 +1149,7 @@ function increaseMonthlyContributionBy(deltaEuro){
     else             nudgeCounts['contrib-200'] += Math.round(Math.abs(applied)/200);
   }
   recomputeAndRefreshUI();
+  refreshHeroChips();
   if (contributionsAtMax()){
     announce('You have reached the maximum tax-relieved contribution for your current age.');
   } else {
@@ -1206,6 +1316,7 @@ export function renderResults(mountEl, storeRef = {}) {
     mountEl.innerHTML = '';
 
     if (!baselineSnapshot) baselineSnapshot = deepClone(storeRef);
+    baselinePersonalContribution = getBaselinePersonalContribution();
 
     const projected = Number(storeRef.projectedPotAtRetirement ?? storeRef.projectedPot ?? 0);
     const required  = Number(storeRef.financialFreedomTarget   ?? storeRef.fyTarget    ?? 0);
@@ -1265,6 +1376,61 @@ export function renderResults(mountEl, storeRef = {}) {
     chips.appendChild(makeMetricChip('Your pension', formatEUR(projected)));
     chips.appendChild(makeMetricChip('Required',     formatEUR(required)));
     hero.appendChild(chips);
+
+    // Hero Helper Chips
+    const helperChips = document.createElement('div');
+    helperChips.id = 'heroHelperChips';
+    helperChips.className = 'hero-helper-chips';
+    helperChips.setAttribute('aria-live', 'polite');
+
+    const btnRevert = document.createElement('button');
+    btnRevert.id = 'chipRevertBaseline';
+    btnRevert.className = 'chip chip-action';
+    btnRevert.type = 'button';
+    btnRevert.hidden = true;
+    btnRevert.textContent = '⟲ Revert to original';
+    helperChips.appendChild(btnRevert);
+
+    const btnTax = document.createElement('button');
+    btnTax.id = 'chipTaxLimit';
+    btnTax.className = 'chip chip-warning';
+    btnTax.type = 'button';
+    btnTax.hidden = true;
+    btnTax.textContent = '⚠️ You’re above the tax-relief limit';
+    helperChips.appendChild(btnTax);
+
+    const btnTry = document.createElement('button');
+    btnTry.id = 'chipTryMax';
+    btnTry.className = 'chip chip-ghost';
+    btnTry.type = 'button';
+    btnTry.hidden = true;
+    btnTry.textContent = 'Try Max Contributions ↓';
+    helperChips.appendChild(btnTry);
+
+    hero.appendChild(helperChips);
+
+    chipRow = helperChips;
+    chipRevert = btnRevert;
+    chipTaxLimit = btnTax;
+    chipTryMax = btnTry;
+
+    if (chipRevert) {
+      chipRevert.addEventListener('click', () => {
+        setCurrentPersonalContribution(baselinePersonalContribution);
+        recomputeAndRefreshUI();
+        refreshHeroChips();
+      });
+    }
+    if (chipTaxLimit) {
+      chipTaxLimit.addEventListener('click', () => {
+        smoothScrollTo(elTaxLimitsTable);
+      });
+    }
+    if (chipTryMax) {
+      chipTryMax.addEventListener('click', () => {
+        smoothScrollTo(elMaxToggle);
+      });
+    }
 
     // year-aware SFT chip (no globals!)
     if (Number.isFinite(retirementYear)) {
@@ -1386,6 +1552,7 @@ export function renderResults(mountEl, storeRef = {}) {
     }
 
     mountEl.appendChild(hero);
+    refreshHeroChips();
 
     renderSftAssumptionText();
 
