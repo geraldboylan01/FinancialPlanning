@@ -82,18 +82,13 @@ function renderHeroNowOrQueue() {
 
   if (typeof window.renderResults === 'function') {
     window.renderResults(mount, payload);
+    window.__pendingHeroPayload = null;
   } else {
     window.__pendingHeroPayload = payload;
   }
 }
 
-window.addEventListener('fm-renderer-ready', () => {
-  if (window.__pendingHeroPayload) {
-    const mount = document.getElementById('resultsView');
-    window.renderResults(mount, window.__pendingHeroPayload);
-    window.__pendingHeroPayload = null;
-  }
-});
+window.addEventListener('fm-renderer-ready', renderHeroNowOrQueue);
 
 function renderComplianceNotices(container){
   container = ensureNoticesMount() || container || document.getElementById('compliance-notices');

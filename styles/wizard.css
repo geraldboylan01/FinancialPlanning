@@ -740,6 +740,12 @@
 }
 
 /* ---------- HERO (shortfall-first) ---------- */
+.hero-prefix{
+  text-align: center;
+  color: var(--text-2, rgba(255,255,255,.72));
+  margin: 0 0 2px 0;
+  font-size: clamp(14px, 3.6vw, 16px);
+}
 .hero-number{
   font-size: clamp(28px, 7vw, 36px);
   font-weight: 800;
