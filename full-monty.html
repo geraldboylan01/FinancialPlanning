@@ -573,38 +573,6 @@
       <div class="results-shell">
         <section id="resultsView" aria-live="polite"></section>
 
-        <!-- [FM-CONTROLS] Scenario toggle + Increment chips -->
-        <div id="fm-contrib-controls" class="fm-contrib-controls" data-active="results-only" hidden>
-          <div class="fm-toggle-row" role="group" aria-label="Contribution scenario">
-            <button type="button" class="fm-toggle-btn is-active" data-scenario="current" id="fmScenarioCurrent">
-              Current Contributions
-            </button>
-            <button type="button" class="fm-toggle-btn" data-scenario="max" id="fmScenarioMax">
-              Max Tax-Relief
-            </button>
-          </div>
-
-          <div class="fm-chips-row" aria-label="Quick add monthly contribution">
-            <button type="button" class="fm-chip" data-increment="200">+ €200 /mo</button>
-            <button type="button" class="fm-chip" data-increment="400">+ €400 /mo</button>
-            <button type="button" class="fm-chip" data-increment="600">+ €600 /mo</button>
-            <button type="button" class="fm-chip" data-increment="1000">+ €1,000 /mo</button>
-            <button type="button" class="fm-chip is-revert" data-action="revert" id="fmRevert" aria-disabled="true">Revert</button>
-          </div>
-
-          <div class="fm-inline-notice" id="fmCapNotice" role="status" hidden>
-            <p class="fm-notice-text">
-              You’ve exceeded the maximum tax-relief limit for your age band.
-              <button type="button" class="fm-notice-cta" id="fmSwitchToMax">Switch to Max scenario</button>
-            </p>
-          </div>
-
-          <div class="fm-microcopy" id="fmChipHint" hidden>
-            Tip: tap chips to model higher monthly contributions. We’ll keep track so you can revert anytime.
-            <span class="fm-chip-count" id="fmChipCount" aria-live="polite"></span>
-          </div>
-        </div>
-
       <!-- ===== BEFORE RETIREMENT ===== -->
         <section class="results-phase" id="phase-pre">
         <header class="fm-section-head">
