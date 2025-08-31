@@ -4,6 +4,21 @@
   --danger:#ff5c5c;
 }
 
+.hero-number {
+  font-size: clamp(28px, 8vw, 42px);
+  font-weight: 800;
+  text-align: center;
+  margin: 0.25rem 0;
+}
+
+.hero-number.shortfall {
+  color: #ff4d4d; /* red */
+}
+
+.hero-number.surplus {
+  color: #00ff88; /* green neon */
+}
+
 /* Legacy warning blocks: keep for PDF scraping, hide on-screen */
 #calcWarnings .warning-block{ display:none; }
 
