@@ -1269,20 +1269,24 @@ export function renderResults(mountEl, storeRef = {}) {
     // year-aware SFT chip (no globals!)
     if (Number.isFinite(retirementYear)) {
       const sftY = sftForYear(retirementYear);
-      if (sftY && required && required > sftY) {
-        const over = required - sftY;
-        const warn = document.createElement('div');
-        warn.className = 'hero-sft-chip';
-        warn.setAttribute('role','note');
-        warn.innerHTML = `
-          <span class="icon" aria-hidden="true">⚠️</span>
-          Your target (required) <b>pension</b> exceeds the SFT for ${retirementYear} by <b>${formatEUR(over)}</b>.
-          <button class="link-btn" type="button" id="sftInfoBtn">What’s this?</button>
-        `;
-        hero.appendChild(warn);
-        warn.querySelector('#sftInfoBtn')?.addEventListener('click', () => {
-          document.getElementById('compliance-notices')?.scrollIntoView({ behavior:'smooth', block:'start' });
-        });
+      if (sftY) {
+        const reqOver = required > sftY;
+        const projOver = projected > sftY;
+        if (reqOver || projOver) {
+          const over = (reqOver ? required : projected) - sftY;
+          const which = reqOver ? 'target (required)' : 'projected';
+          const warn = document.createElement('div');
+          warn.className = 'hero-sft-chip';
+          warn.setAttribute('role','note');
+          warn.innerHTML = `
+            <span class="icon" aria-hidden="true">⚠️</span>
+            Your ${which} <b>pension</b> exceeds the Standard Fund Threshold (SFT) by <b>${formatEUR(over)}</b>. <button class="link-btn" type="button" id="sftInfoBtn">What’s this?</button>
+          `;
+          hero.appendChild(warn);
+          warn.querySelector('#sftInfoBtn')?.addEventListener('click', () => {
+            document.getElementById('compliance-notices')?.scrollIntoView({ behavior:'smooth', block:'start' });
+          });
+        }
       }
     }
 
