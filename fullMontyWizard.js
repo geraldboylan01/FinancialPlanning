@@ -860,6 +860,10 @@ function runAll() {
 // ====== STATE & UTILITIES ======
 let baselineSnapshot = null;   // captured first time results render
 let baselinePersonalAnnual = 0;
+
+// Track if user has changed contributions via the hero in this session.
+// We use this to decide when to show the “Return to original” button.
+let _heroContribNudged = false;
 // Controls
 let btnAdd200 = null;
 let btnRemove200 = null;
@@ -892,6 +896,8 @@ window.fmApplyNudge = function fmApplyNudge({ contribDelta = 0, ageDelta = 0 } =
     if (contribDelta) {
       // Use the safe path (handles % → € conversion correctly)
       increaseMonthlyContributionBy(contribDelta);
+      // Mark that the hero has modified contributions in this session
+      _heroContribNudged = true;
     }
 
     if (ageDelta) {
@@ -1021,7 +1027,8 @@ function show(el, on) {
 
 // Show "Return to original" only after a contribution nudge from the hero
 function hasDeviatedFromBaseline(){
-  return actionStack.some(a => a.type === 'contrib');
+  // Only show after the first hero nudge, and when we’re not already at the baseline.
+  return _heroContribNudged && (Number(getCurrentPersonalContribution()) !== Number(baselinePersonalAnnual));
 }
 
 function updateContributionSummaryUI(){
@@ -1401,11 +1408,12 @@ export function renderResults(mountEl, storeRef = {}) {
 
     mountEl.innerHTML = '';
 
-    if (!baselineSnapshot) baselineSnapshot = deepClone(storeRef);
-
-    // Instead of deriving baseline from inputs (which may be %),
-    // lock the baseline to what the user actually has *on screen now*
-    baselinePersonalAnnual = Math.round((getCurrentMonthlyContrib?.() || 0) * 12);
+    // Take the true baseline from the Wizard store so we preserve original keys (% vs €) and age.
+    if (!baselineSnapshot) {
+      baselineSnapshot = deepClone(store); // was storeRef
+      baselinePersonalAnnual = Math.round((getCurrentMonthlyContrib?.() || 0) * 12);
+      _heroContribNudged = false;          // fresh session state in hero
+    }
 
     const projected = Number(storeRef.projectedPotAtRetirement ?? storeRef.projectedPot ?? 0);
     const required  = Number(storeRef.financialFreedomTarget   ?? storeRef.fyTarget    ?? 0);
@@ -1550,13 +1558,9 @@ export function renderResults(mountEl, storeRef = {}) {
     btnRevertContrib.textContent = 'Return to original';
     btnRevertContrib.hidden = true;
     btnRevertContrib.addEventListener('click', () => {
-      setCurrentPersonalContributionAnnual(baselinePersonalAnnual);
-      recalcAll();
-      for (let i = actionStack.length - 1; i >= 0; i--) {
-        if (actionStack[i].type === 'contrib') actionStack.splice(i, 1);
-      }
+      restoreBaseline();          // restores contribs (€, %), retireAge, and max-toggle
+      _heroContribNudged = false; // hide the button again until the next hero change
       refreshContribUX();
-      window.resetHeroNudges?.();
     });
 
     row2.append(btnRevertContrib);
