@@ -861,17 +861,20 @@ function runAll() {
 let baselineSnapshot = null;   // captured first time results render
 let baselinePersonalContribution = 0;
 let baselinePersonalAnnual = 0;
-let chipRow = null;
-let chipRevert = null;
-let chipTaxLimit = null;
-let chipTryMax = null;
-
-// Action Dock nodes
-let dock = null;
+// Controls
+let btnAdd200 = null;
+let btnRemove200 = null;
+let btnEarlier = null;
+let btnLater = null;
 let btnRevertContrib = null;
-let assistMaxContrib = null;
-let btnGoToMax = null;
-let lnkSeeLimit = null;
+let capBadge = null;
+
+// Bottom sheet
+const sheet         = document.getElementById('sheetTaxRelief');
+const sheetBackdrop = sheet?.querySelector('.sheet__backdrop');
+const sheetClose    = sheet?.querySelector('[data-sheet-close]');
+const sheetGoToMax  = document.getElementById('sheetGoToMax');
+const sheetSeeLimit = document.getElementById('sheetSeeLimit');
 
 // Anchors
 const elMaxToggle = document.getElementById('maxContribToggle');
@@ -910,8 +913,7 @@ window.fmApplyNudge = function fmApplyNudge({ contribDelta = 0, ageDelta = 0 } =
       computeResults(store);
       document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: {} }));
     }
-    refreshHeroChips();
-    refreshActionDock();
+    refreshContribUX();
   } catch (e) {
     console.error('[Wizard] fmApplyNudge failed:', e);
   }
@@ -926,8 +928,7 @@ function recalcAll(){
     computeResults(store);
     document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: {} }));
   }
-  refreshHeroChips();
-  refreshActionDock();
+  refreshContribUX();
 }
 
 function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
@@ -1035,71 +1036,45 @@ function isAboveTaxReliefLimit() {
   const maxAllowed = getAgeRelatedMaxForUser();
   return currentPersonalAnnual() > maxAllowed;
 }
-
-function setChipVisibility(el, visible) {
+function show(el, on) {
   if (!el) return;
-  if (visible) {
-    el.hidden = false;
-    el.classList.add('chip--reveal');
-  } else {
-    el.hidden = true;
-    el.classList.remove('chip--reveal');
-  }
-}
-
-function formatCurrency(n){
-  return formatEUR(n);
+  el.hidden = !on;
 }
 
 function hasDeviatedFromBaseline() {
   return Number(currentPersonalAnnual()) !== Number(baselinePersonalAnnual);
 }
 
-function refreshHeroChips() {
-  chipRow      = document.getElementById('heroHelperChips');
-  chipRevert   = document.getElementById('chipRevertBaseline');
-  chipTaxLimit = document.getElementById('chipTaxLimit');
-  chipTryMax   = document.getElementById('chipTryMax');
-
-  const overLimit = isAboveTaxReliefLimit();
-
-  setChipVisibility(chipRevert, hasDeviatedFromBaseline());
-  setChipVisibility(chipTaxLimit, overLimit);
-  setChipVisibility(chipTryMax, overLimit);
-
-  if (overLimit && chipTaxLimit) {
-    const limit = getAgeRelatedMaxForUser();
-    chipTaxLimit.textContent = `⚠️ Above the tax-relief limit (> ${formatCurrency(limit)})`;
-  } else if (chipTaxLimit) {
-    chipTaxLimit.textContent = '⚠️ You’re above the tax-relief limit';
-  }
-}
-
-function show(el, on) {
-  if (!el) return;
-  if (on) {
-    el.hidden = false;
-    el.classList.add('reveal-in');
-  } else {
-    el.hidden = true;
-    el.classList.remove('reveal-in');
-  }
-}
-
-function refreshActionDock() {
+function refreshContribUX() {
   show(btnRevertContrib, hasDeviatedFromBaseline());
-  show(assistMaxContrib, isAboveTaxReliefLimit());
-
-  if (!assistMaxContrib?.hidden) {
-    const limit = getAgeRelatedMaxForUser();
-    // document.querySelector('.assist-text').firstChild.nodeValue = `⚠️ Above tax-relief limit (> ${formatCurrency(limit)}). `;
-  }
+  show(capBadge, isAboveTaxReliefLimit());
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  refreshHeroChips();
-  refreshActionDock();
+function openSheet() {
+  if (!sheet) return;
+  sheet.hidden = false;
+  setTimeout(() => sheetClose?.focus(), 0);
+}
+
+function closeSheet() {
+  if (!sheet) return;
+  sheet.hidden = true;
+}
+
+sheetBackdrop?.addEventListener('click', closeSheet);
+sheetClose?.addEventListener('click', closeSheet);
+
+sheetGoToMax?.addEventListener('click', () => {
+  closeSheet();
+  smoothScrollTo(elMaxToggle);
 });
+
+sheetSeeLimit?.addEventListener('click', () => {
+  closeSheet();
+  smoothScrollTo(elTaxTable);
+});
+
+document.addEventListener('DOMContentLoaded', refreshContribUX);
 
 
 // ----- Contribution accessors (align keys if needed) -----
@@ -1149,7 +1124,7 @@ function recomputeAndRefreshUI(){
 
   if (typeof renderResultsCharts==='function') renderResultsCharts(store);
   else if (typeof updateCharts==='function') updateCharts(store);
-  refreshHeroChips();
+  refreshContribUX();
 }
 
 function withBusy(btn, fn){
@@ -1207,7 +1182,7 @@ function increaseMonthlyContributionBy(deltaEuro){
     else             nudgeCounts['contrib-200'] += Math.round(Math.abs(applied)/200);
   }
   recomputeAndRefreshUI();
-  refreshHeroChips();
+  refreshContribUX();
   if (contributionsAtMax()){
     announce('You have reached the maximum tax-relieved contribution for your current age.');
   } else {
@@ -1321,52 +1296,6 @@ function attachHeroScrollAffordance(heroEl){
   window.addEventListener('scroll', onScroll, { passive:true });
 }
 
-function styleAndOrderNudges({ shortfall, atMaxContrib, minAgeReached, maxAgeReached }, refs){
-  const { rowTop, rowBottom, btnAdd200, btnRemove200, btnEarlier, btnLater } = refs;
-
-  // Clear rows
-  rowTop.innerHTML = ''; rowBottom.innerHTML = '';
-
-  // Reset classes/disabled
-  [btnAdd200,btnRemove200,btnEarlier,btnLater].forEach(b=>{
-    b.classList.remove('btn-green','btn-outline','is-disabled');
-    b.removeAttribute('aria-disabled'); b.disabled=false; b.title='';
-  });
-
-  const isShortfall = shortfall > 0;
-
-  // Recommended pair & not-recommended pair
-  const recommended   = isShortfall ? [btnAdd200, btnLater] : [btnRemove200, btnEarlier];
-  const notRecommended= isShortfall ? [btnRemove200, btnEarlier] : [btnAdd200, btnLater];
-
-  // Apply visual variants
-  recommended.forEach(b => b.classList.add('btn-green'));
-  notRecommended.forEach(b => b.classList.add('btn-outline'));
-
-  // Place recommended as TOP ROW, others as BOTTOM ROW
-  recommended.forEach(b => rowTop.appendChild(b));
-  notRecommended.forEach(b => rowBottom.appendChild(b));
-
-  // Hard guards override visuals
-  if (atMaxContrib){
-    btnAdd200.classList.remove('btn-green');
-    btnAdd200.classList.add('btn-outline','is-disabled');
-    btnAdd200.disabled = true;
-    btnAdd200.setAttribute('aria-disabled','true');
-    btnAdd200.title = 'Max tax-relievable contribution reached for your current age.';
-  }
-  if (minAgeReached){
-    btnEarlier.classList.add('is-disabled'); btnEarlier.disabled = true;
-    btnEarlier.setAttribute('aria-disabled','true');
-    btnEarlier.title = 'Minimum retirement age reached.';
-  }
-  if (maxAgeReached){
-    btnLater.classList.add('is-disabled'); btnLater.disabled = true;
-    btnLater.setAttribute('aria-disabled','true');
-    btnLater.title = 'Maximum retirement age reached.';
-  }
-}
-
 export function renderResults(mountEl, storeRef = {}) {
   try {
     if (!mountEl) return;
@@ -1436,60 +1365,6 @@ export function renderResults(mountEl, storeRef = {}) {
     chips.appendChild(makeMetricChip('Required',     formatEUR(required)));
     hero.appendChild(chips);
 
-    // Hero Helper Chips
-    const helperChips = document.createElement('div');
-    helperChips.id = 'heroHelperChips';
-    helperChips.className = 'hero-helper-chips';
-    helperChips.setAttribute('aria-live', 'polite');
-
-    const btnRevert = document.createElement('button');
-    btnRevert.id = 'chipRevertBaseline';
-    btnRevert.className = 'chip chip-action';
-    btnRevert.type = 'button';
-    btnRevert.hidden = true;
-    btnRevert.textContent = '⟲ Revert to original';
-    helperChips.appendChild(btnRevert);
-
-    const btnTax = document.createElement('button');
-    btnTax.id = 'chipTaxLimit';
-    btnTax.className = 'chip chip-warning';
-    btnTax.type = 'button';
-    btnTax.hidden = true;
-    btnTax.textContent = '⚠️ You’re above the tax-relief limit';
-    helperChips.appendChild(btnTax);
-
-    const btnTry = document.createElement('button');
-    btnTry.id = 'chipTryMax';
-    btnTry.className = 'chip chip-ghost';
-    btnTry.type = 'button';
-    btnTry.hidden = true;
-    btnTry.textContent = 'Try Max Contributions ↓';
-    helperChips.appendChild(btnTry);
-
-    hero.appendChild(helperChips);
-
-    chipRow = helperChips;
-    chipRevert = btnRevert;
-    chipTaxLimit = btnTax;
-    chipTryMax = btnTry;
-
-    if (chipRevert) {
-      chipRevert.addEventListener('click', () => {
-        setCurrentPersonalContributionAnnual(baselinePersonalAnnual);
-        recalcAll();
-      });
-    }
-    if (chipTaxLimit) {
-      chipTaxLimit.addEventListener('click', () => {
-        smoothScrollTo(elTaxTable);
-      });
-    }
-    if (chipTryMax) {
-      chipTryMax.addEventListener('click', () => {
-        smoothScrollTo(elMaxToggle);
-      });
-    }
-
     // year-aware SFT chip (no globals!)
     if (Number.isFinite(retirementYear)) {
       const sftY = sftForYear(retirementYear);
@@ -1530,82 +1405,66 @@ export function renderResults(mountEl, storeRef = {}) {
       hero.appendChild(cs);
     }
 
-    const actionsWrap = document.createElement('div'); actionsWrap.className='actions-wrap';
-    const rowTop     = document.createElement('div'); rowTop.className='actions-row';
-    const rowBottom  = document.createElement('div'); rowBottom.className='actions-row';
+    const tpl = document.getElementById('tplContribControls');
+    let contribControls;
+    if (tpl) {
+      contribControls = tpl.content.firstElementChild.cloneNode(true);
+    } else {
+      contribControls = document.createElement('div');
+      contribControls.className = 'contrib-controls';
+      contribControls.innerHTML = `
+        <div class="add-btn-wrap">
+          <button id="btnAdd200" type="button" class="pill green">+ Add €200/mo</button>
+          <button id="btnCapBadge" class="cap-badge" type="button" hidden aria-label="You are above the tax-relief limit. Tap for details.">⚠️ Cap exceeded</button>
+        </div>
+        <div id="contribActionDock" class="contrib-action-dock" aria-live="polite">
+          <button id="btnRevertContrib" class="btn-ghost-micro" type="button" hidden>⟲ Revert</button>
+        </div>`;
+    }
 
-    const btnRemove200 = document.createElement('button');
-    btnRemove200.className='btn btn-pill'; btnRemove200.textContent='– Remove €200/mo';
+    const dock = contribControls.querySelector('#contribActionDock');
+    btnRevertContrib = contribControls.querySelector('#btnRevertContrib');
+    btnAdd200 = contribControls.querySelector('#btnAdd200');
+    capBadge = contribControls.querySelector('#btnCapBadge');
+
+    btnAdd200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: +200 }));
+    capBadge.addEventListener('click', openSheet);
+
+    btnRemove200 = document.createElement('button');
+    btnRemove200.className = 'pill grey';
+    btnRemove200.type = 'button';
+    btnRemove200.id = 'btnRemove200';
+    btnRemove200.textContent = '– Remove €200/mo';
     btnRemove200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: -200 }));
 
-    const btnAdd200 = document.createElement('button');
-    btnAdd200.className='btn btn-pill'; btnAdd200.textContent='+ Add €200/mo';
-    btnAdd200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: +200 }));
-
-    const btnEarlier = document.createElement('button');
-    btnEarlier.className='btn btn-pill'; btnEarlier.textContent='⏪ Retire 1 yr earlier';
+    btnEarlier = document.createElement('button');
+    btnEarlier.className = 'pill';
+    btnEarlier.type = 'button';
+    btnEarlier.id = 'btnRetireEarlier';
+    btnEarlier.textContent = '⏪ Retire 1 yr earlier';
     btnEarlier.addEventListener('click', () => window.fmApplyNudge?.({ ageDelta: -1 }));
 
-    const btnLater = document.createElement('button');
-    btnLater.className='btn btn-pill'; btnLater.textContent='⏩ Retire 1 yr later';
+    btnLater = document.createElement('button');
+    btnLater.className = 'pill';
+    btnLater.type = 'button';
+    btnLater.id = 'btnRetireLater';
+    btnLater.textContent = '⏩ Retire 1 yr later';
     btnLater.addEventListener('click', () => window.fmApplyNudge?.({ ageDelta: +1 }));
 
-    function applyBadge(btn, count){
-      let b = btn.querySelector('.badge');
-      if (!b){ b = document.createElement('span'); b.className='badge'; btn.appendChild(b); }
-      b.textContent = count>0 ? `×${count}` : '';
-    }
-    applyBadge(btnAdd200,    nudgeCounts['contrib+200']);
-    applyBadge(btnRemove200, nudgeCounts['contrib-200']);
-    applyBadge(btnLater,     nudgeCounts['age+1']);
-    applyBadge(btnEarlier,   nudgeCounts['age-1']);
+    contribControls.insertBefore(btnRemove200, dock);
+    contribControls.insertBefore(btnEarlier, dock);
+    contribControls.insertBefore(btnLater, dock);
 
-    const minAge=50, maxAge=75;
-    styleAndOrderNudges(
-      {
-        shortfall: deficit,
-        atMaxContrib,
-        minAgeReached: age<=minAge,
-        maxAgeReached: age>=maxAge
-      },
-      { rowTop, rowBottom, btnAdd200, btnRemove200, btnEarlier, btnLater }
-    );
+    btnRevertContrib.addEventListener('click', () => {
+      setCurrentPersonalContributionAnnual(baselinePersonalAnnual);
+      recalcAll();
+      refreshContribUX();
+    });
 
-    const tpl = document.getElementById('tplContribActionDock');
-    if (tpl) {
-      dock = tpl.content.firstElementChild.cloneNode(true);
-      btnRevertContrib = dock.querySelector('#btnRevertContrib');
-      assistMaxContrib = dock.querySelector('#assistMaxContrib');
-      btnGoToMax = dock.querySelector('#btnGoToMax');
-      lnkSeeLimit = dock.querySelector('#lnkSeeLimit');
-      actionsWrap.appendChild(rowTop);
-      actionsWrap.appendChild(dock);
-      actionsWrap.appendChild(rowBottom);
-    } else {
-      actionsWrap.appendChild(rowTop);
-      actionsWrap.appendChild(rowBottom);
-    }
-    hero.appendChild(actionsWrap);
-
-    if (btnRevertContrib) {
-      btnRevertContrib.addEventListener('click', () => {
-        setCurrentPersonalContributionAnnual(baselinePersonalAnnual);
-        recalcAll();
-      });
-    }
-    if (btnGoToMax) {
-      btnGoToMax.addEventListener('click', () => smoothScrollTo(elMaxToggle));
-    }
-    if (lnkSeeLimit) {
-      lnkSeeLimit.addEventListener('click', (e) => {
-        e.preventDefault();
-        smoothScrollTo(elTaxTable);
-      });
-    }
+    hero.appendChild(contribControls);
 
     mountEl.appendChild(hero);
-    refreshHeroChips();
-    refreshActionDock();
+    refreshContribUX();
 
     renderSftAssumptionText();
 
