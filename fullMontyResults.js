@@ -637,14 +637,14 @@ function renderMaxContributionToggle(storeRef){
   note.className = 'toggle-note';
   note.setAttribute('aria-live','polite');
   note.textContent = chk.checked
-    ? 'Maximise is ON — your personal contributions are set to the current tax-relievable maximum.'
+    ? 'Maximised to your tax-relievable limits — see your age-band breakdown below.'
     : '';
   wrap.appendChild(note);
 
   chk.addEventListener('change', (e) => {
     setUseMaxContributions(e.target.checked);
     note.textContent = e.target.checked
-      ? 'Maximise is ON — your personal contributions are set to the current tax-relievable maximum.'
+      ? 'Maximised to your tax-relievable limits — see your age-band breakdown below.'
       : '';
   });
 
