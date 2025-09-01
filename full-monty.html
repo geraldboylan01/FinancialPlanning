@@ -580,8 +580,8 @@
             <div class="add-btn-wrap">
               <button id="btnAdd200" type="button" class="pill green">+ Add €200/mo</button>
               <!-- Warning badge appears only when over limit -->
-              <button id="btnCapBadge" class="cap-badge" type="button" hidden aria-label="You are above the tax-relief limit. Tap for details.">
-                ⚠️ Cap exceeded
+              <button id="btnCapBadge" class="cap-badge" type="button" hidden aria-label="You’re above the tax-relievable amount. Tap for details.">
+                ⚠️ Over tax-relievable amount
               </button>
             </div>
 
@@ -759,11 +759,12 @@
       </header>
       <div class="sheet__body">
         <p>
-          You’re currently contributing above the maximum amount that qualifies for income-tax relief.
-          This limit depends on your age band and applies to earnings up to €115,000.
+          You’re currently contributing above the amount that qualifies for income-tax relief.
+          This limit depends on your age band and is applied to earnings capped at €115,000.
         </p>
         <p class="sheet__nudge">
-          <strong>Turn on <em>Maximise tax-relievable contributions</em></strong> to automatically set your personal contributions to the maximum amount eligible for relief.
+          <strong>Turn on <em>Maximise</em></strong> to automatically set your personal contributions
+          to the maximum amount eligible for tax relief.
         </p>
         <div class="sheet__actions">
           <button id="sheetGoToMax" class="btn-cta-mini" type="button">Turn on Maximise</button>

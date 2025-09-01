@@ -879,7 +879,6 @@ const sheetSeeLimit = document.getElementById('sheetSeeLimit');
 // Anchors
 const elMaxToggle       = document.getElementById('maxContribToggle');
 const elTaxTable        = document.getElementById('taxReliefLimits');
-const belowHeroControls = document.getElementById('belowHeroControls');
 const actionStack = [];        // { type: 'contrib'|'age', delta: number }
 
 // Tap counters (since baseline). Keys: 'contrib+200','contrib-200','age+1','age-1'
@@ -1052,38 +1051,57 @@ function refreshContribUX() {
 }
 
 function renderMaxContribToggle() {
-  if (!belowHeroControls) return;
+  const host = document.getElementById('belowHeroControls');
+  if (!host) return;
 
-  // Clear any previous render
-  belowHeroControls.innerHTML = '';
+  // If Results already mounted the official toggle, don't double-render.
+  if (host.querySelector('#maxContribsChk')) return;
 
+  // Prefer the official renderer from fullMontyResults.js
+  if (typeof window.renderMaxContributionToggle === 'function') {
+    const node = window.renderMaxContributionToggle({
+      useMaxContributions: !!getUseMaxContributions()
+    });
+    if (node) {
+      host.appendChild(node);
+      // Wire it to the global setter owned by Results.js
+      const chk = host.querySelector('#maxContribsChk');
+      if (chk) {
+        chk.checked = !!getUseMaxContributions();
+        chk.addEventListener('change', (e) => {
+          if (typeof window.setUseMaxContributions === 'function') {
+            window.setUseMaxContributions(!!e.target.checked);
+          }
+        });
+      }
+    }
+    return;
+  }
+
+  // Fallback (should rarely be used). Uses modern wording, no "cap".
+  host.innerHTML = '';
   const wrap = document.createElement('div');
   wrap.className = 'maxcontrib-toggle';
-
   wrap.innerHTML = `
     <label class="toggle-row" for="useMaxContribSwitch">
       <input id="useMaxContribSwitch" type="checkbox" />
-      <span class="toggle-label">Max Contributions</span>
+      <span class="toggle-label">Maximise tax-relievable contributions</span>
     </label>
-    <div class="toggle-sub">Automatically cap your personal contributions within your tax-relief limit.</div>
+    <div class="toggle-sub">
+      Automatically set your personal contributions to the maximum amount eligible for income-tax relief
+      (based on your age band, on earnings up to €115,000).
+    </div>
   `;
-
-  belowHeroControls.appendChild(wrap);
-
+  host.appendChild(wrap);
   const sw = wrap.querySelector('#useMaxContribSwitch');
-
-  // Initialize switch with current state if available
-  if (typeof getUseMaxContributions === 'function') {
-    sw.checked = !!getUseMaxContributions();
-  }
-
-  // Persist & recompute when toggled
+  sw.checked = !!getUseMaxContributions();
   sw.addEventListener('change', () => {
-    if (typeof setUseMaxContributions === 'function') {
+    if (typeof window.setUseMaxContributions === 'function') {
+      window.setUseMaxContributions(sw.checked);
+    } else {
+      // very old fallback:
       setUseMaxContributions(sw.checked);
     }
-    recalcAll();
-    if (typeof refreshContribUX === 'function') refreshContribUX();
   });
 }
 
@@ -1102,7 +1120,7 @@ sheetBackdrop?.addEventListener('click', closeSheet);
 sheetClose?.addEventListener('click', closeSheet);
 
 if (typeof sheetGoToMax !== 'undefined' && sheetGoToMax) {
-  sheetGoToMax.textContent = 'Turn on Max Contributions';
+  sheetGoToMax.textContent = 'Turn on Maximise';
   sheetGoToMax.addEventListener('click', () => {
     if (typeof closeSheet === 'function') closeSheet();
     if (typeof setUseMaxContributions === 'function') {
@@ -1190,24 +1208,30 @@ function getUseMaxContributions(){
 }
 
 // Central setter for the "Use max contributions" scenario.
+// Prefer the official setter from Results.js if present
 function setUseMaxContributions(enabled){
-  // Normalize boolean
+  if (typeof window.setUseMaxContributions === 'function' && window.setUseMaxContributions !== setUseMaxContributions) {
+    return window.setUseMaxContributions(!!enabled);
+  }
+
+  // Local fallback (kept for legacy; normally not used)
   store.useMaxContributions = !!enabled;
 
-  // Propagate to global helpers that rely on this flag
   if (typeof window !== 'undefined') {
     window.useMax = store.useMaxContributions;
     if (typeof setMaxToggle === 'function') setMaxToggle(store.useMaxContributions);
     if (typeof onMaxContribsToggleChanged === 'function') onMaxContribsToggleChanged(store.useMaxContributions);
   }
 
-  // Recompute and re-render EVERYTHING (hero + charts)
   recomputeAndRefreshUI();
-
-  // Accessible announcement
   announce(enabled
-    ? 'Max contributions scenario enabled.'
-    : 'Max contributions scenario disabled.');
+    ? 'Maximise tax-relievable contributions is on.'
+    : 'Maximise tax-relievable contributions is off.');
+}
+
+// Only publish the fallback if nothing else has registered yet.
+if (typeof window.setUseMaxContributions !== 'function') {
+  window.setUseMaxContributions = setUseMaxContributions;
 }
 
 function computeMaxTaxRelievedMonthly(s){
@@ -1471,7 +1495,7 @@ export function renderResults(mountEl, storeRef = {}) {
       contribControls.innerHTML = `
         <div class="add-btn-wrap">
           <button id="btnAdd200" type="button" class="pill green">+ Add €200/mo</button>
-          <button id="btnCapBadge" class="cap-badge" type="button" hidden aria-label="You are above the tax-relief limit. Tap for details.">⚠️ Cap exceeded</button>
+          <button id="btnCapBadge" class="cap-badge" type="button" hidden aria-label="You’re above the tax-relievable amount. Tap for details.">⚠️ Over tax-relievable amount</button>
         </div>
         <div id="contribActionDock" class="contrib-action-dock" aria-live="polite">
           <button id="btnRevertContrib" class="btn-ghost-micro" type="button" hidden>⟲ Revert</button>
@@ -1564,6 +1588,5 @@ if (document.readyState !== 'loading') {
 window.showEditFab = showEditFab;
 window.hideEditFab = hideEditFab;
 window.navigateToInputs = openFullMontyWizard;
-window.setUseMaxContributions = setUseMaxContributions;
 window.getUseMaxContributions = getUseMaxContributions;
 
