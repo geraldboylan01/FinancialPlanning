@@ -881,8 +881,8 @@ const elMaxToggle       = document.getElementById('maxContribToggle');
 const elTaxTable        = document.getElementById('taxReliefLimits');
 const actionStack = [];        // { type: 'contrib'|'age', delta: number }
 
-// Tap counters (since baseline). Keys: 'contrib+200','contrib-200','age+1','age-1'
-const nudgeCounts = { 'contrib+200':0, 'contrib-200':0, 'age+1':0, 'age-1':0 };
+// Tap counters (since baseline). Keys: 'contrib+100','contrib-100','age+1','age-1'
+const nudgeCounts = { 'contrib+100':0, 'contrib-100':0, 'age+1':0, 'age-1':0 };
 
 const store = fullMontyStore;
 
@@ -1051,14 +1051,18 @@ function hasDeviatedFromBaseline() {
 }
 
 function updateContributionSummaryUI(){
-  try{
-    const el = document.getElementById('contribSummaryVal');
-    if (!el) return;
-    const annual = (typeof window.getCurrentPersonalContribution === 'function')
-      ? window.getCurrentPersonalContribution()
-      : (currentPersonalAnnual ? currentPersonalAnnual() : 0);
-    el.textContent = formatEUR(annual || 0);
-  }catch(e){}
+  const el = document.getElementById('contribSummaryVal');
+  if (!el) return;
+
+  // Prefer the wizard’s getter (returns €/yr). Fallback: compute locally.
+  let annual = 0;
+  if (typeof window.getCurrentPersonalContribution === 'function') {
+    annual = Number(window.getCurrentPersonalContribution() || 0);
+  } else if (typeof getCurrentMonthlyContrib === 'function') {
+    annual = Number(getCurrentMonthlyContrib() || 0) * 12;
+  }
+
+  el.textContent = formatEUR(annual);
 }
 
 function refreshContribUX() {
@@ -1111,7 +1115,7 @@ function renderLegacyMaxContribToggle() {
   const note = wrap.querySelector('#maxToggleNote');
   sw.checked = !!getUseMaxContributions();
   if (sw.checked) {
-    note.innerHTML = 'Using your age-band maximum eligible for tax relief. <button class="btn-text-mini" id="viewMaxLimits" type="button">View limits</button>';
+    note.innerHTML = 'Using your age-band maximum (tax-relievable). <button class="btn-text-mini" id="viewMaxLimits" type="button">View limits</button>';
   }
   wrap.addEventListener('click', (e)=>{
     const btn = e.target.closest('#viewMaxLimits');
@@ -1168,11 +1172,8 @@ if (typeof sheetSeeLimit !== 'undefined' && sheetSeeLimit) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  // if Results has provided the new renderer, use that
-  if (typeof window.renderMaxContributionToggle === 'function') {
-    // do nothing here; Results will mount it
-  } else {
-    // fallback to legacy only if the new renderer isn't present
+  if (typeof window.renderMaxContributionToggle !== 'function') {
+    // Fallback only if Results hasn’t mounted its toggle yet
     renderLegacyMaxContribToggle();
   }
   if (typeof refreshContribUX === 'function') refreshContribUX();
@@ -1298,8 +1299,8 @@ function increaseMonthlyContributionBy(deltaEuro){
   const applied = next - cur;
   if (applied !== 0){
     actionStack.push({ type:'contrib', delta: applied });
-    if (applied > 0) nudgeCounts['contrib+200'] += Math.round(applied/200);
-    else             nudgeCounts['contrib-200'] += Math.round(Math.abs(applied)/200);
+    if (applied > 0) nudgeCounts['contrib+100'] += Math.round(applied/100);
+    else             nudgeCounts['contrib-100'] += Math.round(Math.abs(applied)/100);
   }
   recomputeAndRefreshUI();
   updateContributionSummaryUI();
@@ -1335,8 +1336,8 @@ function undoLast(){
     const cur = getCurrentMonthlyContrib();
     const next = Math.max(0, cur - last.delta);
     setCurrentMonthlyContrib(next);
-    if (last.delta > 0) nudgeCounts['contrib+200'] -= Math.round(last.delta/200);
-    else                nudgeCounts['contrib-200'] -= Math.round(Math.abs(last.delta)/200);
+    if (last.delta > 0) nudgeCounts['contrib+100'] -= Math.round(last.delta/100);
+    else                nudgeCounts['contrib-100'] -= Math.round(Math.abs(last.delta)/100);
   } else if (last.type==='age'){
     const key='retireAge';
     setStore({ [key]: Number(store[key]||65) - last.delta });
@@ -1427,7 +1428,12 @@ export function renderResults(mountEl, storeRef = {}) {
 
     mountEl.innerHTML = '';
 
-    if (!baselineSnapshot) baselineSnapshot = deepClone(storeRef);
+    if (!baselineSnapshot) {
+      const fullStore = (typeof window.getFullMontyData === 'function')
+        ? window.getFullMontyData()
+        : storeRef;
+      baselineSnapshot = deepClone(fullStore);
+    }
     baselinePersonalContribution = getBaselinePersonalContribution();
     baselinePersonalAnnual = baselinePersonalContribution;
 
@@ -1517,8 +1523,8 @@ export function renderResults(mountEl, storeRef = {}) {
     }
 
     const parts = [];
-    if (nudgeCounts['contrib+200']>0 || nudgeCounts['contrib-200']>0){
-      const net = (nudgeCounts['contrib+200'] - nudgeCounts['contrib-200']) * 200;
+    if (nudgeCounts['contrib+100']>0 || nudgeCounts['contrib-100']>0){
+      const net = (nudgeCounts['contrib+100'] - nudgeCounts['contrib-100']) * 100;
       if (net !== 0) parts.push(`${net>0?'+':''}${formatEUR(net)}/mo contributions`);
     }
     if (nudgeCounts['age+1']>0 || nudgeCounts['age-1']>0){
@@ -1543,13 +1549,13 @@ export function renderResults(mountEl, storeRef = {}) {
     btnAdd200.id = 'btnAdd200'; btnAdd200.type = 'button';
     btnAdd200.className = 'pill pill--primary';
     btnAdd200.textContent = '+ Add €200/mo';
-    btnAdd200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: +200 }));
+    btnAdd200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: +100 }));
 
     btnRemove200 = document.createElement('button');
     btnRemove200.id = 'btnRemove200'; btnRemove200.type = 'button';
     btnRemove200.className = 'pill pill--neutral';
     btnRemove200.textContent = '– Remove €200/mo';
-    btnRemove200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: -200 }));
+    btnRemove200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: -100 }));
 
     // live contribution summary (€/yr)
     const contribChip = document.createElement('div');
