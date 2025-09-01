@@ -18,7 +18,7 @@ let lastWizard = {};
 let useMax = false;
 
 // --- Hero nudge state (session-scoped) ---
-let heroNetSteps = 0;         // +1 per "+200" tap, -1 per "remove"
+let heroNetSteps = 0;         // +1 per "+100" tap, -1 per "remove"
 let heroBaseMonthly = null;   // derived from results on first mount
 let heroCapMonthly  = null;   // age-band cap monthly
 const HERO_KEY = () => `FM_HERO_STEPS_${(window.FullMonty?.sessionId || 'default')}`;
@@ -54,7 +54,7 @@ function computeMonthlyCap(){
 
 function heroNetMonthly(){
   if (heroBaseMonthly == null) deriveHeroBaseMonthly();
-  return Math.max(0, (heroBaseMonthly || 0) + heroNetSteps * 200);
+  return Math.max(0, (heroBaseMonthly || 0) + heroNetSteps * 100);
 }
 
 let _heroRenderScheduled = false;
@@ -90,6 +90,21 @@ const COLORS = {
 function formatEUR(x){
   try { return new Intl.NumberFormat('en-IE',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(x); }
   catch(e){ return '€'+Math.round(+x||0).toLocaleString('en-IE'); }
+}
+
+function updateContributionSummaryUI(){
+  const el = document.getElementById('contribSummaryVal');
+  if (!el) return;
+
+  // Prefer the wizard’s getter (returns €/yr). Fallback: compute locally.
+  let annual = 0;
+  if (typeof window.getCurrentPersonalContribution === 'function') {
+    annual = Number(window.getCurrentPersonalContribution() || 0);
+  } else if (typeof getCurrentMonthlyContrib === 'function') {
+    annual = Number(getCurrentMonthlyContrib() || 0) * 12;
+  }
+
+  el.textContent = formatEUR(annual);
 }
 
 function ensureNoticesMount(){
@@ -488,9 +503,9 @@ function bindHeroTapDelegation(){
     if (!btn) return;
     const txt = (btn.textContent||'').toLowerCase();
     if (/\badd\b.*200/.test(txt) || btn.matches('[data-increment="+200"]')) {
-      applyStep(+200);
+      applyStep(+100);
     } else if (/\bremove\b.*200/.test(txt) || btn.matches('[data-increment="-200"]')) {
-      applyStep(-200);
+      applyStep(-100);
     }
   });
 }
