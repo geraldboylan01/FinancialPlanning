@@ -355,6 +355,13 @@ window.setRetirementIncomeColorsForToggle = setRetirementIncomeColorsForToggle;
 function onMaxContribsToggleChanged(isOn){
   setRetirementIncomeColorsForToggle(isOn);
   if (typeof updateAssumptionChip === 'function') updateAssumptionChip(isOn);
+
+  const note = document.getElementById('maxToggleNote');
+  if (note){
+    note.innerHTML = isOn
+      ? 'Using your age-band maximum eligible for tax relief. <button class="btn-text-mini" id="viewMaxLimits" type="button">View limits</button>'
+      : '';
+  }
 }
 window.onMaxContribsToggleChanged = onMaxContribsToggleChanged;
 
@@ -606,46 +613,39 @@ function renderMaxContributionToggle(storeRef){
 
   const track = document.createElement('span');
   track.className = 'track';
-
   const lab = document.createElement('span');
   lab.className = 'label';
-
   const txt = document.createElement('span');
   txt.className = 'toggle-text';
-  // New wording
-  txt.textContent = 'Maximise tax-relievable contributions';
+  // ✨ Simpler, friendlier label:
+  txt.textContent = 'Maximise pension contributions';
   lab.appendChild(txt);
-
   const knob = document.createElement('span');
   knob.className = 'knob';
-
   track.appendChild(lab);
   track.appendChild(knob);
   label.appendChild(track);
   wrap.appendChild(label);
 
-  // Always-visible description (no “cap” wording)
-  const desc = document.createElement('div');
-  desc.className = 'toggle-note';
-  desc.setAttribute('aria-hidden','true');
-  desc.textContent = 'Automatically set your personal contributions to the maximum amount eligible for income-tax relief, based on your age band (applies to earnings up to €115,000).';
-  wrap.appendChild(desc);
-
-  // Status line that updates when ON
+  // Slim “on” confirmation. Hidden when off.
   const note = document.createElement('div');
   note.id = 'maxToggleNote';
   note.className = 'toggle-note';
   note.setAttribute('aria-live','polite');
-  note.textContent = chk.checked
-    ? 'Maximised to your tax-relievable limits — see your age-band breakdown below.'
+  note.innerHTML = chk.checked
+    ? 'Using your age-band maximum eligible for tax relief. <button class="btn-text-mini" id="viewMaxLimits" type="button">View limits</button>'
     : '';
   wrap.appendChild(note);
 
   chk.addEventListener('change', (e) => {
     setUseMaxContributions(e.target.checked);
-    note.textContent = e.target.checked
-      ? 'Maximised to your tax-relievable limits — see your age-band breakdown below.'
-      : '';
+  });
+
+  // Optional “View limits” jump
+  wrap.addEventListener('click', (e)=>{
+    const btn = e.target.closest('#viewMaxLimits');
+    if (!btn) return;
+    document.getElementById('maxTableSection')?.scrollIntoView({ behavior:'smooth', block:'start' });
   });
 
   return wrap;

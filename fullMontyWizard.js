@@ -1078,23 +1078,29 @@ function renderMaxContribToggle() {
     return;
   }
 
-  // Fallback (should rarely be used). Uses modern wording, no "cap".
+  // Fallback (should rarely be used). Uses simple label.
   host.innerHTML = '';
   const wrap = document.createElement('div');
   wrap.className = 'maxcontrib-toggle';
   wrap.innerHTML = `
-    <label class="toggle-row" for="useMaxContribSwitch">
-      <input id="useMaxContribSwitch" type="checkbox" />
-      <span class="toggle-label">Maximise tax-relievable contributions</span>
-    </label>
-    <div class="toggle-sub">
-      Automatically set your personal contributions to the maximum amount eligible for income-tax relief
-      (based on your age band, on earnings up to €115,000).
-    </div>
-  `;
+      <label class="toggle-row" for="useMaxContribSwitch">
+        <input id="useMaxContribSwitch" type="checkbox" />
+        <span class="toggle-label">Maximise pension contributions</span>
+      </label>
+      <div class="toggle-note" id="maxToggleNote" aria-live="polite"></div>
+    `;
   host.appendChild(wrap);
   const sw = wrap.querySelector('#useMaxContribSwitch');
+  const note = wrap.querySelector('#maxToggleNote');
   sw.checked = !!getUseMaxContributions();
+  if (sw.checked) {
+    note.innerHTML = 'Using your age-band maximum eligible for tax relief. <button class="btn-text-mini" id="viewMaxLimits" type="button">View limits</button>';
+  }
+  wrap.addEventListener('click', (e)=>{
+    const btn = e.target.closest('#viewMaxLimits');
+    if (!btn) return;
+    document.getElementById('maxTableSection')?.scrollIntoView({ behavior:'smooth', block:'start' });
+  });
   sw.addEventListener('change', () => {
     if (typeof window.setUseMaxContributions === 'function') {
       window.setUseMaxContributions(sw.checked);
@@ -1102,6 +1108,9 @@ function renderMaxContribToggle() {
       // very old fallback:
       setUseMaxContributions(sw.checked);
     }
+    note.innerHTML = sw.checked
+      ? 'Using your age-band maximum eligible for tax relief. <button class="btn-text-mini" id="viewMaxLimits" type="button">View limits</button>'
+      : '';
   });
 }
 
@@ -1225,8 +1234,8 @@ function setUseMaxContributions(enabled){
 
   recomputeAndRefreshUI();
   announce(enabled
-    ? 'Maximise tax-relievable contributions is on.'
-    : 'Maximise tax-relievable contributions is off.');
+    ? 'Maximise pension contributions is on.'
+    : 'Maximise pension contributions is off.');
 }
 
 // Only publish the fallback if nothing else has registered yet.
