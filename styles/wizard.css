@@ -1277,3 +1277,56 @@
   .btn-ghost-micro, .btn-cta-mini { font-size: 12px; }
   .assist-text { font-size: 12px; }
 }
+
+/* ===== Max Contributions toggle (between hero & charts) ===== */
+.maxcontrib-toggle {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.06));
+}
+
+.toggle-row {
+  display: inline-grid;
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.toggle-row input[type="checkbox"] {
+  width: 36px; height: 20px;
+  appearance: none;
+  outline: none;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.15);
+  position: relative;
+  transition: background 150ms ease;
+}
+.toggle-row input[type="checkbox"]::after {
+  content: '';
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 150ms ease;
+}
+.toggle-row input[type="checkbox"]:checked {
+  background: rgba(57,255,20,0.5); /* neon hint */
+}
+.toggle-row input[type="checkbox"]:checked::after {
+  transform: translateX(16px);
+}
+
+.toggle-label {
+  font-size: 14px;
+  color: var(--text-on-dark, #EAF3EF);
+}
+
+.toggle-sub {
+  font-size: 12px;
+  opacity: 0.85;
+}
