@@ -487,7 +487,7 @@ function renderRevertAndCap(){
     capNudge = document.createElement('span');
     capNudge.className = 'inline-warn';
     capNudge.style.display = 'none';
-    capNudge.innerHTML = `Above your age-band limit — <button type="button" id="nudgeMaxBtn">Switch on Max</button>`;
+    capNudge.innerHTML = `Over the tax-relievable amount — <button type="button" id="nudgeMaxBtn">Turn on Maximise</button>`;
     host.appendChild(capNudge);
     capNudge.addEventListener('click', (e)=>{
       const tgt = e.target;
@@ -606,30 +606,47 @@ function renderMaxContributionToggle(storeRef){
 
   const track = document.createElement('span');
   track.className = 'track';
+
   const lab = document.createElement('span');
   lab.className = 'label';
+
   const txt = document.createElement('span');
   txt.className = 'toggle-text';
-  txt.textContent = 'Use max pension contributions';
+  // ✨ New wording:
+  txt.textContent = 'Maximise tax-relievable contributions';
   lab.appendChild(txt);
+
   const knob = document.createElement('span');
   knob.className = 'knob';
+
   track.appendChild(lab);
   track.appendChild(knob);
   label.appendChild(track);
   wrap.appendChild(label);
 
+  // ✨ New always-visible description (non-“cap” wording)
+  const desc = document.createElement('div');
+  desc.className = 'toggle-note'; // reuse existing style
+  desc.setAttribute('aria-hidden', 'true');
+  desc.textContent = 'Automatically set your personal contributions to the maximum amount eligible for income-tax relief, based on your age band (applied to earnings up to €115,000).';
+  wrap.appendChild(desc);
+
+  // ✨ Status line that changes when ON (optional; keep subtle)
   const note = document.createElement('div');
   note.id = 'maxToggleNote';
   note.className = 'toggle-note';
   note.setAttribute('aria-live','polite');
   note.textContent = chk.checked
-    ? 'Max contributions applied — see the detailed age-band limits below.'
+    ? 'Maximise is ON — your personal contributions are set to the current tax-relievable maximum.'
     : '';
   wrap.appendChild(note);
 
   chk.addEventListener('change', (e) => {
     setUseMaxContributions(e.target.checked);
+    // keep the status line in sync
+    note.textContent = e.target.checked
+      ? 'Maximise is ON — your personal contributions are set to the current tax-relievable maximum.'
+      : '';
   });
 
   return wrap;
@@ -739,7 +756,7 @@ function drawCharts() {
 
   const datasets = [
     {
-      label: showMax ? 'Max Contribution' : 'Your Projection',
+      label: showMax ? 'Maximised contributions' : 'Your Projection',
       data: ap.balances,
       borderColor: showMax ? '#0099ff' : '#00ff88',
       backgroundColor: showMax ? 'rgba(0,153,255,0.10)' : 'rgba(0,255,136,0.15)',
@@ -920,7 +937,7 @@ function drawCharts() {
       labels: simProj.ages.map(a => `Age ${a}`),
       datasets: [
           {
-            label: showMax ? 'Balance (Max contribs)' : 'Balance (Projected pension)',
+            label: showMax ? 'Balance (Maximised)' : 'Balance (Projected pension)',
             data: simProj.balances,
             borderColor: showMax ? '#0099ff' : '#00ff88',
             backgroundColor: showMax ? 'rgba(0,153,255,0.10)' : 'rgba(0,255,136,0.10)',
