@@ -1001,8 +1001,12 @@ function setCurrentPersonalContributionAnnual(val) {
 }
 
 function getBaselinePersonalContribution() {
-  const k = firstKey(baselineSnapshot || {}, CONTRIB_KEYS.monthlyEuro);
-  return k ? Number(baselineSnapshot[k] || 0) * 12 : 0;
+  if (!baselineSnapshot) return 0;
+  const mk = firstKey(baselineSnapshot, CONTRIB_KEYS.monthlyEuro);
+  if (mk) return Number(baselineSnapshot[mk] || 0) * 12;
+  const ak = firstKey(baselineSnapshot, CONTRIB_KEYS.annualEuro);
+  if (ak) return Number(baselineSnapshot[ak] || 0);
+  return 0;
 }
 
 function getBaselinePersonalContributionAnnual() {
@@ -1151,30 +1155,37 @@ if (typeof sheetSeeLimit !== 'undefined' && sheetSeeLimit) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  renderMaxContribToggle();
   if (typeof refreshContribUX === 'function') refreshContribUX();
 });
 
 
 // ----- Contribution accessors (align keys if needed) -----
 const CONTRIB_KEYS = {
-  monthlyEuro: ['personalContribSelf','personalMonthlyContribution','employeeContributionMonthly','contribMonthly'],
+  monthlyEuro: ['personalMonthlyContribution','employeeContributionMonthly','contribMonthly'],
+  annualEuro:  ['personalContribSelf','employeeContributionAnnual','contribAnnual'],
   percent:     ['personalPctSelf','employeeContributionPct','personalContributionPct'],
   maxMonthly:  ['maxContribMonthly','maxAllowedMonthlyContribution','taxRelievedMonthlyCap']
 };
 function firstKey(obj, keys){ return keys.find(k => Object.prototype.hasOwnProperty.call(obj, k)); }
 
 function getCurrentMonthlyContrib(){
-  const k = firstKey(store, CONTRIB_KEYS.monthlyEuro);
-  return k ? Number(store[k]||0) : 0;
+  const mk = firstKey(store, CONTRIB_KEYS.monthlyEuro);
+  if (mk) return Number(store[mk] || 0);
+  const ak = firstKey(store, CONTRIB_KEYS.annualEuro);
+  if (ak) return Number(store[ak] || 0) / 12;
+  return 0;
 }
 function setCurrentMonthlyContrib(val){
-  const k = firstKey(store, CONTRIB_KEYS.monthlyEuro);
-  if (k){ setStore({ [k]: Math.max(0, Number(val)||0) }); return true; }
+  const v = Math.max(0, Number(val) || 0);
+  const mk = firstKey(store, CONTRIB_KEYS.monthlyEuro);
+  if (mk){ setStore({ [mk]: v }); return true; }
+  const ak = firstKey(store, CONTRIB_KEYS.annualEuro);
+  if (ak){ setStore({ [ak]: Math.round(v * 12) }); return true; }
+  // Fall back to % if that’s all we have
   const pk = firstKey(store, CONTRIB_KEYS.percent);
   const salary = Number(store.grossIncome || store.salary || 0);
-  if (pk && salary>0){
-    const pct = Math.max(0, Math.min(100, ((Number(val)||0)/(salary/12))*100));
+  if (pk && salary > 0){
+    const pct = Math.max(0, Math.min(100, (v / (salary/12)) * 100));
     setStore({ [pk]: pct }); return true;
   }
   return false;
@@ -1317,10 +1328,12 @@ function undoLast(){
 
 function restoreBaseline(){
   if (!baselineSnapshot) return;
-  const k  = firstKey(store, CONTRIB_KEYS.monthlyEuro);
+  const mk = firstKey(store, CONTRIB_KEYS.monthlyEuro);
+  const ak = firstKey(store, CONTRIB_KEYS.annualEuro);
   const pk = firstKey(store, CONTRIB_KEYS.percent);
   const patch = {};
-  if (k  && baselineSnapshot[k]  !== undefined) patch[k]  = baselineSnapshot[k];
+  if (mk && baselineSnapshot[mk] !== undefined) patch[mk] = baselineSnapshot[mk];
+  if (ak && baselineSnapshot[ak] !== undefined) patch[ak] = baselineSnapshot[ak];
   if (pk && baselineSnapshot[pk] !== undefined) patch[pk] = baselineSnapshot[pk];
   if (baselineSnapshot.retireAge !== undefined) patch.retireAge = baselineSnapshot.retireAge;
   setStore(patch);
@@ -1406,11 +1419,13 @@ export function renderResults(mountEl, storeRef = {}) {
     const partnerIncluded = !!(storeRef.partnerDOB || storeRef.partnerIncluded || storeRef.hasPartner);
 
     const atMaxContrib = (() => {
-      const k = firstKey(storeRef, CONTRIB_KEYS.monthlyEuro);
-      const cur = k ? Number(storeRef[k] || 0) : 0;
-      const mk = firstKey(storeRef, CONTRIB_KEYS.maxMonthly);
-      let max = mk ? Number(storeRef[mk] || 0) : Infinity;
-      if (!mk && typeof computeMaxTaxRelievedMonthly === 'function') {
+      const mk = firstKey(storeRef, CONTRIB_KEYS.monthlyEuro);
+      let cur = mk ? Number(storeRef[mk] || 0) : 0;
+      const ak = firstKey(storeRef, CONTRIB_KEYS.annualEuro);
+      if (!mk && ak) cur = Number(storeRef[ak] || 0) / 12;
+      const mxk = firstKey(storeRef, CONTRIB_KEYS.maxMonthly);
+      let max = mxk ? Number(storeRef[mxk] || 0) : Infinity;
+      if (!mxk && typeof computeMaxTaxRelievedMonthly === 'function') {
         max = computeMaxTaxRelievedMonthly(storeRef);
       }
       return (isFinite(max) && cur >= max - 1);
