@@ -167,7 +167,7 @@ function renderHeroNowOrQueue(){
 window.addEventListener('fm-renderer-ready', renderHeroNowOrQueue);
 window.addEventListener('fm-renderer-ready', mountBelowHeroToggle);
 window.addEventListener('fm-renderer-ready', () => {
-  deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); renderRevertAndCap();
+  deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); if (typeof refreshContribUX === 'function') refreshContribUX();
 });
 
 function renderComplianceNotices(container){
@@ -467,51 +467,6 @@ function updateTapBadges(){
   }
 }
 
-function ensureBelowHeroControls(){
-  return document.getElementById('belowHeroControls');
-}
-
-let revertBtn, capNudge;
-function renderRevertAndCap(){
-  const host = ensureBelowHeroControls();
-  if (!host) return;
-
-  // Revert button (ghost pill)
-  if (!revertBtn){
-    revertBtn = document.createElement('button');
-    revertBtn.type = 'button';
-    revertBtn.id = 'heroRevertBtn';
-    revertBtn.className = 'btn-secondary small';
-    revertBtn.textContent = 'Revert to original';
-    revertBtn.style.display = 'none';
-    revertBtn.addEventListener('click', handleRevert);
-    host.appendChild(revertBtn);
-  }
-  revertBtn.style.display = heroNetSteps !== 0 ? '' : 'none';
-
-  // Cap nudge
-  if (!capNudge){
-    capNudge = document.createElement('span');
-    capNudge.className = 'inline-warn';
-    capNudge.style.display = 'none';
-    capNudge.innerHTML = `Over the tax-relievable amount — <button type="button" id="nudgeMaxBtn">Turn on Maximise</button>`;
-    host.appendChild(capNudge);
-    capNudge.addEventListener('click', (e)=>{
-      const tgt = e.target;
-      if (tgt && tgt.id === 'nudgeMaxBtn'){
-        window.setUseMaxContributions?.(true);
-        // Reset local hero state when moving to Max
-        heroNetSteps = 0; saveHeroState(); updateTapBadges(); renderRevertAndCap();
-      }
-    });
-  }
-
-  // Show/hide nudge based on cap
-  computeMonthlyCap();
-  const overCap = heroNetMonthly() > (heroCapMonthly || Infinity) + 1;
-  capNudge.style.display = (overCap && !useMax) ? '' : 'none';
-}
-
 function applyStep(delta){
   // If Max is on, switch it off (the hero nudges are for "current" path)
   if (useMax) window.setUseMaxContributions?.(false);
@@ -519,23 +474,8 @@ function applyStep(delta){
   heroNetSteps = (heroNetSteps || 0) + (delta > 0 ? 1 : -1);
   saveHeroState();
   updateTapBadges();
-  renderRevertAndCap();
+  if (typeof refreshContribUX === 'function') refreshContribUX();
   // The hero buttons' own handlers will already trigger the recalcs.
-}
-
-function handleRevert(){
-  const { addBtn, remBtn } = findHeroButtons();
-  if (!addBtn || !remBtn) { heroNetSteps = 0; saveHeroState(); updateTapBadges(); renderRevertAndCap(); return; }
-
-  // Programmatically click the opposite button N times to return to baseline.
-  const steps = Math.abs(heroNetSteps);
-  const clickTarget = (heroNetSteps > 0) ? remBtn : addBtn;
-  for (let i=0; i<steps; i++) clickTarget.click();
-
-  heroNetSteps = 0;
-  saveHeroState();
-  updateTapBadges();
-  renderRevertAndCap();
 }
 
 // Delegate clicks from the hero container (handles re-renders)
@@ -556,7 +496,7 @@ function bindHeroTapDelegation(){
 }
 
 function resetHeroNudges(){
-  heroNetSteps = 0; saveHeroState(); updateTapBadges(); renderRevertAndCap();
+  heroNetSteps = 0; saveHeroState(); updateTapBadges(); if (typeof refreshContribUX === 'function') refreshContribUX();
 }
 
 const $ = (s)=>document.querySelector(s);
@@ -594,7 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   loadHeroState();
   bindHeroTapDelegation();
-  setTimeout(()=>{ deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); renderRevertAndCap(); }, 0);
+  setTimeout(()=>{ deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); if (typeof refreshContribUX === 'function') refreshContribUX(); }, 0);
 });
 
 function renderMaxContributionToggle(storeRef){
@@ -632,20 +572,13 @@ function renderMaxContributionToggle(storeRef){
   note.id = 'maxToggleNote';
   note.className = 'toggle-note';
   note.setAttribute('aria-live','polite');
-  note.innerHTML = chk.checked
-    ? 'Using your age-band maximum eligible for tax relief. <button class="btn-text-mini" id="viewMaxLimits" type="button">View limits</button>'
+  note.textContent = chk.checked
+    ? 'Using your age-band maximum (tax-relievable).'
     : '';
   wrap.appendChild(note);
 
   chk.addEventListener('change', (e) => {
     setUseMaxContributions(e.target.checked);
-  });
-
-  // Optional “View limits” jump
-  wrap.addEventListener('click', (e)=>{
-    const btn = e.target.closest('#viewMaxLimits');
-    if (!btn) return;
-    document.getElementById('maxTableSection')?.scrollIntoView({ behavior:'smooth', block:'start' });
   });
 
   return wrap;
@@ -1207,7 +1140,7 @@ These projections are illustrative only — professional guidance is strongly re
   try { renderMaxTable(lastWizard); } catch (e) { console.error('[FM Results] renderMaxTable error:', e); }
 
   ensureNoticesMount();
-  deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); renderRevertAndCap();
+  deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); if (typeof refreshContribUX === 'function') refreshContribUX();
   mountBelowHeroToggle();
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
 
@@ -1246,7 +1179,7 @@ document.addEventListener('fm-run-fy', (e) => {
   try { renderMaxTable(lastWizard); } catch (e) { console.error('[FM Results] renderMaxTable error:', e); }
 
   ensureNoticesMount();
-  deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); renderRevertAndCap();
+  deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); if (typeof refreshContribUX === 'function') refreshContribUX();
   mountBelowHeroToggle();
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
 

@@ -929,6 +929,7 @@ function recalcAll(){
     document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: {} }));
   }
   refreshContribUX();
+  updateContributionSummaryUI();
 }
 
 function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
@@ -1049,12 +1050,24 @@ function hasDeviatedFromBaseline() {
   return Number(currentPersonalAnnual()) !== Number(baselinePersonalAnnual);
 }
 
+function updateContributionSummaryUI(){
+  try{
+    const el = document.getElementById('contribSummaryVal');
+    if (!el) return;
+    const annual = (typeof window.getCurrentPersonalContribution === 'function')
+      ? window.getCurrentPersonalContribution()
+      : (currentPersonalAnnual ? currentPersonalAnnual() : 0);
+    el.textContent = formatEUR(annual || 0);
+  }catch(e){}
+}
+
 function refreshContribUX() {
   show(btnRevertContrib, hasDeviatedFromBaseline());
   show(capBadge, isAboveTaxReliefLimit());
+  updateContributionSummaryUI();
 }
 
-function renderMaxContribToggle() {
+function renderLegacyMaxContribToggle() {
   const host = document.getElementById('belowHeroControls');
   if (!host) return;
 
@@ -1155,6 +1168,13 @@ if (typeof sheetSeeLimit !== 'undefined' && sheetSeeLimit) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  // if Results has provided the new renderer, use that
+  if (typeof window.renderMaxContributionToggle === 'function') {
+    // do nothing here; Results will mount it
+  } else {
+    // fallback to legacy only if the new renderer isn't present
+    renderLegacyMaxContribToggle();
+  }
   if (typeof refreshContribUX === 'function') refreshContribUX();
 });
 
@@ -1282,6 +1302,7 @@ function increaseMonthlyContributionBy(deltaEuro){
     else             nudgeCounts['contrib-200'] += Math.round(Math.abs(applied)/200);
   }
   recomputeAndRefreshUI();
+  updateContributionSummaryUI();
   refreshContribUX();
   if (contributionsAtMax()){
     announce('You have reached the maximum tax-relieved contribution for your current age.');
@@ -1323,6 +1344,7 @@ function undoLast(){
     else                nudgeCounts['age-1'] -= -last.delta;
   }
   recomputeAndRefreshUI();
+  updateContributionSummaryUI();
   announce('Last change undone.');
 }
 
@@ -1342,6 +1364,7 @@ function restoreBaseline(){
   Object.keys(nudgeCounts).forEach(key => nudgeCounts[key]=0);
   setUseMaxContributions(baselineSnapshot.useMaxContributions);
   recomputeAndRefreshUI();
+  updateContributionSummaryUI();
   announce('Inputs restored to your original values.');
 }
 
@@ -1509,63 +1532,85 @@ export function renderResults(mountEl, storeRef = {}) {
       hero.appendChild(cs);
     }
 
-    const tpl = document.getElementById('tplContribControls');
-    let contribControls;
-    if (tpl) {
-      contribControls = tpl.content.firstElementChild.cloneNode(true);
-    } else {
-      contribControls = document.createElement('div');
-      contribControls.className = 'contrib-controls';
-      contribControls.innerHTML = `
-        <div class="add-btn-wrap">
-          <button id="btnAdd200" type="button" class="pill green">+ Add €200/mo</button>
-          <button id="btnCapBadge" class="cap-badge" type="button" hidden aria-label="You’re above the tax-relievable amount. Tap for details.">⚠️ Over tax-relievable amount</button>
-        </div>
-        <div id="contribActionDock" class="contrib-action-dock" aria-live="polite">
-          <button id="btnRevertContrib" class="btn-ghost-micro" type="button" hidden>⟲ Revert</button>
-        </div>`;
-    }
+    // === Controls + summary ===
+    const controls = document.createElement('div');
 
-    const dock = contribControls.querySelector('#contribActionDock');
-    btnRevertContrib = contribControls.querySelector('#btnRevertContrib');
-    btnAdd200 = contribControls.querySelector('#btnAdd200');
-    capBadge = contribControls.querySelector('#btnCapBadge');
+    /* Row 1: Add / Remove (equal width) + contribution summary chip */
+    const row1 = document.createElement('div');
+    row1.className = 'controls-row';
 
+    btnAdd200 = document.createElement('button');
+    btnAdd200.id = 'btnAdd200'; btnAdd200.type = 'button';
+    btnAdd200.className = 'pill pill--primary';
+    btnAdd200.textContent = '+ Add €200/mo';
     btnAdd200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: +200 }));
-    capBadge.addEventListener('click', openSheet);
 
     btnRemove200 = document.createElement('button');
-    btnRemove200.className = 'pill grey';
-    btnRemove200.type = 'button';
-    btnRemove200.id = 'btnRemove200';
+    btnRemove200.id = 'btnRemove200'; btnRemove200.type = 'button';
+    btnRemove200.className = 'pill pill--neutral';
     btnRemove200.textContent = '– Remove €200/mo';
     btnRemove200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: -200 }));
 
-    btnEarlier = document.createElement('button');
-    btnEarlier.className = 'pill';
-    btnEarlier.type = 'button';
-    btnEarlier.id = 'btnRetireEarlier';
-    btnEarlier.textContent = '⏪ Retire 1 yr earlier';
-    btnEarlier.addEventListener('click', () => window.fmApplyNudge?.({ ageDelta: -1 }));
+    // live contribution summary (€/yr)
+    const contribChip = document.createElement('div');
+    contribChip.id = 'contribSummary';
+    contribChip.className = 'contrib-summary';
+    contribChip.innerHTML = `<span>Your contributions:</span> <span class="muted" id="contribSummaryVal">€0</span> /yr`;
 
-    btnLater = document.createElement('button');
-    btnLater.className = 'pill';
-    btnLater.type = 'button';
-    btnLater.id = 'btnRetireLater';
-    btnLater.textContent = '⏩ Retire 1 yr later';
-    btnLater.addEventListener('click', () => window.fmApplyNudge?.({ ageDelta: +1 }));
+    row1.append(btnAdd200, btnRemove200, contribChip);
 
-    contribControls.insertBefore(btnRemove200, dock);
-    contribControls.insertBefore(btnEarlier, dock);
-    contribControls.insertBefore(btnLater, dock);
+    /* Row 2: Return to original + age-band nudge */
+    const row2 = document.createElement('div');
+    row2.className = 'controls-row';
 
+    btnRevertContrib = document.createElement('button');
+    btnRevertContrib.id = 'btnRevertContrib';
+    btnRevertContrib.type = 'button';
+    btnRevertContrib.className = 'pill pill--ghost';
+    btnRevertContrib.textContent = 'Return to original';
+    btnRevertContrib.hidden = true;
     btnRevertContrib.addEventListener('click', () => {
       setCurrentPersonalContributionAnnual(baselinePersonalAnnual);
       recalcAll();
       refreshContribUX();
+      window.resetHeroNudges?.();
     });
 
-    hero.appendChild(contribControls);
+    // “above limit” nudge — leads to maximise
+    capBadge = document.createElement('button');
+    capBadge.id = 'btnCapBadge';
+    capBadge.type = 'button';
+    capBadge.className = 'pill pill--ghost';
+    capBadge.hidden = true;
+    capBadge.textContent = 'Above age-band limit — Maximise';
+    capBadge.addEventListener('click', () => {
+      window.setUseMaxContributions?.(true);
+      recalcAll();
+    });
+
+    row2.append(btnRevertContrib, capBadge);
+
+    /* Row 3: Retire earlier/later (equal width) */
+    const row3 = document.createElement('div');
+    row3.className = 'controls-row';
+
+    btnEarlier = document.createElement('button');
+    btnEarlier.id = 'btnRetireEarlier'; btnEarlier.type = 'button';
+    btnEarlier.className = 'pill pill--neutral';
+    btnEarlier.textContent = '⏪ Retire 1 yr earlier';
+    btnEarlier.addEventListener('click', () => window.fmApplyNudge?.({ ageDelta: -1 }));
+
+    btnLater = document.createElement('button');
+    btnLater.id = 'btnRetireLater'; btnLater.type = 'button';
+    btnLater.className = 'pill pill--neutral';
+    btnLater.textContent = '⏩ Retire 1 yr later';
+    btnLater.addEventListener('click', () => window.fmApplyNudge?.({ ageDelta: +1 }));
+
+    row3.append(btnEarlier, btnLater);
+
+    controls.append(row1, row2, row3);
+    hero.appendChild(controls);
+    updateContributionSummaryUI();
 
     mountEl.appendChild(hero);
     refreshContribUX();
@@ -1613,4 +1658,6 @@ window.showEditFab = showEditFab;
 window.hideEditFab = hideEditFab;
 window.navigateToInputs = openFullMontyWizard;
 window.getUseMaxContributions = getUseMaxContributions;
+window.getCurrentPersonalContribution = getCurrentPersonalContribution;
+window.setCurrentPersonalContributionAnnual = setCurrentPersonalContributionAnnual;
 
