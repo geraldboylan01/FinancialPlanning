@@ -859,7 +859,6 @@ function runAll() {
 
 // ====== STATE & UTILITIES ======
 let baselineSnapshot = null;   // captured first time results render
-let baselinePersonalContribution = 0;
 let baselinePersonalAnnual = 0;
 // Controls
 let btnAdd200 = null;
@@ -867,7 +866,6 @@ let btnRemove200 = null;
 let btnEarlier = null;
 let btnLater = null;
 let btnRevertContrib = null;
-let capBadge = null;
 let updateHeroContribMeter = null;
 let applyHeroAddBtnState = null;
 
@@ -988,26 +986,10 @@ function setCurrentPersonalContribution(val) {
   setCurrentMonthlyContrib(val / 12);
 }
 
-function currentPersonalAnnual() {
-  return getCurrentPersonalContribution();
-}
-
 function setCurrentPersonalContributionAnnual(val) {
   setCurrentPersonalContribution(val);
 }
 
-function getBaselinePersonalContribution() {
-  if (!baselineSnapshot) return 0;
-  const mk = firstKey(baselineSnapshot, CONTRIB_KEYS.monthlyEuro);
-  if (mk) return Number(baselineSnapshot[mk] || 0) * 12;
-  const ak = firstKey(baselineSnapshot, CONTRIB_KEYS.annualEuro);
-  if (ak) return Number(baselineSnapshot[ak] || 0);
-  return 0;
-}
-
-function getBaselinePersonalContributionAnnual() {
-  return getBaselinePersonalContribution();
-}
 
 const AGE_BANDS = [
   { minAge: 0, maxAge: 29, pct: 15 },
@@ -1032,17 +1014,14 @@ function getAgeRelatedMaxForUser() {
   return Math.round((cappedSalary * pct) / 100);
 }
 
-function isAboveTaxReliefLimit() {
-  const maxAllowed = getAgeRelatedMaxForUser();
-  return currentPersonalAnnual() > maxAllowed;
-}
 function show(el, on) {
   if (!el) return;
   el.hidden = !on;
 }
 
-function hasDeviatedFromBaseline() {
-  return Number(currentPersonalAnnual()) !== Number(baselinePersonalAnnual);
+// Show "Return to original" only after a contribution nudge from the hero
+function hasDeviatedFromBaseline(){
+  return actionStack.some(a => a.type === 'contrib');
 }
 
 function updateContributionSummaryUI(){
@@ -1053,7 +1032,6 @@ function updateContributionSummaryUI(){
 
 function refreshContribUX() {
   show(btnRevertContrib, hasDeviatedFromBaseline());
-  show(capBadge, isAboveTaxReliefLimit());
   updateContributionSummaryUI();
   if (typeof applyHeroAddBtnState === 'function') {
     applyHeroAddBtnState();
@@ -1423,14 +1401,11 @@ export function renderResults(mountEl, storeRef = {}) {
 
     mountEl.innerHTML = '';
 
-    if (!baselineSnapshot) {
-      const fullStore = (typeof window.getFullMontyData === 'function')
-        ? window.getFullMontyData()
-        : storeRef;
-      baselineSnapshot = deepClone(fullStore);
-    }
-    baselinePersonalContribution = getBaselinePersonalContribution();
-    baselinePersonalAnnual = baselinePersonalContribution;
+    if (!baselineSnapshot) baselineSnapshot = deepClone(storeRef);
+
+    // Instead of deriving baseline from inputs (which may be %),
+    // lock the baseline to what the user actually has *on screen now*
+    baselinePersonalAnnual = Math.round((getCurrentMonthlyContrib?.() || 0) * 12);
 
     const projected = Number(storeRef.projectedPotAtRetirement ?? storeRef.projectedPot ?? 0);
     const required  = Number(storeRef.financialFreedomTarget   ?? storeRef.fyTarget    ?? 0);
@@ -1577,23 +1552,14 @@ export function renderResults(mountEl, storeRef = {}) {
     btnRevertContrib.addEventListener('click', () => {
       setCurrentPersonalContributionAnnual(baselinePersonalAnnual);
       recalcAll();
+      for (let i = actionStack.length - 1; i >= 0; i--) {
+        if (actionStack[i].type === 'contrib') actionStack.splice(i, 1);
+      }
       refreshContribUX();
       window.resetHeroNudges?.();
     });
 
-    // “above limit” nudge — leads to maximise
-    capBadge = document.createElement('button');
-    capBadge.id = 'btnCapBadge';
-    capBadge.type = 'button';
-    capBadge.className = 'pill pill--ghost';
-    capBadge.hidden = true;
-    capBadge.textContent = 'Above age-band limit — Maximise';
-    capBadge.addEventListener('click', () => {
-      window.setUseMaxContributions?.(true);
-      recalcAll();
-    });
-
-    row2.append(btnRevertContrib, capBadge);
+    row2.append(btnRevertContrib);
 
     /* Row 3: Retire earlier/later (equal width) */
     const row3 = document.createElement('div');
@@ -1615,6 +1581,10 @@ export function renderResults(mountEl, storeRef = {}) {
 
     controls.append(contribControls, row2, row3);
     hero.appendChild(controls);
+
+    // Safety: remove any old inline "Maximise" pill if it still exists
+    const strayMaxBtn = hero.querySelector('#btnMaxInline, .btn-max-inline');
+    if (strayMaxBtn) strayMaxBtn.remove();
 
     // 2) ADD BUTTON STATE + CAP NOTE
     function applyAddBtnState() {
