@@ -868,6 +868,8 @@ let btnEarlier = null;
 let btnLater = null;
 let btnRevertContrib = null;
 let capBadge = null;
+let updateHeroContribMeter = null;
+let applyHeroAddBtnState = null;
 
 // Bottom sheet
 const sheet         = document.getElementById('sheetTaxRelief');
@@ -1044,24 +1046,18 @@ function hasDeviatedFromBaseline() {
 }
 
 function updateContributionSummaryUI(){
-  const el = document.getElementById('contribSummaryVal');
-  if (!el) return;
-
-  // Prefer the wizard’s getter (returns €/yr). Fallback: compute locally.
-  let annual = 0;
-  if (typeof window.getCurrentPersonalContribution === 'function') {
-    annual = Number(window.getCurrentPersonalContribution() || 0);
-  } else if (typeof getCurrentMonthlyContrib === 'function') {
-    annual = Number(getCurrentMonthlyContrib() || 0) * 12;
+  if (typeof updateHeroContribMeter === 'function') {
+    updateHeroContribMeter();
   }
-
-  el.textContent = formatEUR(annual);
 }
 
 function refreshContribUX() {
   show(btnRevertContrib, hasDeviatedFromBaseline());
   show(capBadge, isAboveTaxReliefLimit());
   updateContributionSummaryUI();
+  if (typeof applyHeroAddBtnState === 'function') {
+    applyHeroAddBtnState();
+  }
 }
 
 function renderLegacyMaxContribToggle() {
@@ -1446,6 +1442,8 @@ export function renderResults(mountEl, storeRef = {}) {
     const deficit   = Math.max(required - projected, 0);
     const partnerIncluded = !!(storeRef.partnerDOB || storeRef.partnerIncluded || storeRef.hasPartner);
 
+    const recommendMoreContribs = deficit > 0;
+
     const atMaxContrib = (() => {
       const mk = firstKey(storeRef, CONTRIB_KEYS.monthlyEuro);
       let cur = mk ? Number(storeRef[mk] || 0) : 0;
@@ -1540,29 +1538,31 @@ export function renderResults(mountEl, storeRef = {}) {
     // === Controls + summary ===
     const controls = document.createElement('div');
 
-    /* Row 1: Add / Remove (equal width) + contribution summary chip */
-    const row1 = document.createElement('div');
-    row1.className = 'controls-row';
+    // Contribution nudges + meter
+    const contribControls = document.createElement('div');
 
     btnAdd200 = document.createElement('button');
     btnAdd200.id = 'btnAdd200'; btnAdd200.type = 'button';
-    btnAdd200.className = 'pill pill--primary';
+    btnAdd200.className = 'pill';
     btnAdd200.textContent = '+ Add €100/mo';
-    btnAdd200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: +100 }));
 
     btnRemove200 = document.createElement('button');
     btnRemove200.id = 'btnRemove200'; btnRemove200.type = 'button';
     btnRemove200.className = 'pill pill--neutral';
     btnRemove200.textContent = '– Remove €100/mo';
-    btnRemove200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: -100 }));
 
-    // live contribution summary (€/yr)
-    const contribChip = document.createElement('div');
-    contribChip.id = 'contribSummary';
-    contribChip.className = 'contrib-summary';
-    contribChip.innerHTML = `<span>Your contributions:</span> <span class="muted" id="contribSummaryVal">€0</span> /yr`;
+    contribControls.append(btnAdd200, btnRemove200);
 
-    row1.append(btnAdd200, btnRemove200, contribChip);
+    // Contribution meter (info chip not a button)
+    const contribMeter = document.createElement('div');
+    contribMeter.className = 'contrib-meter';
+    contribMeter.setAttribute('aria-live','polite');
+    const annualNow = Math.round((getCurrentMonthlyContrib?.() || 0) * 12);
+    contribMeter.innerHTML = `
+      <div class="label">Your contributions</div>
+      <div class="value" id="heroContribAnnual">€${annualNow.toLocaleString()} /yr</div>
+    `;
+    contribControls.appendChild(contribMeter);
 
     /* Row 2: Return to original + age-band nudge */
     const row2 = document.createElement('div');
@@ -1601,21 +1601,78 @@ export function renderResults(mountEl, storeRef = {}) {
 
     btnEarlier = document.createElement('button');
     btnEarlier.id = 'btnRetireEarlier'; btnEarlier.type = 'button';
-    btnEarlier.className = 'pill pill--neutral';
+    btnEarlier.className = 'pill';
     btnEarlier.textContent = '⏪ Retire 1 yr earlier';
     btnEarlier.addEventListener('click', () => window.fmApplyNudge?.({ ageDelta: -1 }));
 
     btnLater = document.createElement('button');
     btnLater.id = 'btnRetireLater'; btnLater.type = 'button';
-    btnLater.className = 'pill pill--neutral';
+    btnLater.className = 'pill';
     btnLater.textContent = '⏩ Retire 1 yr later';
     btnLater.addEventListener('click', () => window.fmApplyNudge?.({ ageDelta: +1 }));
 
     row3.append(btnEarlier, btnLater);
 
-    controls.append(row1, row2, row3);
+    controls.append(contribControls, row2, row3);
     hero.appendChild(controls);
-    updateContributionSummaryUI();
+
+    // 2) ADD BUTTON STATE + CAP NOTE
+    function applyAddBtnState() {
+      const atMax = contributionsAtMax?.() || atMaxContrib;
+
+      btnAdd200.disabled = !!atMax;
+      btnAdd200.classList.toggle('pill--cta',  recommendMoreContribs && !atMax);
+      btnAdd200.classList.toggle('pill--neutral', !recommendMoreContribs || atMax);
+      btnAdd200.classList.toggle('pill--disabled', !!atMax);
+
+      // Cap note (simple hint under the Add button)
+      let note = contribControls.querySelector('.cap-note');
+      if (!note) {
+        note = document.createElement('div');
+        note.className = 'cap-note';
+        note.innerHTML = `
+      You’ve reached today’s tax-relievable limit.
+      <button type="button" class="link-soft" id="goToMaxToggle">Maximise contributions</button>
+    `;
+        contribControls.insertBefore(note, btnRemove200);
+        note.addEventListener('click', (e) => {
+          const t = e.target;
+          if (t && t.id === 'goToMaxToggle') {
+            document.getElementById('maxContribToggle')?.scrollIntoView({ behavior:'smooth', block:'start' });
+          }
+        });
+      }
+      note.style.display = atMax ? '' : 'none';
+    }
+
+    // helper: keep the /yr value live
+    function updateContribMeter(){
+      const annual = Math.round((getCurrentMonthlyContrib?.() || 0) * 12);
+      const v = contribControls.querySelector('#heroContribAnnual');
+      if (v) v.textContent = '€' + annual.toLocaleString() + ' /yr';
+    }
+
+    // 3) RECOMMENDATION HIGHLIGHTS (delay later if shortfall)
+    btnEarlier.classList.add('pill--neutral');
+    btnLater.classList.add(recommendMoreContribs ? 'pill--cta' : 'pill--neutral');
+
+    // Wire nudge buttons to refresh the meter & state immediately
+    btnAdd200.addEventListener('click', () => {
+      window.fmApplyNudge?.({ contribDelta: +100 });
+      updateContribMeter(); applyAddBtnState();
+    });
+    btnRemove200.addEventListener('click', () => {
+      window.fmApplyNudge?.({ contribDelta: -100 });
+      updateContribMeter(); applyAddBtnState();
+    });
+
+    // expose for external refreshes
+    updateHeroContribMeter = updateContribMeter;
+    applyHeroAddBtnState = applyAddBtnState;
+
+    // Initial state pass
+    applyAddBtnState();
+    updateContribMeter();
 
     mountEl.appendChild(hero);
     refreshContribUX();

@@ -554,34 +554,53 @@
       pointer-events: none;
     }
 
-    /* === Unified pills === */
-    .pill {
-      --h: 48px;
-      display:inline-flex; align-items:center; justify-content:center;
-      min-height:var(--h); padding:0 16px; border-radius:12px;
-      font-weight:800; line-height:1; white-space:nowrap;
-      border:1px solid transparent; background:#2b2b2b; color:#eaeaea;
-      transition:transform .08s, box-shadow .2s, border-color .2s, background .2s;
+    /* Pill buttons: base + strong states */
+    .pill{ 
+      display:block; width:100%; padding:1rem 1.2rem; border-radius:14px;
+      border:1px solid rgba(255,255,255,.10); background:#2f2f2f; color:#e8e8e8;
+      font-weight:800; text-align:center; box-shadow:0 1px 0 rgba(0,0,0,.35) inset;
+      transition:transform .06s ease, box-shadow .2s ease, filter .2s ease;
     }
     .pill:active{ transform:translateY(1px); }
-    .pill--primary{ background:#0f2c22; border-color:rgba(0,255,136,.28); color:#eafff6; }
-    .pill--neutral{ background:#2f2f2f; border-color:rgba(255,255,255,.14); }
+    .pill--cta{
+      background:#0f6; color:#082015; border-color:rgba(0,255,136,.35);
+      box-shadow:0 8px 22px rgba(0,255,136,.22), 0 0 0 2px rgba(0,255,136,.10) inset;
+      filter:saturate(1.05);
+    }
+    .pill--neutral{ background:#2f2f2f; color:#ddd; }
+    .pill--disabled{ background:#1f1f1f; color:#888; opacity:.6; cursor:not-allowed; }
     .pill--ghost{ background:transparent; border:1px dashed rgba(255,255,255,.30); color:#cfcfcf; }
+
+    /* Contribution meter (info, not a button) */
+    .contrib-meter{
+      display:flex; align-items:center; justify-content:space-between;
+      margin-top:.65rem; padding:.8rem 1rem;
+      background:#252525; border:1px dashed rgba(255,255,255,.14);
+      border-radius:12px; font-weight:800;
+    }
+    .contrib-meter .label{ color:#cfcfcf; }
+    .contrib-meter .value{ color:#a6ffd8; }
+
+    /* Small hint when at tax-relievable max */
+    .cap-note{
+      margin:.45rem 0 .2rem; font-size:.92rem; color:#cfcfcf;
+    }
+    .link-soft{
+      background:transparent; border:0; color:#a6ffd8; font-weight:800;
+      text-decoration:underline; cursor:pointer; padding:0 .15rem;
+    }
+    .link-soft:hover{ filter:saturate(1.05); }
+
+    /* Make the “Add” CTA pop a touch more on hover */
+    .pill--cta:hover{
+      box-shadow:0 10px 26px rgba(0,255,136,.26), 0 0 0 2px rgba(0,255,136,.14) inset;
+    }
 
     /* Rows */
     .controls-row{ display:flex; gap:.6rem; }
-    .controls-row .pill{ flex:1 1 0; }        /* equal widths */
-
-    /* Contribution summary chip */
-    .contrib-summary{
-      display:flex; align-items:center; gap:.5rem; margin-left:auto;
-      padding:0 12px; min-height:48px; border:1px solid rgba(255,255,255,.14);
-      border-radius:10px; background:#232323; color:#dcdcdc; font-weight:700;
-    }
-    .contrib-summary .muted{ color:#9adfbe; font-weight:800; }
+    .controls-row .pill{ flex:1 1 0; }
     @media (max-width: 520px){
       .controls-row{ flex-wrap:wrap; }
-      .contrib-summary{ width:100%; justify-content:center; margin-left:0; }
     }
 
     /* Small count badge for repeated taps */
