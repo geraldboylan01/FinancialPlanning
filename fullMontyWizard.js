@@ -1190,11 +1190,19 @@ const CONTRIB_KEYS = {
 function firstKey(obj, keys){ return keys.find(k => Object.prototype.hasOwnProperty.call(obj, k)); }
 
 function getCurrentMonthlyContrib(){
-  const mk = firstKey(store, CONTRIB_KEYS.monthlyEuro);
-  if (mk) return Number(store[mk] || 0);
-  const ak = firstKey(store, CONTRIB_KEYS.annualEuro);
-  if (ak) return Number(store[ak] || 0) / 12;
-  return 0;
+  const k = firstKey(store, CONTRIB_KEYS.monthlyEuro);
+  let monthly = k ? Number(store[k] || 0) : 0;
+
+  // If no explicit monthly value, derive it from percent of salary
+  if (!monthly) {
+    const pk = firstKey(store, CONTRIB_KEYS.percent);
+    const salary = Number(store.grossIncome || store.salary || 0);
+    if (pk && salary > 0) {
+      const pct = Number(store[pk] || 0);
+      if (isFinite(pct)) monthly = (salary * (pct / 100)) / 12;
+    }
+  }
+  return Math.max(0, Number(monthly) || 0);
 }
 function setCurrentMonthlyContrib(val){
   const v = Math.max(0, Number(val) || 0);
@@ -1548,13 +1556,13 @@ export function renderResults(mountEl, storeRef = {}) {
     btnAdd200 = document.createElement('button');
     btnAdd200.id = 'btnAdd200'; btnAdd200.type = 'button';
     btnAdd200.className = 'pill pill--primary';
-    btnAdd200.textContent = '+ Add €200/mo';
+    btnAdd200.textContent = '+ Add €100/mo';
     btnAdd200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: +100 }));
 
     btnRemove200 = document.createElement('button');
     btnRemove200.id = 'btnRemove200'; btnRemove200.type = 'button';
     btnRemove200.className = 'pill pill--neutral';
-    btnRemove200.textContent = '– Remove €200/mo';
+    btnRemove200.textContent = '– Remove €100/mo';
     btnRemove200.addEventListener('click', () => window.fmApplyNudge?.({ contribDelta: -100 }));
 
     // live contribution summary (€/yr)
