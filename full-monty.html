@@ -592,7 +592,11 @@
           </div>
         </template>
 
-        <section id="maxContribToggle" class="results-controls" aria-live="polite"></section>
+        <section id="maxContribToggle">
+          <div id="belowHeroControls" class="results-controls" aria-live="polite">
+            <!-- Max Contributions toggle is injected here by fullMontyWizard.js -->
+          </div>
+        </section>
 
       <!-- ===== BEFORE RETIREMENT ===== -->
         <section class="results-phase" id="phase-pre">
@@ -762,7 +766,7 @@
           <strong>Please use the <em>Max Contributions Toggle</em></strong> to automatically cap your personal contributions within the tax-relief threshold.
         </p>
         <div class="sheet__actions">
-          <button id="sheetGoToMax" class="btn-cta-mini" type="button">Go to Max Contributions</button>
+          <button id="sheetGoToMax" class="btn-cta-mini" type="button">Turn on Max Contributions</button>
           <button id="sheetSeeLimit" class="btn-text" type="button">See your limit</button>
         </div>
       </div>

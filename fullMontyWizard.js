@@ -877,8 +877,9 @@ const sheetGoToMax  = document.getElementById('sheetGoToMax');
 const sheetSeeLimit = document.getElementById('sheetSeeLimit');
 
 // Anchors
-const elMaxToggle = document.getElementById('maxContribToggle');
-const elTaxTable  = document.getElementById('taxReliefLimits');
+const elMaxToggle       = document.getElementById('maxContribToggle');
+const elTaxTable        = document.getElementById('taxReliefLimits');
+const belowHeroControls = document.getElementById('belowHeroControls');
 const actionStack = [];        // { type: 'contrib'|'age', delta: number }
 
 // Tap counters (since baseline). Keys: 'contrib+200','contrib-200','age+1','age-1'
@@ -1050,6 +1051,42 @@ function refreshContribUX() {
   show(capBadge, isAboveTaxReliefLimit());
 }
 
+function renderMaxContribToggle() {
+  if (!belowHeroControls) return;
+
+  // Clear any previous render
+  belowHeroControls.innerHTML = '';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'maxcontrib-toggle';
+
+  wrap.innerHTML = `
+    <label class="toggle-row" for="useMaxContribSwitch">
+      <input id="useMaxContribSwitch" type="checkbox" />
+      <span class="toggle-label">Max Contributions</span>
+    </label>
+    <div class="toggle-sub">Automatically cap your personal contributions within your tax-relief limit.</div>
+  `;
+
+  belowHeroControls.appendChild(wrap);
+
+  const sw = wrap.querySelector('#useMaxContribSwitch');
+
+  // Initialize switch with current state if available
+  if (typeof getUseMaxContributions === 'function') {
+    sw.checked = !!getUseMaxContributions();
+  }
+
+  // Persist & recompute when toggled
+  sw.addEventListener('change', () => {
+    if (typeof setUseMaxContributions === 'function') {
+      setUseMaxContributions(sw.checked);
+    }
+    recalcAll();
+    if (typeof refreshContribUX === 'function') refreshContribUX();
+  });
+}
+
 function openSheet() {
   if (!sheet) return;
   sheet.hidden = false;
@@ -1064,17 +1101,32 @@ function closeSheet() {
 sheetBackdrop?.addEventListener('click', closeSheet);
 sheetClose?.addEventListener('click', closeSheet);
 
-sheetGoToMax?.addEventListener('click', () => {
-  closeSheet();
-  smoothScrollTo(elMaxToggle);
-});
+if (typeof sheetGoToMax !== 'undefined' && sheetGoToMax) {
+  sheetGoToMax.textContent = 'Turn on Max Contributions';
+  sheetGoToMax.addEventListener('click', () => {
+    if (typeof closeSheet === 'function') closeSheet();
+    if (typeof setUseMaxContributions === 'function') {
+      setUseMaxContributions(true);
+    }
+    const sw = document.getElementById('useMaxContribSwitch');
+    if (sw) sw.checked = true;
+    recalcAll();
+    if (elMaxToggle) elMaxToggle.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (typeof refreshContribUX === 'function') refreshContribUX();
+  });
+}
 
-sheetSeeLimit?.addEventListener('click', () => {
-  closeSheet();
-  smoothScrollTo(elTaxTable);
-});
+if (typeof sheetSeeLimit !== 'undefined' && sheetSeeLimit) {
+  sheetSeeLimit.addEventListener('click', () => {
+    if (typeof closeSheet === 'function') closeSheet();
+    if (elTaxTable) elTaxTable.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
 
-document.addEventListener('DOMContentLoaded', refreshContribUX);
+document.addEventListener('DOMContentLoaded', () => {
+  renderMaxContribToggle();
+  if (typeof refreshContribUX === 'function') refreshContribUX();
+});
 
 
 // ----- Contribution accessors (align keys if needed) -----
@@ -1131,6 +1183,10 @@ function withBusy(btn, fn){
   if (!btn) return fn();
   btn.disabled = true; btn.classList.add('is-busy');
   Promise.resolve().then(fn).finally(()=>{ btn.disabled=false; btn.classList.remove('is-busy'); });
+}
+
+function getUseMaxContributions(){
+  return !!store.useMaxContributions;
 }
 
 // Central setter for the "Use max contributions" scenario.
@@ -1509,95 +1565,5 @@ window.showEditFab = showEditFab;
 window.hideEditFab = hideEditFab;
 window.navigateToInputs = openFullMontyWizard;
 window.setUseMaxContributions = setUseMaxContributions;
-
-// === [FM] Classic Max Contributions controller (skinny toggle) ===
-(function FM_MaxContribToggle(){
-  // Only bind on results view
-  const resultsRoot = document.querySelector('#resultsView, .results, #fm-results, [data-view="results"]') || document.getElementById('fm-results');
-  const toggleEl = document.getElementById('maxContribToggle');
-  if (!resultsRoot || !toggleEl) return;
-
-  // Accessors against your existing store/DOM
-  const store = (window.FullMonty && window.FullMonty.inputs) ? window.FullMonty.inputs : {};
-  const n = v => Math.max(0, Number(v || 0));
-  const getAge = () => n(store.age ?? document.querySelector('[data-field="age"]')?.value);
-  const getSalary = () => n(store.grossSalary ?? document.querySelector('[data-field="grossSalary"]')?.value);
-  const getPersonalMonthly = () => n(store.personalMonthly ?? document.querySelector('[data-field="personalMonthly"]')?.value);
-  const setPersonalMonthly = (val) => {
-    if (window.FullMonty && window.FullMonty.inputs) window.FullMonty.inputs.personalMonthly = val;
-    const el = document.querySelector('[data-field="personalMonthly"]');
-    if (el) el.value = val;
-  };
-  const recalc = () => {
-    if (typeof window.updateAll === 'function') return window.updateAll();
-    if (typeof window.recalcResults === 'function') return window.recalcResults();
-    window.dispatchEvent(new CustomEvent('fm:inputs:changed'));
-  };
-
-  // Ireland age-band limits with €115k salary cap
-  const BANDS = [
-    {min:0,max:29,pct:.15},{min:30,max:39,pct:.20},{min:40,max:49,pct:.25},
-    {min:50,max:54,pct:.30},{min:55,max:59,pct:.35},{min:60,max:200,pct:.40}
-  ];
-  const pctForAge = a => (BANDS.find(b => a>=b.min && a<=b.max)?.pct ?? .15);
-  const monthlyCap = () => Math.round(Math.min(getSalary(), 115000) * pctForAge(getAge()) / 12);
-
-  // Snapshot base monthly so OFF restores perfectly
-  const BASE = { personalMonthly: getPersonalMonthly() };
-
-  // Restore previous toggle state this session
-  const sid = (window.FullMonty && window.FullMonty.sessionId) ? window.FullMonty.sessionId : 'default';
-  const KEY = `FM_MAX_TOGGLE_${sid}`;
-  try {
-    const saved = JSON.parse(sessionStorage.getItem(KEY) || '{}');
-    if (saved.on) {
-      toggleEl.checked = true;
-      setPersonalMonthly(monthlyCap());
-      window.updateAssumptionChip?.(true);
-      window.setMaxToggle?.(true);            // swaps chart wording/colors if implemented
-      document.body.setAttribute('data-scenario','max');
-      recalc();
-    }
-  } catch {}
-
-  const persist = (on) => sessionStorage.setItem(KEY, JSON.stringify({ on }));
-
-  function onToggleChange(){
-    const on = !!toggleEl.checked;
-    persist(on);
-    if (on) {
-      setPersonalMonthly(monthlyCap());
-    } else {
-      setPersonalMonthly(BASE.personalMonthly);
-    }
-    window.updateAssumptionChip?.(on);
-    window.setMaxToggle?.(on);
-    document.body.setAttribute('data-scenario', on ? 'max' : 'current');
-    recalc();
-  }
-  toggleEl.addEventListener('change', onToggleChange);
-
-  // If user taps existing “+/- €200/mo” hero chips while Max is ON,
-  // automatically switch OFF to allow manual fine-tuning from base.
-  const addBtn = document.querySelector('[data-increment="+200"], #btnAdd200');
-  const removeBtn = document.querySelector('[data-increment="-200"], #btnRemove200');
-  function autoOffIfNeeded(){
-    if (!toggleEl.checked) return;
-    toggleEl.checked = false;
-    persist(false);
-    window.updateAssumptionChip?.(false);
-    window.setMaxToggle?.(false);
-    document.body.setAttribute('data-scenario','current');
-    setPersonalMonthly(BASE.personalMonthly);
-    recalc();
-  }
-  if (addBtn) addBtn.addEventListener('click', autoOffIfNeeded);
-  if (removeBtn) removeBtn.addEventListener('click', autoOffIfNeeded);
-
-  // Optional: if results mount dynamically elsewhere, allow re-init
-  window.addEventListener('fm:results:ready', () => {
-    // ensure toggle state reapplies after a re-render
-    if (toggleEl.checked) onToggleChange();
-  });
-})();
+window.getUseMaxContributions = getUseMaxContributions;
 
