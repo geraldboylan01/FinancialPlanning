@@ -612,7 +612,7 @@ function renderMaxContributionToggle(storeRef){
 
   const txt = document.createElement('span');
   txt.className = 'toggle-text';
-  // ✨ New wording:
+  // New wording
   txt.textContent = 'Maximise tax-relievable contributions';
   lab.appendChild(txt);
 
@@ -624,14 +624,14 @@ function renderMaxContributionToggle(storeRef){
   label.appendChild(track);
   wrap.appendChild(label);
 
-  // ✨ New always-visible description (non-“cap” wording)
+  // Always-visible description (no “cap” wording)
   const desc = document.createElement('div');
-  desc.className = 'toggle-note'; // reuse existing style
-  desc.setAttribute('aria-hidden', 'true');
-  desc.textContent = 'Automatically set your personal contributions to the maximum amount eligible for income-tax relief, based on your age band (applied to earnings up to €115,000).';
+  desc.className = 'toggle-note';
+  desc.setAttribute('aria-hidden','true');
+  desc.textContent = 'Automatically set your personal contributions to the maximum amount eligible for income-tax relief, based on your age band (applies to earnings up to €115,000).';
   wrap.appendChild(desc);
 
-  // ✨ Status line that changes when ON (optional; keep subtle)
+  // Status line that updates when ON
   const note = document.createElement('div');
   note.id = 'maxToggleNote';
   note.className = 'toggle-note';
@@ -643,7 +643,6 @@ function renderMaxContributionToggle(storeRef){
 
   chk.addEventListener('change', (e) => {
     setUseMaxContributions(e.target.checked);
-    // keep the status line in sync
     note.textContent = e.target.checked
       ? 'Maximise is ON — your personal contributions are set to the current tax-relievable maximum.'
       : '';
@@ -1253,4 +1252,39 @@ document.addEventListener('fm-run-fy', (e) => {
 
   // Only render hero when both datasets present
   scheduleHeroRender();
+});
+
+// Wire bottom-sheet CTAs (exists in full-monty.html)
+document.addEventListener('DOMContentLoaded', () => {
+  const btnOnMax   = document.getElementById('sheetGoToMax');  // primary CTA
+  const btnSeeLim  = document.getElementById('sheetSeeLimit'); // secondary CTA
+  const elMax      = document.getElementById('maxContribToggle');
+  const elLimits   = document.getElementById('taxReliefLimits');
+  const sheet      = document.getElementById('sheetTaxRelief');
+
+  function closeSheet(){ if (sheet) sheet.hidden = true; }
+
+  if (btnOnMax) {
+    // Ensure the button label is correct even if HTML changes later
+    btnOnMax.textContent = 'Turn on Maximise';
+    btnOnMax.addEventListener('click', () => {
+      closeSheet();
+      // Turn on the scenario
+      setUseMaxContributions(true);
+
+      // Reflect in the UI switch if present
+      const sw = document.getElementById('maxContribsChk');
+      if (sw) sw.checked = true;
+
+      // Scroll to the panel
+      if (elMax) elMax.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  if (btnSeeLim) {
+    btnSeeLim.addEventListener('click', () => {
+      closeSheet();
+      if (elLimits) elLimits.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
 });
