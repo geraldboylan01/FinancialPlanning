@@ -119,6 +119,165 @@
 /* Blurb */
 .rc-blurb{ color:#cfcfcf; font-size:.95rem; line-height:1.35; }
 
+/* ===== Contribution controls layout ===== */
+.contrib-controls {
+  display: grid;
+  gap: 12px;
+}
+
+/* Wrap for the +Add button and badge */
+.add-btn-wrap {
+  position: relative;
+  display: inline-grid;
+  align-items: center;
+  width: max-content;
+}
+
+/* Warning badge (Option C trigger) */
+.cap-badge {
+  position: absolute;
+  right: -6px;
+  top: -8px;
+  transform: translate(100%, 0);
+  font-size: 11px;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.28);
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.12));
+  color: var(--text-on-dark, #EAF3EF);
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+  transition: transform 120ms ease, opacity 200ms ease, box-shadow 120ms ease;
+  z-index: 1;
+}
+.cap-badge:hover,
+.cap-badge:focus-visible {
+  transform: translate(100%, -1px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+  outline: none;
+}
+
+/* Action Dock (Option A: Revert ghost micro-button) */
+.contrib-action-dock {
+  display: grid;
+}
+.btn-ghost-micro {
+  justify-self: end;
+  font-size: 13px;
+  line-height: 1.2;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-on-dark, #EAF3EF);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, opacity 200ms ease;
+}
+.btn-ghost-micro:hover,
+.btn-ghost-micro:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+  outline: none;
+}
+
+/* Bottom Sheet */
+.sheet[hidden] { display: none !important; }
+.sheet { position: fixed; inset: 0; z-index: 50; }
+.sheet__backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.4);
+}
+.sheet__panel {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(12,12,12,0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 14px 16px 18px;
+  transform: translateY(100%);
+  opacity: 0;
+  animation: sheetIn 220ms ease-out forwards;
+}
+@keyframes sheetIn {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.sheet__header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.sheet__header h3 {
+  font-size: 16px; margin: 0;
+}
+.sheet__close {
+  font-size: 16px;
+  line-height: 1;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  color: var(--text-on-dark, #EAF3EF);
+  cursor: pointer;
+}
+.sheet__body p { margin: 8px 0; }
+.sheet__nudge { margin-top: 6px; }
+
+.sheet__actions {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 10px;
+  justify-content: start;
+  margin-top: 12px;
+}
+
+/* Small CTA distinct from bright hero pills */
+.btn-cta-mini {
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--accentA, #39FF14);
+  background: rgba(0,0,0,0.35);
+  color: var(--text-on-dark, #EAF3EF);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+.btn-cta-mini:hover,
+.btn-cta-mini:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+  outline: none;
+}
+
+/* Text-button (no blue link look) */
+.btn-text {
+  font-size: 13px;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.9);
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn-text:hover,
+.btn-text:focus-visible {
+  text-decoration: underline;
+  outline: none;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .cap-badge,
+  .btn-ghost-micro,
+  .btn-cta-mini { transition: none; }
+  .sheet__panel { animation: none; transform: translateY(0); opacity: 1; }
+}
+
 /* --------- GLOBAL TOKENS --------- */
 :root{
   --bg-elev-1: rgba(255,255,255,0.04);

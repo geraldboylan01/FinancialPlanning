@@ -573,22 +573,21 @@
       <div class="results-shell">
         <section id="resultsView" aria-live="polite"></section>
 
-        <!-- Action Dock template (cloned into hero) -->
-        <template id="tplContribActionDock">
-          <!-- Action Dock: shows context actions right where the user is interacting -->
-          <div id="contribActionDock" class="contrib-action-dock" aria-live="polite">
-            <!-- Revert appears only once user changes contributions -->
-            <button id="btnRevertContrib" class="btn-ghost-micro" type="button" hidden>
-              ⟲ Revert to original
-            </button>
+        <!-- Contribution controls template (cloned into hero) -->
+        <template id="tplContribControls">
+          <div class="contrib-controls">
+            <!-- Add control with badge -->
+            <div class="add-btn-wrap">
+              <button id="btnAdd200" type="button" class="pill green">+ Add €200/mo</button>
+              <!-- Warning badge appears only when over limit -->
+              <button id="btnCapBadge" class="cap-badge" type="button" hidden aria-label="You are above the tax-relief limit. Tap for details.">
+                ⚠️ Cap exceeded
+              </button>
+            </div>
 
-            <!-- Assist bar appears only if over tax-relief limit -->
-            <div id="assistMaxContrib" class="assist-bar" hidden>
-              <span class="assist-text">
-                ⚠️ You’re above the tax-relief limit.
-                <a id="lnkSeeLimit" href="#taxReliefLimits" class="assist-link">See your limit ↓</a>
-              </span>
-              <button id="btnGoToMax" class="btn-cta-mini" type="button">Max Contributions</button>
+            <!-- Action Dock (Row with Revert ghost button) -->
+            <div id="contribActionDock" class="contrib-action-dock" aria-live="polite">
+              <button id="btnRevertContrib" class="btn-ghost-micro" type="button" hidden>⟲ Revert</button>
             </div>
           </div>
         </template>
@@ -745,6 +744,30 @@
     </main>
     <button id="editInputsFab" class="fab" aria-label="Edit inputs" type="button" style="display:none">Edit inputs</button>
   </section>
+
+  <!-- Bottom Sheet: Tax Relief Explainer -->
+  <div id="sheetTaxRelief" class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+    <div class="sheet__backdrop" data-sheet-close></div>
+    <div class="sheet__panel" role="document">
+      <header class="sheet__header">
+        <h3 id="sheetTitle">Tax-relief on pension contributions</h3>
+        <button class="sheet__close" type="button" data-sheet-close aria-label="Close">✕</button>
+      </header>
+      <div class="sheet__body">
+        <p>
+          You’re currently contributing above the maximum amount that qualifies for income-tax relief.
+          This limit depends on your age band and is applied to earnings capped at €115,000.
+        </p>
+        <p class="sheet__nudge">
+          <strong>Please use the <em>Max Contributions Toggle</em></strong> to automatically cap your personal contributions within the tax-relief threshold.
+        </p>
+        <div class="sheet__actions">
+          <button id="sheetGoToMax" class="btn-cta-mini" type="button">Go to Max Contributions</button>
+          <button id="sheetSeeLimit" class="btn-text" type="button">See your limit</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.js"></script>
   <script>
