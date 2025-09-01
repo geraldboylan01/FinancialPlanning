@@ -889,30 +889,23 @@ const store = fullMontyStore;
 // Allow the hero to nudge contributions / retirement age via the Wizard.
 window.fmApplyNudge = function fmApplyNudge({ contribDelta = 0, ageDelta = 0 } = {}) {
   try {
-    // Adjust monthly contribution in the Wizard's store (align key names as in your code)
     if (contribDelta) {
-      const k = ['personalContribSelf','personalMonthlyContribution','employeeContributionMonthly','contribMonthly']
-        .find(key => Object.prototype.hasOwnProperty.call(store, key));
-      if (k) store[k] = Math.max(0, Number(store[k] || 0) + contribDelta);
+      // Use the safe path (handles % → € conversion correctly)
+      increaseMonthlyContributionBy(contribDelta);
     }
 
-    // Adjust desired retirement age (respect bounds)
     if (ageDelta) {
       const key = 'retireAge';
       const minAge = 50, maxAge = 75;
       const cur = Number(store[key] || 65);
-      store[key] = Math.max(minAge, Math.min(maxAge, cur + ageDelta));
+      setStore({ [key]: Math.max(minAge, Math.min(maxAge, cur + ageDelta)) });
+      actionStack.push({ type: 'age', delta: ageDelta });
+      if (ageDelta > 0) nudgeCounts['age+1'] += ageDelta; else nudgeCounts['age-1'] += -ageDelta;
     }
 
-    // Re-run the model so Results receives fm-* events and re-renders
-    if (typeof recomputeAndRefreshUI === 'function') {
-      recomputeAndRefreshUI();
-    } else if (typeof runAll === 'function') {
-      runAll();
-    } else if (typeof computeResults === 'function') {
-      computeResults(store);
-      document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: {} }));
-    }
+    // Recompute is already invoked inside increaseMonthlyContributionBy;
+    // for age-only changes we still need it:
+    if (!contribDelta) recalcAll();
     refreshContribUX();
   } catch (e) {
     console.error('[Wizard] fmApplyNudge failed:', e);
@@ -1182,8 +1175,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ----- Contribution accessors (align keys if needed) -----
 const CONTRIB_KEYS = {
-  monthlyEuro: ['personalMonthlyContribution','employeeContributionMonthly','contribMonthly'],
-  annualEuro:  ['personalContribSelf','employeeContributionAnnual','contribAnnual'],
+  monthlyEuro: ['personalContribSelf','personalMonthlyContribution','employeeContributionMonthly','contribMonthly'],
+  annualEuro:  ['employeeContributionAnnual','contribAnnual'],
   percent:     ['personalPctSelf','employeeContributionPct','personalContributionPct'],
   maxMonthly:  ['maxContribMonthly','maxAllowedMonthlyContribution','taxRelievedMonthlyCap']
 };
@@ -1205,19 +1198,17 @@ function getCurrentMonthlyContrib(){
   return Math.max(0, Number(monthly) || 0);
 }
 function setCurrentMonthlyContrib(val){
-  const v = Math.max(0, Number(val) || 0);
-  const mk = firstKey(store, CONTRIB_KEYS.monthlyEuro);
-  if (mk){ setStore({ [mk]: v }); return true; }
-  const ak = firstKey(store, CONTRIB_KEYS.annualEuro);
-  if (ak){ setStore({ [ak]: Math.round(v * 12) }); return true; }
-  // Fall back to % if that’s all we have
-  const pk = firstKey(store, CONTRIB_KEYS.percent);
-  const salary = Number(store.grossIncome || store.salary || 0);
-  if (pk && salary > 0){
-    const pct = Math.max(0, Math.min(100, (v / (salary/12)) * 100));
-    setStore({ [pk]: pct }); return true;
-  }
-  return false;
+  const monthly = Math.max(0, Number(val) || 0);
+
+  // Always write a concrete euro/month value
+  let key = firstKey(store, CONTRIB_KEYS.monthlyEuro) || 'personalContribSelf';
+  const patch = { [key]: monthly };
+
+  // Clear % so the engine doesn't override with a percent-based value
+  CONTRIB_KEYS.percent.forEach(pk => { if (pk in store) patch[pk] = null; });
+
+  setStore(patch);
+  return true;
 }
 function getMaxMonthlyContrib(){
   const k = firstKey(store, CONTRIB_KEYS.maxMonthly);
@@ -1302,7 +1293,7 @@ function increaseMonthlyContributionBy(deltaEuro){
   if (isFinite(max) && next > max) next = max;
   if (next < 0) next = 0;
 
-  if (!setCurrentMonthlyContrib(next)) return;
+  setCurrentMonthlyContrib(next);
 
   const applied = next - cur;
   if (applied !== 0){
