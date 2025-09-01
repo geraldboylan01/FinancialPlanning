@@ -678,18 +678,6 @@
   box-shadow:none;
 }
 
-/* Helper block shown at max */
-.helper-note{
-  margin-top:8px;
-  background: var(--bg-elev-1);
-  border: 1px dashed rgba(255,255,255,.2);
-  border-radius:12px;
-  padding:12px;
-  color:var(--text-2);
-}
-.helper-note strong{ color:var(--text-1); }
-.helper-actions{ display:flex; justify-content:center; margin-top:8px; }
-
 /* Mini SFT warning pill under the two oval chips */
 .sft-mini-warning {
   margin-top: 10px;
@@ -742,13 +730,6 @@
 /* Assumption card typographic polish (optional) */
 #assumption-sft .assumption-body p {
   margin: 0 0 8px 0;
-}
-
-/* [FM] Contribution controls removed */
-
-/* Undo/restore row */
-.revert-row{
-  display:flex; gap:12px; justify-content:center; margin-top:4px;
 }
 
 /* --------- SCROLL AFFORDANCE (always visible) --------- */
@@ -889,28 +870,12 @@
   opacity: .95;
 }
 
-/* Undo/Restore row */
-.revert-row { display: flex; gap: 12px; justify-content: center; }
-.btn-text   { background: transparent; color: var(--text-2, rgba(255,255,255,.72)); text-decoration: underline; }
-
 /* Optional: change-summary under chips */
 .change-summary{
   text-align:center;
   color: var(--text-2, rgba(255,255,255,.72));
   margin-top: 4px;
 }
-
-.helper-note{
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: 12px;
-  background: var(--bg-elev-1, rgba(255,255,255,.06));
-  border: 1px dashed rgba(255,255,255,.22);
-  color: var(--text-2, rgba(255,255,255,.72));
-}
-.helper-note strong{ color: var(--text-1, #fff); display:block; margin-bottom:4px; }
-.helper-sub{ margin-top: 2px; }
-.helper-actions{ display:flex; justify-content:center; margin-top:8px; }
 
 /* Mini SFT warning pill under the two oval chips */
 .sft-mini-warning {
@@ -1068,4 +1033,88 @@
     padding: 6px 10px;
     font-size: 12px;
   }
+}
+
+/* ===== Action Dock beneath contribution controls ===== */
+.contrib-action-dock {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* Revert: ghost micro-button (distinct from hero pills) */
+.btn-ghost-micro {
+  justify-self: end;
+  font-size: 13px;
+  line-height: 1.2;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.04);
+  color: var(--text-on-dark, #EAF3EF);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease, opacity 200ms ease;
+}
+.btn-ghost-micro:hover,
+.btn-ghost-micro:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+  outline: none;
+}
+
+/* Assist bar: compact inline card with CTA */
+.assist-bar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.08));
+  padding: 10px 12px;
+  will-change: opacity, transform;
+}
+
+/* Text + link */
+.assist-text {
+  font-size: 13px;
+  color: var(--text-on-dark, #EAF3EF);
+}
+.assist-link {
+  margin-left: 8px;
+  text-decoration: underline;
+  opacity: 0.9;
+}
+
+/* Small CTA distinct from pills */
+.btn-cta-mini {
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--accentA, #39FF14);
+  background: rgba(0,0,0,0.35);
+  color: var(--text-on-dark, #EAF3EF);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+.btn-cta-mini:hover,
+.btn-cta-mini:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+  outline: none;
+}
+
+/* Reveal animation */
+.reveal-in {
+  animation: assistReveal 220ms ease-out forwards;
+}
+@keyframes assistReveal {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Mobile tweaks */
+@media (max-width: 560px) {
+  .btn-ghost-micro, .btn-cta-mini { font-size: 12px; }
+  .assist-text { font-size: 12px; }
 }

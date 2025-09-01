@@ -572,9 +572,28 @@
     <main id="fm-results" class="fm-results-root">
       <div class="results-shell">
         <section id="resultsView" aria-live="polite"></section>
-        <section id="maxContribToggle">
-          <div id="belowHeroControls" class="results-controls" aria-live="polite"></div>
-        </section>
+
+        <!-- Action Dock template (cloned into hero) -->
+        <template id="tplContribActionDock">
+          <!-- Action Dock: shows context actions right where the user is interacting -->
+          <div id="contribActionDock" class="contrib-action-dock" aria-live="polite">
+            <!-- Revert appears only once user changes contributions -->
+            <button id="btnRevertContrib" class="btn-ghost-micro" type="button" hidden>
+              ⟲ Revert to original
+            </button>
+
+            <!-- Assist bar appears only if over tax-relief limit -->
+            <div id="assistMaxContrib" class="assist-bar" hidden>
+              <span class="assist-text">
+                ⚠️ You’re above the tax-relief limit.
+                <a id="lnkSeeLimit" href="#taxReliefLimits" class="assist-link">See your limit ↓</a>
+              </span>
+              <button id="btnGoToMax" class="btn-cta-mini" type="button">Max Contributions</button>
+            </div>
+          </div>
+        </template>
+
+        <section id="maxContribToggle" class="results-controls" aria-live="polite"></section>
 
       <!-- ===== BEFORE RETIREMENT ===== -->
         <section class="results-phase" id="phase-pre">
