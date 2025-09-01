@@ -860,12 +860,22 @@ function runAll() {
 // ====== STATE & UTILITIES ======
 let baselineSnapshot = null;   // captured first time results render
 let baselinePersonalContribution = 0;
+let baselinePersonalAnnual = 0;
 let chipRow = null;
 let chipRevert = null;
 let chipTaxLimit = null;
 let chipTryMax = null;
-const elMaxToggle      = document.getElementById('maxContribToggle');
-const elTaxLimitsTable = document.getElementById('taxReliefLimits');
+
+// Action Dock nodes
+let dock = null;
+let btnRevertContrib = null;
+let assistMaxContrib = null;
+let btnGoToMax = null;
+let lnkSeeLimit = null;
+
+// Anchors
+const elMaxToggle = document.getElementById('maxContribToggle');
+const elTaxTable  = document.getElementById('taxReliefLimits');
 const actionStack = [];        // { type: 'contrib'|'age', delta: number }
 
 // Tap counters (since baseline). Keys: 'contrib+200','contrib-200','age+1','age-1'
@@ -901,10 +911,24 @@ window.fmApplyNudge = function fmApplyNudge({ contribDelta = 0, ageDelta = 0 } =
       document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: {} }));
     }
     refreshHeroChips();
+    refreshActionDock();
   } catch (e) {
     console.error('[Wizard] fmApplyNudge failed:', e);
   }
 };
+
+function recalcAll(){
+  if (typeof recomputeAndRefreshUI === 'function') {
+    recomputeAndRefreshUI();
+  } else if (typeof runAll === 'function') {
+    runAll();
+  } else if (typeof computeResults === 'function') {
+    computeResults(store);
+    document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: {} }));
+  }
+  refreshHeroChips();
+  refreshActionDock();
+}
 
 function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
 
@@ -967,9 +991,21 @@ function setCurrentPersonalContribution(val) {
   setCurrentMonthlyContrib(val / 12);
 }
 
+function currentPersonalAnnual() {
+  return getCurrentPersonalContribution();
+}
+
+function setCurrentPersonalContributionAnnual(val) {
+  setCurrentPersonalContribution(val);
+}
+
 function getBaselinePersonalContribution() {
   const k = firstKey(baselineSnapshot || {}, CONTRIB_KEYS.monthlyEuro);
   return k ? Number(baselineSnapshot[k] || 0) * 12 : 0;
+}
+
+function getBaselinePersonalContributionAnnual() {
+  return getBaselinePersonalContribution();
 }
 
 const AGE_BANDS = [
@@ -995,9 +1031,9 @@ function getAgeRelatedMaxForUser() {
   return Math.round((cappedSalary * pct) / 100);
 }
 
-function isAboveTaxReliefLimit(currentPersonalContribution) {
+function isAboveTaxReliefLimit() {
   const maxAllowed = getAgeRelatedMaxForUser();
-  return currentPersonalContribution > maxAllowed;
+  return currentPersonalAnnual() > maxAllowed;
 }
 
 function setChipVisibility(el, visible) {
@@ -1016,8 +1052,7 @@ function formatCurrency(n){
 }
 
 function hasDeviatedFromBaseline() {
-  const current = getCurrentPersonalContribution();
-  return Number(current) !== Number(baselinePersonalContribution);
+  return Number(currentPersonalAnnual()) !== Number(baselinePersonalAnnual);
 }
 
 function refreshHeroChips() {
@@ -1026,8 +1061,7 @@ function refreshHeroChips() {
   chipTaxLimit = document.getElementById('chipTaxLimit');
   chipTryMax   = document.getElementById('chipTryMax');
 
-  const current = getCurrentPersonalContribution();
-  const overLimit = isAboveTaxReliefLimit(current);
+  const overLimit = isAboveTaxReliefLimit();
 
   setChipVisibility(chipRevert, hasDeviatedFromBaseline());
   setChipVisibility(chipTaxLimit, overLimit);
@@ -1041,7 +1075,31 @@ function refreshHeroChips() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', refreshHeroChips);
+function show(el, on) {
+  if (!el) return;
+  if (on) {
+    el.hidden = false;
+    el.classList.add('reveal-in');
+  } else {
+    el.hidden = true;
+    el.classList.remove('reveal-in');
+  }
+}
+
+function refreshActionDock() {
+  show(btnRevertContrib, hasDeviatedFromBaseline());
+  show(assistMaxContrib, isAboveTaxReliefLimit());
+
+  if (!assistMaxContrib?.hidden) {
+    const limit = getAgeRelatedMaxForUser();
+    // document.querySelector('.assist-text').firstChild.nodeValue = `⚠️ Above tax-relief limit (> ${formatCurrency(limit)}). `;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  refreshHeroChips();
+  refreshActionDock();
+});
 
 
 // ----- Contribution accessors (align keys if needed) -----
@@ -1317,6 +1375,7 @@ export function renderResults(mountEl, storeRef = {}) {
 
     if (!baselineSnapshot) baselineSnapshot = deepClone(storeRef);
     baselinePersonalContribution = getBaselinePersonalContribution();
+    baselinePersonalAnnual = baselinePersonalContribution;
 
     const projected = Number(storeRef.projectedPotAtRetirement ?? storeRef.projectedPot ?? 0);
     const required  = Number(storeRef.financialFreedomTarget   ?? storeRef.fyTarget    ?? 0);
@@ -1416,14 +1475,13 @@ export function renderResults(mountEl, storeRef = {}) {
 
     if (chipRevert) {
       chipRevert.addEventListener('click', () => {
-        setCurrentPersonalContribution(baselinePersonalContribution);
-        recomputeAndRefreshUI();
-        refreshHeroChips();
+        setCurrentPersonalContributionAnnual(baselinePersonalAnnual);
+        recalcAll();
       });
     }
     if (chipTaxLimit) {
       chipTaxLimit.addEventListener('click', () => {
-        smoothScrollTo(elTaxLimitsTable);
+        smoothScrollTo(elTaxTable);
       });
     }
     if (chipTryMax) {
@@ -1513,46 +1571,41 @@ export function renderResults(mountEl, storeRef = {}) {
       { rowTop, rowBottom, btnAdd200, btnRemove200, btnEarlier, btnLater }
     );
 
-    actionsWrap.appendChild(rowTop);
-    actionsWrap.appendChild(rowBottom);
+    const tpl = document.getElementById('tplContribActionDock');
+    if (tpl) {
+      dock = tpl.content.firstElementChild.cloneNode(true);
+      btnRevertContrib = dock.querySelector('#btnRevertContrib');
+      assistMaxContrib = dock.querySelector('#assistMaxContrib');
+      btnGoToMax = dock.querySelector('#btnGoToMax');
+      lnkSeeLimit = dock.querySelector('#lnkSeeLimit');
+      actionsWrap.appendChild(rowTop);
+      actionsWrap.appendChild(dock);
+      actionsWrap.appendChild(rowBottom);
+    } else {
+      actionsWrap.appendChild(rowTop);
+      actionsWrap.appendChild(rowBottom);
+    }
     hero.appendChild(actionsWrap);
 
-    if (atMaxContrib && !useMaxOn){
-      const note = document.createElement('div');
-      note.className = 'helper-note';
-      note.setAttribute('role','status');
-      note.innerHTML = `
-        <strong>You’re at the maximum tax-relievable contributions for your age.</strong>
-        <div class="helper-sub">To contribute more as you get older, switch to the <em>Use max pension contributions</em> setting.</div>
-      `;
-
-      const noteActions = document.createElement('div');
-      noteActions.className = 'helper-actions';
-
-      const enableMaxBtn = document.createElement('button');
-      enableMaxBtn.className = 'btn btn-pill btn-green';
-      enableMaxBtn.type = 'button';
-      enableMaxBtn.textContent = 'Enable “Use max contributions”';
-      enableMaxBtn.addEventListener('click', () => setUseMaxContributions(true));
-
-      noteActions.appendChild(enableMaxBtn);
-      note.appendChild(noteActions);
-      hero.appendChild(note);
+    if (btnRevertContrib) {
+      btnRevertContrib.addEventListener('click', () => {
+        setCurrentPersonalContributionAnnual(baselinePersonalAnnual);
+        recalcAll();
+      });
     }
-
-    if (actionStack.length || Object.values(nudgeCounts).some(v=>v>0)){
-      const rev = document.createElement('div'); rev.className='revert-row';
-      const undoBtn = document.createElement('button'); undoBtn.className='btn btn-text'; undoBtn.textContent='Undo last change';
-      undoBtn.addEventListener('click', undoLast);
-      const resetBtn = document.createElement('button'); resetBtn.className='btn btn-outline';
-      resetBtn.textContent='Restore original inputs';
-      resetBtn.addEventListener('click', restoreBaseline);
-      rev.appendChild(undoBtn); rev.appendChild(resetBtn);
-      hero.appendChild(rev);
+    if (btnGoToMax) {
+      btnGoToMax.addEventListener('click', () => smoothScrollTo(elMaxToggle));
+    }
+    if (lnkSeeLimit) {
+      lnkSeeLimit.addEventListener('click', (e) => {
+        e.preventDefault();
+        smoothScrollTo(elTaxTable);
+      });
     }
 
     mountEl.appendChild(hero);
     refreshHeroChips();
+    refreshActionDock();
 
     renderSftAssumptionText();
 
