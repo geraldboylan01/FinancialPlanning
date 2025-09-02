@@ -1358,15 +1358,15 @@
   border: 1px solid rgba(255,255,255,0.12);
 }
 
-/* Single helper line below € inputs */
-.field-help {
-  margin: 6px 0 8px;
-  font-size: 12px;
-  color: var(--text-2, #aaa);
-  opacity: 0.85;
+/* Step 4 contribution spacing */
+.contrib-group .fm-label { margin-top: 12px; }
+.contrib-group .or-divider + .fm-label { margin-top: 4px; }
+
+.contrib-group + .contrib-group { margin-top: 28px; }
+@media (min-width: 768px){
+  .contrib-group + .contrib-group { margin-top: 36px; }
 }
 
-/* OR divider between € and % (tight spacing within a pair) */
 .or-divider {
   display: flex;
   align-items: center;
@@ -1379,7 +1379,7 @@
   content: "";
   height: 1px;
   flex: 1;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.2), transparent);
 }
 .or-divider span {
   font-size: 11px;
@@ -1388,21 +1388,9 @@
   color: var(--text-2, #aaa);
 }
 
-/* ===== Group spacing rules ===== */
-/* Within a group keep it compact */
-.contrib-group .fm-label { margin-top: 12px; }
-.contrib-group .or-divider + .fm-label { margin-top: 4px; }
-
-/* Larger gap between employee group and employer group */
-.contrib-group + .contrib-group { margin-top: 28px; }
-@media (min-width: 768px){
-  .contrib-group + .contrib-group { margin-top: 36px; }
-}
-
-/* Optional: subtle visual for auto-calculated € when % is entered */
-.input-with-chip.input-auto input[readonly]{
-  background: rgba(255,255,255,0.04);
-  border-color: rgba(0,255,136,.25); /* matches your --glow tint */
-  box-shadow: none;
-  opacity: 0.95;
+.field-help {
+  margin: 6px 0 8px;
+  font-size: 12px;
+  color: var(--text-2, #aaa);
+  opacity: .85;
 }
