@@ -260,6 +260,134 @@ renderStepGoal.validate = () => {
   return (typeof v === 'number' && v >= 0 && v <= 100) ? { ok:true } : { ok:false, message:'Enter a % between 0 and 100.' };
 };
 
+// ===== Max tax-relievable personal contribution logic (Ireland) =====
+// Revenue age bands (personal only), applied to earnings cap €115,000
+const IRL_EARNINGS_CAP = 115000;
+const IRL_AGE_BANDS = [
+  { min: 0,   max: 29, pct: 15 },
+  { min: 30,  max: 39, pct: 20 },
+  { min: 40,  max: 49, pct: 25 },
+  { min: 50,  max: 54, pct: 30 },
+  { min: 55,  max: 59, pct: 35 },
+  { min: 60,  max: 200, pct: 40 },
+];
+
+function toNum(v){ const n = parseFloat(String(v).replace(/[^\d.-]/g,'')); return isNaN(n)?0:n; }
+function formatEuro(x){ return Number(x).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+function resolveAnnualSalary(){
+  if (fullMontyStore?.grossIncome) return toNum(fullMontyStore.grossIncome);
+  const el = document.getElementById('grossIncome');
+  return toNum(el?.value || 0);
+}
+
+function resolveUserAge(){
+  if (typeof fullMontyStore?.age === 'number') return fullMontyStore.age;
+  if (fullMontyStore?.dobSelf){
+    const dob = new Date(fullMontyStore.dobSelf);
+    if (!isNaN(dob)){
+      const today = new Date();
+      let a = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) a--;
+      return a;
+    }
+  }
+  return 40;
+}
+
+function maxReliefPercentByAge(age){
+  const band = IRL_AGE_BANDS.find(b => age>=b.min && age<=b.max) || IRL_AGE_BANDS[IRL_AGE_BANDS.length-1];
+  return band.pct;
+}
+function monthlyPersonalMaxEuro(){
+  const annual = resolveAnnualSalary();
+  const age = resolveUserAge();
+  const capBase = Math.min(annual, IRL_EARNINGS_CAP);
+  return (capBase * maxReliefPercentByAge(age)) / 100 / 12;
+}
+
+// Show / hide cap note helpers
+function showEuroCapNote(msg){
+  const n = document.getElementById('userEuroCapNote'); if(!n) return;
+  n.textContent = msg; n.style.display = 'block';
+}
+function hideEuroCapNote(){ const n = document.getElementById('userEuroCapNote'); if(n) n.style.display='none'; }
+
+function showPctCapNote(msg){
+  const n = document.getElementById('userPctCapNote'); if(!n) return;
+  n.textContent = msg; n.style.display = 'block';
+}
+function hidePctCapNote(){ const n = document.getElementById('userPctCapNote'); if(n) n.style.display='none'; }
+
+// ===== Hook into existing Step-4 handlers (PERSONAL ONLY) =====
+function enforcePersonalCaps(){
+  const euro = document.getElementById('userContribMonthly');
+  const pct  = document.getElementById('userContribPct');
+
+  if (!euro || !pct) return;
+
+  // When user types €/mo
+  euro.addEventListener('input', () => {
+    hideEuroCapNote(); hidePctCapNote();
+    const val = toNum(euro.value);
+    const cap = monthlyPersonalMaxEuro();
+    if (val > cap && cap > 0){
+      euro.value = formatEuro(cap);
+      showEuroCapNote(`Capped at €${formatEuro(cap)} per month — that’s the maximum eligible for income-tax relief at your age.`);
+    }
+  }, { capture: true });
+
+  // When user types % of salary
+  pct.addEventListener('input', () => {
+    hideEuroCapNote(); hidePctCapNote();
+    const ageMaxPct = maxReliefPercentByAge(resolveUserAge());
+    let p = toNum(pct.value);
+
+    if (p > ageMaxPct){
+      p = ageMaxPct;
+      pct.value = String(p);
+      showPctCapNote(`Capped at ${p}% — that’s the maximum eligible for income-tax relief at your age.`);
+    }
+
+    const monthlyCap = monthlyPersonalMaxEuro();
+    const monthlySalary = resolveAnnualSalary() / 12;
+    if (monthlySalary > 0){
+      let euroFromPct = (monthlySalary * p) / 100;
+      if (euroFromPct > monthlyCap){
+        euroFromPct = monthlyCap;
+        const effectivePct = (monthlyCap / monthlySalary) * 100;
+        pct.value = effectivePct.toFixed(2).replace(/\.00$/,'');
+        showPctCapNote(`Capped by the earnings limit — effective rate set to ${pct.value}%.`);
+      }
+      const euroField = document.getElementById('userContribMonthly');
+      if (euroField){
+        euroField.value = formatEuro(euroFromPct);
+        euroField.readOnly = true;
+      }
+    }
+  }, { capture: true });
+
+  ['blur','change'].forEach(ev => {
+    euro.addEventListener(ev, () => { if (toNum(euro.value) <= monthlyPersonalMaxEuro()) hideEuroCapNote(); });
+    pct.addEventListener(ev,  () => { if (toNum(pct.value) <= maxReliefPercentByAge(resolveUserAge())) hidePctCapNote(); });
+  });
+
+  // Optional: if salary or age changes elsewhere, re-cap current values
+  window.recheckPersonalCap = function(){
+    const cap = monthlyPersonalMaxEuro();
+    if (euro && toNum(euro.value) > cap){
+      euro.value = formatEuro(cap);
+      showEuroCapNote(`Capped at €${formatEuro(cap)} per month — max eligible for income-tax relief at your age.`);
+    }
+    const ageMaxPct = maxReliefPercentByAge(resolveUserAge());
+    if (pct && toNum(pct.value) > ageMaxPct){
+      pct.value = String(ageMaxPct);
+      showPctCapNote(`Capped at ${ageMaxPct}% — max eligible for income-tax relief at your age.`);
+    }
+  };
+}
+
 function renderStepPensions(cont) {
   const tmpl = document.getElementById('tpl-step-pensions');
   if (!tmpl) return;
@@ -392,6 +520,8 @@ function renderStepPensions(cont) {
 
     document.getElementById('currentPensionValue')?.addEventListener('input', savePensionState);
   })();
+
+  enforcePersonalCaps();
 }
 renderStepPensions.validate = () => ({ ok: true, errors: {} });
 
