@@ -1331,18 +1331,17 @@
   opacity: 0.85;
 }
 
-/* Suffix chips inside inputs */
-.input-with-chip {
-  position: relative;
-}
+/* ===== Suffix chips inside inputs (align with your Step-2 neon look) ===== */
+.input-with-chip { position: relative; }
 
-.input-with-chip input {
+.input-with-chip input[type="number"],
+.input-with-chip input[type="text"] {
   width: 100%;
-  padding-right: 56px; /* room for chip */
-  text-align: right; /* numeric fields read better right-aligned */
+  padding-right: 56px;              /* room for chip on the right */
+  text-align: right;                 /* consistent with your income step */
 }
 
-/* Unit chip */
+/* The small pill at input's right (€, €/mo, %) */
 .unit-chip {
   position: absolute;
   right: 12px;
@@ -1359,19 +1358,20 @@
   border: 1px solid rgba(255,255,255,0.12);
 }
 
-/* Helper text: single line, subtle */
+/* Single helper line below € inputs */
 .field-help {
-  margin: 6px 0 10px 0;
+  margin: 6px 0 8px;
   font-size: 12px;
-  opacity: 0.7;
+  color: var(--text-2, #aaa);
+  opacity: 0.85;
 }
 
-/* OR divider between euro and percent blocks */
+/* OR divider between € and % (tight spacing within a pair) */
 .or-divider {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 10px 0 14px 0;
+  margin: 8px 0 12px;
   opacity: 0.8;
 }
 .or-divider::before,
@@ -1385,10 +1385,24 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--text-2, #aaa);
 }
 
-/* Disabled/auto state for mutual exclusivity */
-.input-auto input[readonly] {
-  opacity: 0.8;
+/* ===== Group spacing rules ===== */
+/* Within a group keep it compact */
+.contrib-group .fm-label { margin-top: 12px; }
+.contrib-group .or-divider + .fm-label { margin-top: 4px; }
+
+/* Larger gap between employee group and employer group */
+.contrib-group + .contrib-group { margin-top: 28px; }
+@media (min-width: 768px){
+  .contrib-group + .contrib-group { margin-top: 36px; }
+}
+
+/* Optional: subtle visual for auto-calculated € when % is entered */
+.input-with-chip.input-auto input[readonly]{
   background: rgba(255,255,255,0.04);
+  border-color: rgba(0,255,136,.25); /* matches your --glow tint */
+  box-shadow: none;
+  opacity: 0.95;
 }
