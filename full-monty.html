@@ -630,43 +630,47 @@
 <section id="step-pensions" class="wizard-step" data-step="4">
   <h2 class="step-title">Pensions &amp; entitlements</h2>
 
-  <!-- Current pension value (UNCHANGED LABEL) -->
+  <!-- Current pension value (UNCHANGED) -->
   <label for="currentPensionValue" class="fm-label">Current pension value</label>
   <div class="input-with-chip">
     <input id="currentPensionValue" name="currentPensionValue" type="number" inputmode="decimal" placeholder="e.g. 20000" />
     <span class="unit-chip">€</span>
   </div>
 
-  <!-- YOUR contribution (MONTHLY) -->
-  <label for="userContribMonthly" class="fm-label">Your contribution (per month)</label>
-  <div class="input-with-chip">
-    <input id="userContribMonthly" name="userContribMonthly" type="number" inputmode="decimal" placeholder="e.g. 250" />
-    <span class="unit-chip">€/mo</span>
+  <!-- ===== YOUR (EMPLOYEE) CONTRIBUTIONS ===== -->
+  <div class="contrib-group contrib-group--user" aria-label="Your contributions">
+    <label for="userContribMonthly" class="fm-label">Your contribution (per month)</label>
+    <div class="input-with-chip">
+      <input id="userContribMonthly" name="userContribMonthly" type="number" inputmode="decimal" placeholder="e.g. 250" />
+      <span class="unit-chip">€/mo</span>
+    </div>
+    <p class="field-help">If you prefer, enter a % below.</p>
+
+    <div class="or-divider" aria-hidden="true"><span>OR</span></div>
+
+    <label for="userContribPct" class="fm-label">…or % of salary (you pay)</label>
+    <div class="input-with-chip">
+      <input id="userContribPct" name="userContribPct" type="number" inputmode="decimal" placeholder="e.g. 5" />
+      <span class="unit-chip">%</span>
+    </div>
   </div>
-  <p class="field-help">If you prefer, enter a % below.</p>
 
-  <div class="or-divider" aria-hidden="true"><span>OR</span></div>
+  <!-- ===== EMPLOYER CONTRIBUTIONS (LARGER TOP GAP) ===== -->
+  <div class="contrib-group contrib-group--employer" aria-label="Employer contributions">
+    <label for="employerContribMonthly" class="fm-label">Employer contribution (per month)</label>
+    <div class="input-with-chip">
+      <input id="employerContribMonthly" name="employerContribMonthly" type="number" inputmode="decimal" placeholder="e.g. 200" />
+      <span class="unit-chip">€/mo</span>
+    </div>
+    <p class="field-help">If you prefer, enter a % below.</p>
 
-  <label for="userContribPct" class="fm-label">…or % of salary (you pay)</label>
-  <div class="input-with-chip">
-    <input id="userContribPct" name="userContribPct" type="number" inputmode="decimal" placeholder="e.g. 5" />
-    <span class="unit-chip">%</span>
-  </div>
+    <div class="or-divider" aria-hidden="true"><span>OR</span></div>
 
-  <!-- EMPLOYER contribution (MONTHLY) -->
-  <label for="employerContribMonthly" class="fm-label">Employer contribution (per month)</label>
-  <div class="input-with-chip">
-    <input id="employerContribMonthly" name="employerContribMonthly" type="number" inputmode="decimal" placeholder="e.g. 200" />
-    <span class="unit-chip">€/mo</span>
-  </div>
-  <p class="field-help">If you prefer, enter a % below.</p>
-
-  <div class="or-divider" aria-hidden="true"><span>OR</span></div>
-
-  <label for="employerContribPct" class="fm-label">…or % of salary (employer)</label>
-  <div class="input-with-chip">
-    <input id="employerContribPct" name="employerContribPct" type="number" inputmode="decimal" placeholder="e.g. 5" />
-    <span class="unit-chip">%</span>
+    <label for="employerContribPct" class="fm-label">…or % of salary (employer)</label>
+    <div class="input-with-chip">
+      <input id="employerContribPct" name="employerContribPct" type="number" inputmode="decimal" placeholder="e.g. 5" />
+      <span class="unit-chip">%</span>
+    </div>
   </div>
 </section>
         </template>

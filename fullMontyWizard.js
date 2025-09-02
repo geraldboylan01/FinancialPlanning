@@ -280,11 +280,11 @@ function renderStepPensions(cont) {
   el.empEuro.closest('.input-with-chip')?.classList.remove('input-auto');
 
   // --- USER side ---
-  el.userEuro.addEventListener('input', () => {
+  el.userEuro.addEventListener('input', (e) => {
     el.userPct.value = '';
     el.userPct.disabled = true;
-    el.userEuro.readOnly = false;
-    el.userEuro.closest('.input-with-chip')?.classList.remove('input-auto');
+    e.target.readOnly = false;
+    e.target.closest('.input-with-chip')?.classList.remove('input-auto');
     savePensionState();
   });
 
@@ -299,12 +299,15 @@ function renderStepPensions(cont) {
       el.userEuro.value = euro.toFixed(2);
       el.userEuro.readOnly = true;
       el.userPct.disabled = false; // % stays editable
-      el.userEuro.closest('.input-with-chip')?.classList.add('input-auto');
     } else {
       el.userEuro.value = '';
       el.userEuro.readOnly = false;
-      el.userEuro.closest('.input-with-chip')?.classList.remove('input-auto');
     }
+
+    const wrap = el.userEuro.closest('.input-with-chip');
+    if (el.userEuro.readOnly) wrap?.classList.add('input-auto');
+    else wrap?.classList.remove('input-auto');
+
     savePensionState();
   });
 
@@ -313,11 +316,11 @@ function renderStepPensions(cont) {
   });
 
   // --- EMPLOYER side ---
-  el.empEuro.addEventListener('input', () => {
+  el.empEuro.addEventListener('input', (e) => {
     el.empPct.value = '';
     el.empPct.disabled = true;
-    el.empEuro.readOnly = false;
-    el.empEuro.closest('.input-with-chip')?.classList.remove('input-auto');
+    e.target.readOnly = false;
+    e.target.closest('.input-with-chip')?.classList.remove('input-auto');
     savePensionState();
   });
 
@@ -332,12 +335,15 @@ function renderStepPensions(cont) {
       el.empEuro.value = euro.toFixed(2);
       el.empEuro.readOnly = true;
       el.empPct.disabled = false;
-      el.empEuro.closest('.input-with-chip')?.classList.add('input-auto');
     } else {
       el.empEuro.value = '';
       el.empEuro.readOnly = false;
-      el.empEuro.closest('.input-with-chip')?.classList.remove('input-auto');
     }
+
+    const wrap = el.empEuro.closest('.input-with-chip');
+    if (el.empEuro.readOnly) wrap?.classList.add('input-auto');
+    else wrap?.classList.remove('input-auto');
+
     savePensionState();
   });
 
