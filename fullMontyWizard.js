@@ -49,6 +49,11 @@ function saveStore(){
 let saveTimer = null;
 function queueSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveStore, 150); }
 
+function toNumber(v) {
+  const n = parseFloat(String(v).replace(/[^\d.-]/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
 // ───────────────────────────────────────────────────────────────
 // Data store and helpers
 // ----------------------------------------------------------------
@@ -254,6 +259,139 @@ renderStepGoal.validate = () => {
   const v = getStore().incomePercent;
   return (typeof v === 'number' && v >= 0 && v <= 100) ? { ok:true } : { ok:false, message:'Enter a % between 0 and 100.' };
 };
+
+function renderStepPensions(cont) {
+  const tmpl = document.getElementById('tpl-step-pensions');
+  if (!tmpl) return;
+  cont.innerHTML = '';
+  cont.appendChild(tmpl.content.cloneNode(true));
+
+  const state = fullMontyStore;
+  const el = {
+    userEuro: document.getElementById('userContribMonthly'),
+    userPct: document.getElementById('userContribPct'),
+    empEuro: document.getElementById('employerContribMonthly'),
+    empPct: document.getElementById('employerContribPct')
+  };
+
+  const monthlySalary = (state?.grossIncome ? toNumber(state.grossIncome) / 12 : 0);
+
+  el.userEuro.closest('.input-with-chip')?.classList.remove('input-auto');
+  el.empEuro.closest('.input-with-chip')?.classList.remove('input-auto');
+
+  // --- USER side ---
+  el.userEuro.addEventListener('input', () => {
+    el.userPct.value = '';
+    el.userPct.disabled = true;
+    el.userEuro.readOnly = false;
+    el.userEuro.closest('.input-with-chip')?.classList.remove('input-auto');
+    savePensionState();
+  });
+
+  el.userEuro.addEventListener('focus', () => {
+    el.userPct.disabled = true;
+  });
+
+  el.userPct.addEventListener('input', () => {
+    const pct = toNumber(el.userPct.value);
+    if (monthlySalary > 0 && pct > 0) {
+      const euro = (monthlySalary * pct) / 100;
+      el.userEuro.value = euro.toFixed(2);
+      el.userEuro.readOnly = true;
+      el.userPct.disabled = false; // % stays editable
+      el.userEuro.closest('.input-with-chip')?.classList.add('input-auto');
+    } else {
+      el.userEuro.value = '';
+      el.userEuro.readOnly = false;
+      el.userEuro.closest('.input-with-chip')?.classList.remove('input-auto');
+    }
+    savePensionState();
+  });
+
+  el.userEuro.addEventListener('change', () => {
+    if (!el.userEuro.value) el.userPct.disabled = false;
+  });
+
+  // --- EMPLOYER side ---
+  el.empEuro.addEventListener('input', () => {
+    el.empPct.value = '';
+    el.empPct.disabled = true;
+    el.empEuro.readOnly = false;
+    el.empEuro.closest('.input-with-chip')?.classList.remove('input-auto');
+    savePensionState();
+  });
+
+  el.empEuro.addEventListener('focus', () => {
+    el.empPct.disabled = true;
+  });
+
+  el.empPct.addEventListener('input', () => {
+    const pct = toNumber(el.empPct.value);
+    if (monthlySalary > 0 && pct > 0) {
+      const euro = (monthlySalary * pct) / 100;
+      el.empEuro.value = euro.toFixed(2);
+      el.empEuro.readOnly = true;
+      el.empPct.disabled = false;
+      el.empEuro.closest('.input-with-chip')?.classList.add('input-auto');
+    } else {
+      el.empEuro.value = '';
+      el.empEuro.readOnly = false;
+      el.empEuro.closest('.input-with-chip')?.classList.remove('input-auto');
+    }
+    savePensionState();
+  });
+
+  el.empEuro.addEventListener('change', () => {
+    if (!el.empEuro.value) el.empPct.disabled = false;
+  });
+
+  function savePensionState() {
+    const userMonthly = toNumber(el.userEuro.value);
+    const userPct = toNumber(el.userPct.value) || null;
+    const empMonthly = toNumber(el.empEuro.value);
+    const empPct = toNumber(el.empPct.value) || null;
+
+    state.pensions = state.pensions || {};
+    state.pensions.currentValue = toNumber(document.getElementById('currentPensionValue')?.value);
+    state.pensions.userContributionMonthly = userMonthly;
+    state.pensions.userContributionPct = userPct;
+    state.pensions.employerContributionMonthly = empMonthly;
+    state.pensions.employerContributionPct = empPct;
+
+    state.currentPensionValueSelf = state.pensions.currentValue;
+    state.personalContribSelf = userMonthly;
+    state.personalPctSelf = userPct;
+    state.employerContribSelf = empMonthly;
+    state.employerPctSelf = empPct;
+
+    queueSave();
+  }
+
+  // Hydrate saved state
+  if (state.pensions) {
+    const cv = state.pensions.currentValue || state.currentPensionValueSelf;
+    if (cv) document.getElementById('currentPensionValue').value = cv;
+
+    if (state.pensions.userContributionPct) {
+      el.userPct.value = state.pensions.userContributionPct;
+      el.userPct.dispatchEvent(new Event('input'));
+    } else if (state.personalContribSelf) {
+      el.userEuro.value = state.personalContribSelf;
+      el.userPct.disabled = true;
+    }
+
+    if (state.pensions.employerContributionPct) {
+      el.empPct.value = state.pensions.employerContributionPct;
+      el.empPct.dispatchEvent(new Event('input'));
+    } else if (state.employerContribSelf) {
+      el.empEuro.value = state.employerContribSelf;
+      el.empPct.disabled = true;
+    }
+  }
+
+  document.getElementById('currentPensionValue')?.addEventListener('input', savePensionState);
+}
+renderStepPensions.validate = () => ({ ok: true, errors: {} });
 
 // Step engine
 // ----------------------------------------------------------------
@@ -461,58 +599,8 @@ const baseSteps = [
   {
     id: 'pensions',
     title: 'Pensions & entitlements',
-    render(cont) {
-      cont.innerHTML = '';
-      const form = document.createElement('div');
-      form.className = 'form';
-
-      function personBlock(prefix, labelPrefix) {
-        const wrap = document.createElement('div');
-        const h = document.createElement('h4');
-        h.textContent = labelPrefix;
-        wrap.appendChild(h);
-
-        const cur = currencyInput({ id: `${prefix}Cur`, value: fullMontyStore[`currentPensionValue${labelPrefix}`] ?? 0 });
-        cur.querySelector('input').addEventListener('input', () => setStore({ [`currentPensionValue${labelPrefix}`]: numFromInput(cur.querySelector('input')) || 0 }));
-        wrap.appendChild(formGroup(`${prefix}Cur`, 'Current pension value', cur));
-
-        const pc = currencyInput({ id: `${prefix}Pers€`, value: fullMontyStore[`personalContrib${labelPrefix}`] ?? '' });
-        const pp = percentInput({ id: `${prefix}Pers%`, value: fullMontyStore[`personalPct${labelPrefix}`] ?? '' });
-        pc.querySelector('input').addEventListener('input', () => {
-          const v = numFromInput(pc.querySelector('input'));
-          setStore({ [`personalContrib${labelPrefix}`]: v, [`personalPct${labelPrefix}`]: null });
-          pp.querySelector('input').disabled = v != null && v !== 0;
-        });
-        pp.querySelector('input').addEventListener('input', () => {
-          const v = numFromInput(pp.querySelector('input'));
-          setStore({ [`personalPct${labelPrefix}`]: v, [`personalContrib${labelPrefix}`]: null });
-          pc.querySelector('input').disabled = v != null && v !== 0;
-        });
-        wrap.appendChild(formGroup(`${prefix}Pers€`, 'Your contribution', pc));
-        wrap.appendChild(formGroup(`${prefix}Pers%`, '…or % of salary', pp));
-
-        const ec = currencyInput({ id: `${prefix}Emp€`, value: fullMontyStore[`employerContrib${labelPrefix}`] ?? '' });
-        const ep = percentInput({ id: `${prefix}Emp%`, value: fullMontyStore[`employerPct${labelPrefix}`] ?? '' });
-        ec.querySelector('input').addEventListener('input', () => {
-          const v = numFromInput(ec.querySelector('input'));
-          setStore({ [`employerContrib${labelPrefix}`]: v, [`employerPct${labelPrefix}`]: null });
-          ep.querySelector('input').disabled = v != null && v !== 0;
-        });
-        ep.querySelector('input').addEventListener('input', () => {
-          const v = numFromInput(ep.querySelector('input'));
-          setStore({ [`employerPct${labelPrefix}`]: v, [`employerContrib${labelPrefix}`]: null });
-          ec.querySelector('input').disabled = v != null && v !== 0;
-        });
-        wrap.appendChild(formGroup(`${prefix}Emp€`, 'Employer contribution', ec));
-        wrap.appendChild(formGroup(`${prefix}Emp%`, '…or % of salary', ep));
-        return wrap;
-      }
-
-      form.appendChild(personBlock('self', 'Self'));
-      if (fullMontyStore.hasPartner) form.appendChild(personBlock('partner', 'Partner'));
-      cont.appendChild(form);
-    },
-    validate() { return { ok: true, errors: {} }; }
+    render: renderStepPensions,
+    validate: renderStepPensions.validate
   },
 
   {

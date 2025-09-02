@@ -1330,3 +1330,65 @@
   font-size: 12px;
   opacity: 0.85;
 }
+
+/* Suffix chips inside inputs */
+.input-with-chip {
+  position: relative;
+}
+
+.input-with-chip input {
+  width: 100%;
+  padding-right: 56px; /* room for chip */
+  text-align: right; /* numeric fields read better right-aligned */
+}
+
+/* Unit chip */
+.unit-chip {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.85;
+  pointer-events: none;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+/* Helper text: single line, subtle */
+.field-help {
+  margin: 6px 0 10px 0;
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* OR divider between euro and percent blocks */
+.or-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 14px 0;
+  opacity: 0.8;
+}
+.or-divider::before,
+.or-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+}
+.or-divider span {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Disabled/auto state for mutual exclusivity */
+.input-auto input[readonly] {
+  opacity: 0.8;
+  background: rgba(255,255,255,0.04);
+}
