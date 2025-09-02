@@ -267,135 +267,131 @@ function renderStepPensions(cont) {
   cont.appendChild(tmpl.content.cloneNode(true));
 
   const state = fullMontyStore;
-  const el = {
-    userEuro: document.getElementById('userContribMonthly'),
-    userPct: document.getElementById('userContribPct'),
-    empEuro: document.getElementById('employerContribMonthly'),
-    empPct: document.getElementById('employerContribPct')
-  };
 
-  const monthlySalary = (state?.grossIncome ? toNumber(state.grossIncome) / 12 : 0);
+  (function wirePensionContribExclusivity(){
+    const el = {
+      userEuro: document.getElementById('userContribMonthly'),
+      userPct:  document.getElementById('userContribPct'),
+      empEuro:  document.getElementById('employerContribMonthly'),
+      empPct:   document.getElementById('employerContribPct')
+    };
 
-  el.userEuro.closest('.input-with-chip')?.classList.remove('input-auto');
-  el.empEuro.closest('.input-with-chip')?.classList.remove('input-auto');
+    // Enable everything on load (avoid stuck disabled state)
+    if (el.userPct) el.userPct.disabled = false;
+    if (el.empPct)  el.empPct.disabled  = false;
+    if (el.userEuro) el.userEuro.readOnly = false;
+    if (el.empEuro)  el.empEuro.readOnly  = false;
 
-  // --- USER side ---
-  el.userEuro.addEventListener('input', (e) => {
-    el.userPct.value = '';
-    el.userPct.disabled = true;
-    e.target.readOnly = false;
-    e.target.closest('.input-with-chip')?.classList.remove('input-auto');
-    savePensionState();
-  });
+    // Helper: parse number safely
+    const toNum = v => {
+      const n = parseFloat(String(v).replace(/[^\d.-]/g, ''));
+      return isNaN(n) ? 0 : n;
+    };
 
-  el.userEuro.addEventListener('focus', () => {
-    el.userPct.disabled = true;
-  });
+    // Assuming you have annual salary stored somewhere:
+    const monthlySalary = (state?.grossIncome ? toNum(state.grossIncome)/12 : 0);
 
-  el.userPct.addEventListener('input', () => {
-    const pct = toNumber(el.userPct.value);
-    if (monthlySalary > 0 && pct > 0) {
-      const euro = (monthlySalary * pct) / 100;
-      el.userEuro.value = euro.toFixed(2);
-      el.userEuro.readOnly = true;
-      el.userPct.disabled = false; // % stays editable
-    } else {
-      el.userEuro.value = '';
-      el.userEuro.readOnly = false;
+    // --- USER side ---
+    if (el.userEuro && el.userPct){
+      // Typing € -> disable % (until € cleared)
+      el.userEuro.addEventListener('input', () => {
+        if (el.userEuro.value && toNum(el.userEuro.value) > 0){
+          el.userPct.disabled = true;
+          el.userEuro.readOnly = false;
+        } else {
+          el.userPct.disabled = false;       // re-enable when empty
+        }
+        savePensionState();
+      });
+
+      // Typing % -> compute €/mo, make € readOnly (not disabled)
+      el.userPct.addEventListener('input', () => {
+        const pct = toNum(el.userPct.value);
+        if (pct > 0 && monthlySalary > 0){
+          const euro = (monthlySalary * pct) / 100;
+          el.userEuro.value = euro.toFixed(2);
+          el.userEuro.readOnly = true;       // visually alive, just not editable
+          el.userPct.disabled = false;       // keep % editable
+        } else if (!el.userPct.value){
+          // Clearing % -> allow editing €
+          el.userEuro.readOnly = false;
+        }
+        savePensionState();
+      });
     }
 
-    const wrap = el.userEuro.closest('.input-with-chip');
-    if (el.userEuro.readOnly) wrap?.classList.add('input-auto');
-    else wrap?.classList.remove('input-auto');
+    // --- EMPLOYER side ---
+    if (el.empEuro && el.empPct){
+      el.empEuro.addEventListener('input', () => {
+        if (el.empEuro.value && toNum(el.empEuro.value) > 0){
+          el.empPct.disabled = true;
+          el.empEuro.readOnly = false;
+        } else {
+          el.empPct.disabled = false;
+        }
+        savePensionState();
+      });
 
-    savePensionState();
-  });
-
-  el.userEuro.addEventListener('change', () => {
-    if (!el.userEuro.value) el.userPct.disabled = false;
-  });
-
-  // --- EMPLOYER side ---
-  el.empEuro.addEventListener('input', (e) => {
-    el.empPct.value = '';
-    el.empPct.disabled = true;
-    e.target.readOnly = false;
-    e.target.closest('.input-with-chip')?.classList.remove('input-auto');
-    savePensionState();
-  });
-
-  el.empEuro.addEventListener('focus', () => {
-    el.empPct.disabled = true;
-  });
-
-  el.empPct.addEventListener('input', () => {
-    const pct = toNumber(el.empPct.value);
-    if (monthlySalary > 0 && pct > 0) {
-      const euro = (monthlySalary * pct) / 100;
-      el.empEuro.value = euro.toFixed(2);
-      el.empEuro.readOnly = true;
-      el.empPct.disabled = false;
-    } else {
-      el.empEuro.value = '';
-      el.empEuro.readOnly = false;
+      el.empPct.addEventListener('input', () => {
+        const pct = toNum(el.empPct.value);
+        if (pct > 0 && monthlySalary > 0){
+          const euro = (monthlySalary * pct) / 100;
+          el.empEuro.value = euro.toFixed(2);
+          el.empEuro.readOnly = true;
+          el.empPct.disabled = false;
+        } else if (!el.empPct.value){
+          el.empEuro.readOnly = false;
+        }
+        savePensionState();
+      });
     }
 
-    const wrap = el.empEuro.closest('.input-with-chip');
-    if (el.empEuro.readOnly) wrap?.classList.add('input-auto');
-    else wrap?.classList.remove('input-auto');
+    function savePensionState() {
+      const userMonthly = toNum(el.userEuro?.value);
+      const userPct = toNum(el.userPct?.value) || null;
+      const empMonthly = toNum(el.empEuro?.value);
+      const empPct = toNum(el.empPct?.value) || null;
 
-    savePensionState();
-  });
+      state.pensions = state.pensions || {};
+      state.pensions.currentValue = toNum(document.getElementById('currentPensionValue')?.value);
+      state.pensions.userContributionMonthly = userMonthly;
+      state.pensions.userContributionPct = userPct;
+      state.pensions.employerContributionMonthly = empMonthly;
+      state.pensions.employerContributionPct = empPct;
 
-  el.empEuro.addEventListener('change', () => {
-    if (!el.empEuro.value) el.empPct.disabled = false;
-  });
+      state.currentPensionValueSelf = state.pensions.currentValue;
+      state.personalContribSelf = userMonthly;
+      state.personalPctSelf = userPct;
+      state.employerContribSelf = empMonthly;
+      state.employerPctSelf = empPct;
 
-  function savePensionState() {
-    const userMonthly = toNumber(el.userEuro.value);
-    const userPct = toNumber(el.userPct.value) || null;
-    const empMonthly = toNumber(el.empEuro.value);
-    const empPct = toNumber(el.empPct.value) || null;
-
-    state.pensions = state.pensions || {};
-    state.pensions.currentValue = toNumber(document.getElementById('currentPensionValue')?.value);
-    state.pensions.userContributionMonthly = userMonthly;
-    state.pensions.userContributionPct = userPct;
-    state.pensions.employerContributionMonthly = empMonthly;
-    state.pensions.employerContributionPct = empPct;
-
-    state.currentPensionValueSelf = state.pensions.currentValue;
-    state.personalContribSelf = userMonthly;
-    state.personalPctSelf = userPct;
-    state.employerContribSelf = empMonthly;
-    state.employerPctSelf = empPct;
-
-    queueSave();
-  }
-
-  // Hydrate saved state
-  if (state.pensions) {
-    const cv = state.pensions.currentValue || state.currentPensionValueSelf;
-    if (cv) document.getElementById('currentPensionValue').value = cv;
-
-    if (state.pensions.userContributionPct) {
-      el.userPct.value = state.pensions.userContributionPct;
-      el.userPct.dispatchEvent(new Event('input'));
-    } else if (state.personalContribSelf) {
-      el.userEuro.value = state.personalContribSelf;
-      el.userPct.disabled = true;
+      queueSave();
     }
 
-    if (state.pensions.employerContributionPct) {
-      el.empPct.value = state.pensions.employerContributionPct;
-      el.empPct.dispatchEvent(new Event('input'));
-    } else if (state.employerContribSelf) {
-      el.empEuro.value = state.employerContribSelf;
-      el.empPct.disabled = true;
-    }
-  }
+    // Hydrate saved state
+    if (state.pensions) {
+      const cv = state.pensions.currentValue || state.currentPensionValueSelf;
+      if (cv) document.getElementById('currentPensionValue').value = cv;
 
-  document.getElementById('currentPensionValue')?.addEventListener('input', savePensionState);
+      if (state.pensions.userContributionPct) {
+        el.userPct.value = state.pensions.userContributionPct;
+        el.userPct.dispatchEvent(new Event('input'));
+      } else if (state.personalContribSelf) {
+        el.userEuro.value = state.personalContribSelf;
+        el.userEuro.dispatchEvent(new Event('input'));
+      }
+
+      if (state.pensions.employerContributionPct) {
+        el.empPct.value = state.pensions.employerContributionPct;
+        el.empPct.dispatchEvent(new Event('input'));
+      } else if (state.employerContribSelf) {
+        el.empEuro.value = state.employerContribSelf;
+        el.empEuro.dispatchEvent(new Event('input'));
+      }
+    }
+
+    document.getElementById('currentPensionValue')?.addEventListener('input', savePensionState);
+  })();
 }
 renderStepPensions.validate = () => ({ ok: true, errors: {} });
 
