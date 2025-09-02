@@ -47,6 +47,60 @@
   color: var(--field-muted);
 }
 
+/* Keep wrapper inline-flex so children can be vertically centered */
+.input-wrap{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+}
+
+/* Step-2 canonical offsets you showed:
+   .input-wrap has padding: .55rem .7rem; 
+   .input-wrap.prefix adds padding-left: 1.8rem (seen in your DevTools).  */
+
+/* Ensure the prefix variant always gets the same extra left space as Step 2 */
+.input-wrap.prefix{ 
+  padding-left:1.8rem;
+}
+
+/* Place the prefix chip at the same visual offset and vertically centered */
+.input-wrap.prefix>span{
+  position:absolute;
+  left:.7rem;
+  top:50%;
+  transform:translateY(-50%);
+  line-height:1;
+  color:var(--field-ink);
+  opacity:1;
+  pointer-events:none;
+}
+
+/* Suffix (Step 3) — mirror the same approach for consistency */
+.input-wrap.suffix{ 
+  padding-right:1.8rem;
+}
+.input-wrap.suffix>span{
+  position:absolute;
+  right:.7rem;
+  top:50%;
+  transform:translateY(-50%);
+  line-height:1;
+  color:var(--field-ink);
+  opacity:1;
+  pointer-events:none;
+}
+
+/* WIDE prefix for “€ / mo” on monthly fields: 
+   Reserve extra space so text is centered and not hugging the edge. */
+.input-wrap.prefix.prefix--wide{ 
+  padding-left:3.9rem;
+}
+
+/* (Optional) tighten input’s own left padding if you added any elsewhere.
+   We rely on wrapper padding to create space; no extra input padding needed. */
+.input-wrap.prefix input{ padding-left:0; }
+.input-wrap.suffix input{ padding-right:0; }
+
 /* Optional sizes */
 .input-sm input{ min-width:5ch; }
 .input-lg input{ min-width:10ch; }
