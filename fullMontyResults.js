@@ -611,22 +611,32 @@ function bindYearAdjustmentDelegation(){
 }
 
 function bindRestoreButtonClick(){
-  const btn = getRestoreButton();
-  if (!btn) return;
+  const root = document.getElementById('resultsView');
+  if (!root) return;
 
-  // Always hidden until a tweak happens
+  // Always start hidden
   setRestoreVisible(false);
 
-  btn.addEventListener('click', () => {
-    // Reset tweak state already supported in your file:
-    resetHeroNudges();    // clears +/− tap state & refreshes contribution UX
-    clearAdjustedState(); // hides the restore button
+  // Delegate so re-renders don't drop the listener
+  root.addEventListener('click', (e) => {
+    const btn = e.target.closest?.('#btnRestoreOriginal, [data-role="restore-original"]');
+    if (!btn) return;
+
+    // Stop any outer handlers from re-marking as adjusted
+    e.stopPropagation();
+    e.preventDefault();
+
+    // Reset tweak state
+    resetHeroNudges();               // clears +/− tap state & refreshes contribution UX
+    clearAdjustedState();            // sets _userHasAdjusted=false and hides the button
 
     // If your renderer exposes a broader reset hook, call it:
     if (typeof window.resetContributionEdits === 'function') {
       try { window.resetContributionEdits(); } catch {}
     }
-    // Note: Do NOT change Max toggle here — spec says restore is only for tweak interactions.
+
+    // Finally, enforce hide in case a re-render happens immediately
+    setRestoreVisible(false);
   });
 }
 

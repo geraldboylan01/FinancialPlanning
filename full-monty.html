@@ -622,20 +622,17 @@
       pointer-events: none !important;
     }
 
-    /* === Edit inputs FAB visibility control by UI mode === */
-    /* Hidden by default (HTML currently has style="display:none" as well) */
-    #editInputsFab { display: none; }
+    /* Show Edit Inputs FAB only on results view */
+    #editInputsFab { display: none; } /* default hidden */
 
-    /* Show only on results mode (uiMode.js sets data-ui-mode on <body>) */
     body[data-ui-mode="results"] #editInputsFab {
       display: inline-flex !important;
       align-items: center;
       gap: .5rem;
     }
 
-    /* Apply the existing .fab-edit look to #editInputsFab too */
-    #editInputsFab,
-    .fab-edit{
+    /* Reuse existing floating style */
+    #editInputsFab {
       background: var(--glow, #00ff88);
       color: #0b1f16;
       border: 1px solid rgba(0,255,136,.25);
@@ -646,10 +643,8 @@
       transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
     }
 
-    /* Desktop: float bottom-right; mobile stays inline if needed */
     @media (min-width: 980px){
-      #editInputsFab,
-      .fab-edit{
+      #editInputsFab {
         position: fixed;
         right: 28px;
         bottom: 28px;
@@ -659,15 +654,12 @@
       }
     }
 
-    #editInputsFab:hover,
-    .fab-edit:hover{
+    #editInputsFab:hover{
       transform: translateY(-1px);
       box-shadow: 0 12px 28px rgba(0,255,136,.22), 0 0 0 2px rgba(0,255,136,.18) inset;
       filter: saturate(1.05);
     }
-
-    #editInputsFab:active,
-    .fab-edit:active{
+    #editInputsFab:active{
       transform: translateY(0);
       box-shadow: 0 6px 16px rgba(0,255,136,.18), 0 0 0 2px rgba(0,255,136,.18) inset;
     }
