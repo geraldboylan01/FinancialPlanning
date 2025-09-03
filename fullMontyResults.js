@@ -17,38 +17,20 @@ let lastFYOutput = null;
 let lastWizard = {};
 let useMax = false;
 
-// --- Restore-to-original visibility control (scoped to Results page) ---
+// --- Restore-to-original visibility control (simple, single button) ---
 let _userHasAdjusted = false; // set true only by tweak actions (not by Max toggle)
 
-function getRestoreButton() {
-  // Prefer stable hooks if your renderer provides them:
-  // 👉 If you control the renderer, ensure the button has id="btnRestoreOriginal".
-  return document.querySelector('#btnRestoreOriginal, [data-role="restore-original"]')
-    // Fallback: text match inside the results area
-    || Array.from(document.querySelectorAll('#resultsView button, #resultsView [role="button"]'))
-         .find(b => /\b(return|reset)\b.*\b(original|defaults?)\b/i.test(b.textContent || ''));
-}
-
 function setRestoreVisible(show) {
-  const btn = getRestoreButton();
+  const btn = document.getElementById('btnRestoreOriginal');
   if (!btn) return;
-
-  // classes + aria
-  btn.classList.toggle('hidden', !show);
-  btn.classList.toggle('is-hidden', !show);
-  btn.setAttribute('aria-hidden', show ? 'false' : 'true');
-
-  // inline guarantees (beats any unexpected CSS)
-  if (!show) {
-    btn.style.display = 'none';
-    btn.style.visibility = 'hidden';
-    btn.style.pointerEvents = 'none';
-    btn.toggleAttribute('hidden', true);
+  if (show) {
+    btn.hidden = false;
+    btn.setAttribute('aria-hidden', 'false');
+    btn.style.display = ''; // allow CSS to lay it out
   } else {
-    btn.style.display = '';        // let CSS lay it out
-    btn.style.visibility = '';
-    btn.style.pointerEvents = '';
-    btn.toggleAttribute('hidden', false);
+    btn.hidden = true;
+    btn.setAttribute('aria-hidden', 'true');
+    btn.style.display = 'none'; // belt & braces
   }
 }
 
@@ -66,6 +48,31 @@ function markAdjustedByTweaks() {
 function clearAdjustedState() {
   _userHasAdjusted = false;
   updateRestoreVisibility();
+}
+
+function bindRestoreButtonClick(){
+  const btn = document.getElementById('btnRestoreOriginal');
+  if (!btn) return;
+
+  // Start hidden on mount
+  setRestoreVisible(false);
+
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Reset tweak state -> hides the button
+    resetHeroNudges();
+    clearAdjustedState();
+
+    // Optional: if a broader reset is exposed, call it
+    if (typeof window.resetContributionEdits === 'function') {
+      try { window.resetContributionEdits(); } catch {}
+    }
+
+    // Enforce hide immediately
+    setRestoreVisible(false);
+  }, { passive: false });
 }
 
 // --- Hero nudge state (session-scoped) ---
@@ -610,36 +617,6 @@ function bindYearAdjustmentDelegation(){
   });
 }
 
-function bindRestoreButtonClick(){
-  const root = document.getElementById('resultsView');
-  if (!root) return;
-
-  // Always start hidden
-  setRestoreVisible(false);
-
-  // Delegate so re-renders don't drop the listener
-  root.addEventListener('click', (e) => {
-    const btn = e.target.closest?.('#btnRestoreOriginal, [data-role="restore-original"]');
-    if (!btn) return;
-
-    // Stop any outer handlers from re-marking as adjusted
-    e.stopPropagation();
-    e.preventDefault();
-
-    // Reset tweak state
-    resetHeroNudges();               // clears +/− tap state & refreshes contribution UX
-    clearAdjustedState();            // sets _userHasAdjusted=false and hides the button
-
-    // If your renderer exposes a broader reset hook, call it:
-    if (typeof window.resetContributionEdits === 'function') {
-      try { window.resetContributionEdits(); } catch {}
-    }
-
-    // Finally, enforce hide in case a re-render happens immediately
-    setRestoreVisible(false);
-  });
-}
-
 function resetHeroNudges(){
   heroNetSteps = 0; saveHeroState(); updateTapBadges(); if (typeof refreshContribUX === 'function') refreshContribUX();
 }
@@ -676,9 +653,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // Ensure the Max toggle gets mounted into #belowHeroControls
   mountBelowHeroToggle();
 
-  // Hide restore on initial mount (regardless of prior session state)
-  clearAdjustedState();
-
   // Reflect any initial Max state if checkbox exists (injected into #belowHeroControls)
   const chk = document.querySelector('#maxContribsChk');
   if (chk) {
@@ -693,8 +667,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Detect “Delay / Fast-forward” retirement year tweaks (in #resultsView)
   bindYearAdjustmentDelegation();
 
-  // Hook the “Return to original” button (wherever it is rendered inside #resultsView)
-  bindRestoreButtonClick();
+  bindRestoreButtonClick();    // bind once to the single button
+  clearAdjustedState();        // hide restore on initial mount
 
   // Finish initial UI refreshes
   setTimeout(() => {
@@ -702,7 +676,6 @@ document.addEventListener('DOMContentLoaded', () => {
     computeMonthlyCap();
     updateTapBadges();
     if (typeof refreshContribUX === 'function') refreshContribUX();
-    // Keep restore hidden unless user tweaks
     clearAdjustedState();
   }, 0);
 });
@@ -1395,14 +1368,3 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Keep restore hidden on any re-render of results
-(function observeRestoreInsertion(){
-  const root = document.getElementById('resultsView');
-  if (!root || window.__restoreObserver) return;
-
-  window.__restoreObserver = new MutationObserver(() => {
-    // Re-apply current visibility policy whenever results DOM changes
-    updateRestoreVisibility();
-  });
-
-  window.__restoreObserver.observe(root, { childList: true, subtree: true });
-})();

@@ -609,20 +609,17 @@
 
     /* === Universal hide utility (must be at end to win the cascade) === */
     .hidden { display: none !important; }
-
-    /* Keep the restore button hidden when aria-hidden/hidden is set */
-    #resultsView #btnRestoreOriginal.hidden,
-    #resultsView [data-role="restore-original"].hidden,
-    #resultsView #btnRestoreOriginal[aria-hidden="true"],
-    #resultsView [data-role="restore-original"][aria-hidden="true"],
-    #resultsView #btnRestoreOriginal[hidden],
-    #resultsView [data-role="restore-original"][hidden]{
+    
+    /* === Restore button: simple hide/show via [hidden] === */
+    #btnRestoreOriginal[hidden] {
       display: none !important;
-      visibility: hidden !important;
-      pointer-events: none !important;
+    }
+    #btnRestoreOriginal {
+      /* keep it obvious but unobtrusive */
+      margin-top: .25rem;
     }
 
-    /* Show Edit Inputs FAB only on results view */
+    /* === Edit Inputs FAB: only show on results mode === */
     #editInputsFab { display: none; } /* default hidden */
 
     body[data-ui-mode="results"] #editInputsFab {
@@ -631,18 +628,7 @@
       gap: .5rem;
     }
 
-    /* Reuse existing floating style */
-    #editInputsFab {
-      background: var(--glow, #00ff88);
-      color: #0b1f16;
-      border: 1px solid rgba(0,255,136,.25);
-      border-radius: 999px;
-      font-weight: 800;
-      padding: .7rem 1rem;
-      box-shadow: 0 8px 24px rgba(0,255,136,.18), 0 0 0 2px rgba(0,255,136,.08) inset;
-      transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
-    }
-
+    /* Floating styling (desktop) */
     @media (min-width: 980px){
       #editInputsFab {
         position: fixed;
@@ -651,9 +637,15 @@
         z-index: 50;
         padding: .9rem 1.25rem;
         font-size: 1rem;
+        background: var(--glow, #00ff88);
+        color: #0b1f16;
+        border: 1px solid rgba(0,255,136,.25);
+        border-radius: 999px;
+        font-weight: 800;
+        box-shadow: 0 8px 24px rgba(0,255,136,.18), 0 0 0 2px rgba(0,255,136,.08) inset;
+        transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
       }
     }
-
     #editInputsFab:hover{
       transform: translateY(-1px);
       box-shadow: 0 12px 28px rgba(0,255,136,.22), 0 0 0 2px rgba(0,255,136,.18) inset;
@@ -751,6 +743,15 @@
           <div id="belowHeroControls" class="results-controls" aria-live="polite">
             <!-- Max Contributions toggle is injected here by fullMontyWizard.js -->
           </div>
+          <!-- Single restore button (fixed ID) -->
+          <button id="btnRestoreOriginal"
+                  class="pill pill--ghost"
+                  type="button"
+                  hidden
+                  aria-hidden="true"
+                  style="margin-left: 0;">
+            Return to original
+          </button>
         </section>
 
       <!-- ===== BEFORE RETIREMENT ===== -->
