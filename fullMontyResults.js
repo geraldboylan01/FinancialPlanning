@@ -32,12 +32,24 @@ function getRestoreButton() {
 function setRestoreVisible(show) {
   const btn = getRestoreButton();
   if (!btn) return;
-  if (btn.classList) {
-    btn.classList.toggle('hidden', !show);
-  } else {
-    btn.style.display = show ? '' : 'none';
-  }
+
+  // classes + aria
+  btn.classList.toggle('hidden', !show);
+  btn.classList.toggle('is-hidden', !show);
   btn.setAttribute('aria-hidden', show ? 'false' : 'true');
+
+  // inline guarantees (beats any unexpected CSS)
+  if (!show) {
+    btn.style.display = 'none';
+    btn.style.visibility = 'hidden';
+    btn.style.pointerEvents = 'none';
+    btn.toggleAttribute('hidden', true);
+  } else {
+    btn.style.display = '';        // let CSS lay it out
+    btn.style.visibility = '';
+    btn.style.pointerEvents = '';
+    btn.toggleAttribute('hidden', false);
+  }
 }
 
 function updateRestoreVisibility() {
@@ -1371,3 +1383,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// Keep restore hidden on any re-render of results
+(function observeRestoreInsertion(){
+  const root = document.getElementById('resultsView');
+  if (!root || window.__restoreObserver) return;
+
+  window.__restoreObserver = new MutationObserver(() => {
+    // Re-apply current visibility policy whenever results DOM changes
+    updateRestoreVisibility();
+  });
+
+  window.__restoreObserver.observe(root, { childList: true, subtree: true });
+})();
