@@ -17,6 +17,45 @@ let lastFYOutput = null;
 let lastWizard = {};
 let useMax = false;
 
+// --- Restore-to-original visibility control (scoped to Results page) ---
+let _userHasAdjusted = false; // set true only by tweak actions (not by Max toggle)
+
+function getRestoreButton() {
+  // Prefer stable hooks if your renderer provides them:
+  // 👉 If you control the renderer, ensure the button has id="btnRestoreOriginal".
+  return document.querySelector('#btnRestoreOriginal, [data-role="restore-original"]')
+    // Fallback: text match inside the results area
+    || Array.from(document.querySelectorAll('#resultsView button, #resultsView [role="button"]'))
+         .find(b => /\b(return|reset)\b.*\b(original|defaults?)\b/i.test(b.textContent || ''));
+}
+
+function setRestoreVisible(show) {
+  const btn = getRestoreButton();
+  if (!btn) return;
+  if (btn.classList) {
+    btn.classList.toggle('hidden', !show);
+  } else {
+    btn.style.display = show ? '' : 'none';
+  }
+  btn.setAttribute('aria-hidden', show ? 'false' : 'true');
+}
+
+function updateRestoreVisibility() {
+  // Show ONLY if user tweaked AND Max toggle is OFF
+  const show = !!_userHasAdjusted && !useMax;
+  setRestoreVisible(show);
+}
+
+function markAdjustedByTweaks() {
+  _userHasAdjusted = true;
+  updateRestoreVisibility();
+}
+
+function clearAdjustedState() {
+  _userHasAdjusted = false;
+  updateRestoreVisibility();
+}
+
 // --- Hero nudge state (session-scoped) ---
 let heroNetSteps = 0;         // +1 per "+100" tap, -1 per "remove"
 let heroBaseMonthly = null;   // derived from results on first mount
@@ -423,22 +462,26 @@ function ensureMaxScenario() {
 function setUseMaxContributions(on){
   useMax = !!on;
 
-  // Ensure the max path exists when turning ON
   if (useMax) ensureMaxScenario();
 
-  // Flip wording/colors across UI
   try { window.onMaxContribsToggleChanged?.(useMax); } catch {}
   try { window.setMaxToggle?.(useMax); } catch {}
   try { updateAssumptionChip?.(useMax); } catch {}
 
-  // Theme flag for CSS hooks
   document.body.setAttribute('data-scenario', useMax ? 'max' : 'current');
 
-  // Redraw charts and refresh the hero payload
   try { drawCharts(); } catch (e) { console.error('[FM Results] redraw after toggle failed', e); }
   try { scheduleHeroRender(); } catch {}
+
   // Reset hero nudges whenever scenario flips
   resetHeroNudges();
+
+  // IMPORTANT: Maximise toggle should NOT show the restore.
+  if (useMax) {
+    setRestoreVisible(false);
+  } else {
+    updateRestoreVisibility();
+  }
 }
 window.setUseMaxContributions = setUseMaxContributions;
 
@@ -491,22 +534,87 @@ function applyStep(delta){
   updateTapBadges();
   if (typeof refreshContribUX === 'function') refreshContribUX();
   // The hero buttons' own handlers will already trigger the recalcs.
+
+  // Mark as user-driven tweak (shows restore unless Max is ON)
+  markAdjustedByTweaks();
 }
 
 // Delegate clicks from the hero container (handles re-renders)
 function bindHeroTapDelegation(){
   const root = document.getElementById('resultsView');
   if (!root) return;
+
   root.addEventListener('click', (e)=>{
-    const tgt = e.target;
-    const btn = tgt && tgt.closest ? tgt.closest('button,[role="button"]') : null;
+    const btn = e.target && e.target.closest ? e.target.closest('button,[role="button"]') : null;
     if (!btn) return;
-    const txt = (btn.textContent||'').toLowerCase();
-    if (/\badd\b.*200/.test(txt) || btn.matches('[data-increment="+200"]')) {
-      applyStep(+100);
-    } else if (/\bremove\b.*200/.test(txt) || btn.matches('[data-increment="-200"]')) {
-      applyStep(-100);
+
+    // Prefer explicit data attributes if available on your buttons (e.g., data-increment="+100")
+    const incAttr = btn.getAttribute('data-increment'); // "+100", "-200", etc.
+    if (incAttr) {
+      const v = parseInt(incAttr.trim().replace(/[^\-\d]/g,''), 10);
+      if (Number.isFinite(v)) {
+        applyStep(v);
+        return;
+      }
     }
+
+    // Fallback: text match for add/reduce 100/200 (labels vary)
+    const txt = (btn.textContent || '').toLowerCase();
+    if (/\b(add|\+)\b.*(100|200)/.test(txt)) {
+      applyStep(+100);
+      return;
+    }
+    if (/\b(remove|reduce|−|-)\b.*(100|200)/.test(txt)) {
+      applyStep(-100);
+      return;
+    }
+  });
+}
+
+function bindYearAdjustmentDelegation(){
+  const root = document.getElementById('resultsView');
+  if (!root) return;
+
+  root.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest('button,[role="button"]') : null;
+    if (!btn) return;
+
+    // If your renderer provides these data hooks, we catch them first:
+    if (btn.matches('[data-action="delay-year"], [data-action="retire-later"], [data-year-delta="-1"], [data-year-delta="+1"], [data-role="retire-delay"], [data-role="retire-forward"]')) {
+      markAdjustedByTweaks();
+      return;
+    }
+
+    // Fallback text patterns (“Delay”, “Fast-forward”, “Retire later/sooner”, “±1 year”)
+    const t = (btn.textContent || '').toLowerCase();
+    if (/\b(delay|retire later|push back|\+1\s*year)\b/.test(t)) {
+      markAdjustedByTweaks();
+      return;
+    }
+    if (/\b(fast\s*forward|retire sooner|-1\s*year|bring forward)\b/.test(t)) {
+      markAdjustedByTweaks();
+      return;
+    }
+  });
+}
+
+function bindRestoreButtonClick(){
+  const btn = getRestoreButton();
+  if (!btn) return;
+
+  // Always hidden until a tweak happens
+  setRestoreVisible(false);
+
+  btn.addEventListener('click', () => {
+    // Reset tweak state already supported in your file:
+    resetHeroNudges();    // clears +/− tap state & refreshes contribution UX
+    clearAdjustedState(); // hides the restore button
+
+    // If your renderer exposes a broader reset hook, call it:
+    if (typeof window.resetContributionEdits === 'function') {
+      try { window.resetContributionEdits(); } catch {}
+    }
+    // Note: Do NOT change Max toggle here — spec says restore is only for tweak interactions.
   });
 }
 
@@ -542,14 +650,39 @@ function mountBelowHeroToggle(){
 
 document.addEventListener('DOMContentLoaded', () => {
   setUIMode('results');
+
+  // Ensure the Max toggle gets mounted into #belowHeroControls
   mountBelowHeroToggle();
+
+  // Hide restore on initial mount (regardless of prior session state)
+  clearAdjustedState();
+
+  // Reflect any initial Max state if checkbox exists (injected into #belowHeroControls)
   const chk = document.querySelector('#maxContribsChk');
   if (chk) {
     setUseMaxContributions(chk.checked);
   }
+
   loadHeroState();
+
+  // Delegate clicks for add/reduce buttons rendered into #resultsView
   bindHeroTapDelegation();
-  setTimeout(()=>{ deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); if (typeof refreshContribUX === 'function') refreshContribUX(); }, 0);
+
+  // Detect “Delay / Fast-forward” retirement year tweaks (in #resultsView)
+  bindYearAdjustmentDelegation();
+
+  // Hook the “Return to original” button (wherever it is rendered inside #resultsView)
+  bindRestoreButtonClick();
+
+  // Finish initial UI refreshes
+  setTimeout(() => {
+    deriveHeroBaseMonthly();
+    computeMonthlyCap();
+    updateTapBadges();
+    if (typeof refreshContribUX === 'function') refreshContribUX();
+    // Keep restore hidden unless user tweaks
+    clearAdjustedState();
+  }, 0);
 });
 
 function renderMaxContributionToggle(storeRef){
@@ -1161,6 +1294,7 @@ These projections are illustrative only — professional guidance is strongly re
 
   // DO NOT call renderHeroNowOrQueue here directly
   scheduleHeroRender();
+  updateRestoreVisibility();
 });
 
 document.addEventListener('fm-run-fy', (e) => {
@@ -1200,6 +1334,7 @@ document.addEventListener('fm-run-fy', (e) => {
 
   // Only render hero when both datasets present
   scheduleHeroRender();
+  updateRestoreVisibility();
 });
 
 // Wire bottom-sheet CTAs (exists in full-monty.html)
