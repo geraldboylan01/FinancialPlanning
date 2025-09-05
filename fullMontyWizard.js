@@ -270,205 +270,77 @@ renderStepGoal.validate = () => {
   return (typeof v === 'number' && v >= 0 && v <= 100) ? { ok:true } : { ok:false, message:'Enter a % between 0 and 100.' };
 };
 
-function renderStepPensions(cont) {
+function bindStepPensions(root, store){
+  const salary = () => {
+    return Number(store.grossIncome || store.salary || 0);
+  };
+
+  const userPctEl = root.querySelector('#userContribPct');
+  const empPctEl  = root.querySelector('#employerContribPct');
+
+  const userMoEl = root.querySelector('#userContribPerMonth');
+  const userYrEl = root.querySelector('#userContribPerYear');
+  const empMoEl  = root.querySelector('#employerContribPerMonth');
+  const empYrEl  = root.querySelector('#employerContribPerYear');
+
+  try {
+    if (window.percentInput) {
+      percentInput(userPctEl, { clamp: true });
+      percentInput(empPctEl,  { clamp: true });
+    }
+  } catch(e){ /* no-op */ }
+
+  const format = (n) => {
+    if (!isFinite(n) || n === 0) return '—';
+    return new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+  };
+
+  function computeEuro(perCent){
+    const s = salary();
+    const pct = Number(perCent) || 0;
+    const yearly = s * (pct / 100);
+    const monthly = yearly / 12;
+    return { monthly, yearly };
+  }
+
+  function renderUser(){
+    const { monthly, yearly } = computeEuro(userPctEl.value);
+    userMoEl.textContent = format(monthly);
+    userYrEl.textContent = format(yearly);
+    store.personalPctSelf = Number(userPctEl.value) || 0;
+    store.personalContribSelf = monthly;
+    queueSave();
+  }
+
+  function renderEmployer(){
+    const { monthly, yearly } = computeEuro(empPctEl.value);
+    empMoEl.textContent = format(monthly);
+    empYrEl.textContent = format(yearly);
+    store.employerPctSelf = Number(empPctEl.value) || 0;
+    store.employerContribSelf = monthly;
+    queueSave();
+  }
+
+  userPctEl.addEventListener('input', renderUser);
+  empPctEl.addEventListener('input', renderEmployer);
+
+  document.addEventListener('fm-salary-updated', () => {
+    renderUser();
+    renderEmployer();
+  });
+
+  if (store.personalPctSelf != null) userPctEl.value = store.personalPctSelf;
+  if (store.employerPctSelf != null) empPctEl.value = store.employerPctSelf;
+  renderUser();
+  renderEmployer();
+}
+
+function renderStepPensions(cont){
   const tmpl = document.getElementById('tpl-step-pensions');
   if (!tmpl) return;
   cont.innerHTML = '';
   cont.appendChild(tmpl.content.cloneNode(true));
-
-  const state = fullMontyStore;
-
-  (function wirePensionContribExclusivity(){
-    const el = {
-      userEuro: document.getElementById('userContribMonthly'),
-      userPct:  document.getElementById('userContribPct'),
-      empEuro:  document.getElementById('employerContribMonthly'),
-      empPct:   document.getElementById('employerContribPct')
-    };
-
-    // Enable everything on load (avoid stuck disabled state)
-    if (el.userPct) el.userPct.disabled = false;
-    if (el.empPct)  el.empPct.disabled  = false;
-    if (el.userEuro) el.userEuro.readOnly = false;
-    if (el.empEuro)  el.empEuro.readOnly  = false;
-
-    // Helper: parse number safely
-    const toNum = v => {
-      const n = parseFloat(String(v).replace(/[^\d.-]/g, ''));
-      return isNaN(n) ? 0 : n;
-    };
-
-    // Assuming you have annual salary stored somewhere:
-    const monthlySalary = (state?.grossIncome ? toNum(state.grossIncome)/12 : 0);
-
-    // --- USER side ---
-    if (el.userEuro && el.userPct){
-      el.userEuro.addEventListener('input', () => {
-        if (el.userEuro.value && toNum(el.userEuro.value) > 0){
-          el.userPct.value = '';
-          el.userEuro.readOnly = false;
-        }
-        savePensionState();
-      });
-
-      el.userPct.addEventListener('input', () => {
-        const pct = toNum(el.userPct.value);
-        if (pct > 0 && monthlySalary > 0){
-          const euro = (monthlySalary * pct) / 100;
-          el.userEuro.value = euro.toFixed(2);
-          el.userEuro.readOnly = true;       // visually alive, just not editable
-        } else {
-          el.userEuro.readOnly = false;
-        }
-        savePensionState();
-      });
-    }
-
-    // --- EMPLOYER side ---
-    if (el.empEuro && el.empPct){
-      el.empEuro.addEventListener('input', () => {
-        if (el.empEuro.value && toNum(el.empEuro.value) > 0){
-          el.empPct.value = '';
-          el.empEuro.readOnly = false;
-        }
-        savePensionState();
-      });
-
-      el.empPct.addEventListener('input', () => {
-        const pct = toNum(el.empPct.value);
-        if (pct > 0 && monthlySalary > 0){
-          const euro = (monthlySalary * pct) / 100;
-          el.empEuro.value = euro.toFixed(2);
-          el.empEuro.readOnly = true;
-        } else {
-          el.empEuro.readOnly = false;
-        }
-        savePensionState();
-      });
-    }
-
-    function savePensionState() {
-      const userMonthly = toNum(el.userEuro?.value);
-      const userPct = toNum(el.userPct?.value) || null;
-      const empMonthly = toNum(el.empEuro?.value);
-      const empPct = toNum(el.empPct?.value) || null;
-
-      state.pensions = state.pensions || {};
-      state.pensions.currentValue = toNum(document.getElementById('currentPensionValue')?.value);
-      state.pensions.userContributionMonthly = userMonthly;
-      state.pensions.userContributionPct = userPct;
-      state.pensions.employerContributionMonthly = empMonthly;
-      state.pensions.employerContributionPct = empPct;
-
-      state.currentPensionValueSelf = state.pensions.currentValue;
-      state.personalContribSelf = userMonthly;
-      state.personalPctSelf = userPct;
-      state.employerContribSelf = empMonthly;
-      state.employerPctSelf = empPct;
-
-      queueSave();
-    }
-
-    // Hydrate saved state
-    if (state.pensions) {
-      const cv = state.pensions.currentValue || state.currentPensionValueSelf;
-      if (cv) document.getElementById('currentPensionValue').value = cv;
-
-      if (state.pensions.userContributionPct) {
-        el.userPct.value = state.pensions.userContributionPct;
-        el.userPct.dispatchEvent(new Event('input'));
-      } else if (state.personalContribSelf) {
-        el.userEuro.value = state.personalContribSelf;
-        el.userEuro.dispatchEvent(new Event('input'));
-      }
-
-      if (state.pensions.employerContributionPct) {
-        el.empPct.value = state.pensions.employerContributionPct;
-        el.empPct.dispatchEvent(new Event('input'));
-      } else if (state.employerContribSelf) {
-        el.empEuro.value = state.employerContribSelf;
-        el.empEuro.dispatchEvent(new Event('input'));
-      }
-    }
-
-    document.getElementById('currentPensionValue')?.addEventListener('input', savePensionState);
-  })();
-
-  // Cap logic for employee contributions only
-  (function wirePersonalCapLogic(){
-    const euro = document.getElementById('userContribMonthly');
-    const pct  = document.getElementById('userContribPct');
-    const noteEuro = document.getElementById('userEuroCapNote');
-    const notePct  = document.getElementById('userPctCapNote');
-
-    if (!euro || !pct) return;
-
-    function showNote(el,msg){ if(el){ el.textContent=msg; el.style.display='block'; } }
-    function hideNote(el){ if(el){ el.style.display='none'; el.textContent=''; } }
-
-    function currentMonthlyCap(){
-      const dob = fullMontyStore.dobSelf || fullMontyStore.dob;
-      if(!dob) return Infinity;
-      const age = Math.floor((Date.now()-new Date(dob).getTime())/(365.25*24*3600*1000));
-      const salary = Number(fullMontyStore.grossIncome||0);
-      const cappedSalary = Math.min(salary, MAX_SALARY_CAP);
-      const band = IRL_AGE_BANDS.find(b => age>=b.min && age<=b.max) || IRL_AGE_BANDS[IRL_AGE_BANDS.length-1];
-      return (cappedSalary*band.pct)/100/12;
-    }
-    function maxPct(){
-      const dob = fullMontyStore.dobSelf || fullMontyStore.dob;
-      if(!dob) return 0;
-      const age = Math.floor((Date.now()-new Date(dob).getTime())/(365.25*24*3600*1000));
-      const band = IRL_AGE_BANDS.find(b => age>=b.min && age<=b.max);
-      return band?band.pct:0;
-    }
-
-    euro.addEventListener('input',()=>{
-      hideNote(noteEuro); hideNote(notePct);
-      const val = toNumber(euro.value);
-      const cap = currentMonthlyCap();
-      if(val>cap && isFinite(cap)){
-        euro.value = (cap).toFixed(2);
-        showNote(noteEuro, `Capped at €${cap.toFixed(2)} per month — maximum eligible for tax relief at your age.`);
-      }
-    });
-
-    pct.addEventListener('input',()=>{
-      hideNote(noteEuro); hideNote(notePct);
-      let p = toNumber(pct.value);
-      const maxp = maxPct();
-      if(p>maxp){ p = maxp; pct.value=String(p); showNote(notePct,`Capped at ${p}% — maximum eligible for tax relief at your age.`); }
-      const salary = Number(fullMontyStore.grossIncome||0);
-      if(salary>0){
-        let euroVal=(salary*p/100)/12;
-        const cap=currentMonthlyCap();
-        if(euroVal>cap){
-          euroVal=cap;
-          const effPct=(cap/(salary/12))*100;
-          pct.value=effPct.toFixed(2).replace(/\.00$/,'');
-          showNote(notePct,`Capped by earnings limit — effective rate set to ${pct.value}%.`);
-        }
-        euro.value=euroVal.toFixed(2);
-        euro.readOnly=true;
-      } else {
-        euro.readOnly=false;
-      }
-    });
-
-    function enforceCapOnLoad(){
-      const cap=currentMonthlyCap();
-      if(toNumber(euro.value)>cap && isFinite(cap)){
-        euro.value=cap.toFixed(2);
-        showNote(noteEuro,`Capped at €${cap.toFixed(2)} per month — maximum eligible for tax relief at your age.`);
-      }
-      const p=toNumber(pct.value); const maxp=maxPct();
-      if(p>maxp){
-        pct.value=String(maxp);
-        showNote(notePct,`Capped at ${maxp}% — maximum eligible for tax relief at your age.`);
-      }
-    }
-    enforceCapOnLoad();
-  })();
+  bindStepPensions(cont, fullMontyStore);
 }
 renderStepPensions.validate = () => ({ ok: true, errors: {} });
 

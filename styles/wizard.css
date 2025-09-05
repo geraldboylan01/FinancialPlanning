@@ -1399,3 +1399,83 @@
   color: var(--text-2, #aaa);
   opacity: .85;
 }
+
+/* ==== Dynamic Result Chip (non-editable output) ==== */
+.input-row{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap:.8rem;
+  align-items:stretch;
+}
+
+.result-chip{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  gap:.25rem;
+  min-width:210px;
+  padding:.7rem .9rem;
+  border-radius:14px;
+  background:#212121;
+  border:1px solid rgba(0,255,136,.28);
+  box-shadow:0 0 0 2px rgba(0,255,136,.10) inset,0 8px 22px rgba(0,255,136,.10);
+  transition:box-shadow .2s ease,filter .2s ease,transform .12s ease;
+}
+
+.result-chip:hover{
+  box-shadow:0 0 0 2px rgba(0,255,136,.14) inset,0 10px 26px rgba(0,255,136,.14);
+  transform:translateY(-1px);
+  filter:saturate(1.02);
+}
+
+.result-main{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:.8rem;
+}
+
+.result-label{
+  color:#cfeee1;
+  font-size:.9rem;
+  font-weight:700;
+  letter-spacing:.02em;
+}
+
+.result-value{
+  font-weight:900;
+  font-size:1.15rem;
+  color:#a6ffd8;
+}
+
+.result-sub{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+}
+
+.sub-label{
+  color:#a7a7a7;
+  font-size:.85rem;
+  font-weight:700;
+}
+
+.sub-value{
+  color:#eaeaea;
+  font-weight:800;
+  font-size:.95rem;
+}
+
+/* Head block for contrib sections */
+.contrib-head{ margin-bottom:.4rem; }
+.contrib-title{ margin:0; font-size:1.05rem; font-weight:800; }
+.contrib-sub{ margin:.15rem 0 0; color:#cfcfcf; font-size:.92rem; }
+
+/* Tighten the % input so it aligns nicely with the chip */
+#userContribPctWrap input,
+#employerContribPctWrap input{
+  text-align:right;
+}
+
+/* Remove legacy “OR” dividers globally (in case any remain) */
+.or-divider{ display:none !important; }

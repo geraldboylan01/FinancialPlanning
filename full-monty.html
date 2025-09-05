@@ -686,42 +686,61 @@
   </div>
 
   <!-- ===== Employee (you) ===== -->
-  <div class="contrib-group contrib-group--user">
-    <label for="userContribMonthly" class="fm-label">Your contribution (per month)</label>
-    <div id="userContribMonthlyWrap" class="input-wrap prefix prefix--wide">
-      <span>€ / mo</span>
-      <input id="userContribMonthly" name="userContribMonthly" type="number" inputmode="decimal" placeholder="e.g. 250" />
-    </div>
-    <p class="field-help">If you prefer, enter a % below.</p>
-
-    <div id="userEuroCapNote" class="cap-note" aria-live="polite" style="display:none;"></div>
-
-    <div class="or-divider" aria-hidden="true"><span>OR</span></div>
-
-    <label for="userContribPct" class="fm-label">% of salary (you pay)</label>
-    <div id="userContribPctWrap" class="input-wrap suffix">
-      <input id="userContribPct" name="userContribPct" type="number" inputmode="decimal" placeholder="e.g. 5" />
-      <span>%</span>
+  <div class="contrib-group contrib-group--user card-like">
+    <div class="contrib-head">
+      <h3 class="contrib-title">Your contribution</h3>
+      <p class="contrib-sub">Enter your % of salary — we calculate the € automatically.</p>
     </div>
 
+    <label for="userContribPct" class="fm-label">% of salary (you)</label>
+    <div class="input-row">
+      <div id="userContribPctWrap" class="input-wrap suffix">
+        <input id="userContribPct" name="userContribPct" type="number" inputmode="decimal" placeholder="e.g. 5" />
+        <span>%</span>
+      </div>
+
+      <!-- Dynamic Result Chip (auto-calculated, not editable) -->
+      <div class="result-chip" aria-live="polite" id="userContribEuroChip" title="Auto-calculated from your %">
+        <div class="result-main">
+          <span class="result-label">€ / mo</span>
+          <span class="result-value" id="userContribPerMonth">—</span>
+        </div>
+        <div class="result-sub">
+          <span class="sub-label">€ / yr</span>
+          <span class="sub-value" id="userContribPerYear">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- (Optional) cap note remains for future logic; keep it hidden unless used -->
     <div id="userPctCapNote" class="cap-note" aria-live="polite" style="display:none;"></div>
   </div>
 
   <!-- ===== Employer ===== -->
-  <div class="contrib-group contrib-group--employer">
-    <label for="employerContribMonthly" class="fm-label">Employer contribution (per month)</label>
-    <div id="employerContribMonthlyWrap" class="input-wrap prefix prefix--wide">
-      <span>€ / mo</span>
-      <input id="employerContribMonthly" name="employerContribMonthly" type="number" inputmode="decimal" placeholder="e.g. 200" />
+  <div class="contrib-group contrib-group--employer card-like">
+    <div class="contrib-head">
+      <h3 class="contrib-title">Employer contribution</h3>
+      <p class="contrib-sub">Enter % of your salary — we calculate the € automatically.</p>
     </div>
-    <p class="field-help">If you prefer, enter a % below.</p>
-
-    <div class="or-divider" aria-hidden="true"><span>OR</span></div>
 
     <label for="employerContribPct" class="fm-label">% of salary (employer)</label>
-    <div id="employerContribPctWrap" class="input-wrap suffix">
-      <input id="employerContribPct" name="employerContribPct" type="number" inputmode="decimal" placeholder="e.g. 5" />
-      <span>%</span>
+    <div class="input-row">
+      <div id="employerContribPctWrap" class="input-wrap suffix">
+        <input id="employerContribPct" name="employerContribPct" type="number" inputmode="decimal" placeholder="e.g. 5" />
+        <span>%</span>
+      </div>
+
+      <!-- Dynamic Result Chip -->
+      <div class="result-chip" aria-live="polite" id="employerContribEuroChip" title="Auto-calculated from employer %">
+        <div class="result-main">
+          <span class="result-label">€ / mo</span>
+          <span class="result-value" id="employerContribPerMonth">—</span>
+        </div>
+        <div class="result-sub">
+          <span class="sub-label">€ / yr</span>
+          <span class="sub-value" id="employerContribPerYear">—</span>
+        </div>
+      </div>
     </div>
   </div>
 </section>
