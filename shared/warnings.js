@@ -2,22 +2,19 @@
 // Minimal, data-driven warnings registry with HTML emitters.
 // Keep .warning-block structure so existing CSS/PDF code continues to work.
 
-import { sftForYear } from '../shared/assumptions.js';
-
-const euro = n => '€' + Number(n || 0).toLocaleString();
+import { getSftWarningHTML } from './sftWarning.js';
 
 /** Context contract all tools can provide */
 /// ctx = {
 ///   retireAge: number,
 ///   retirementYear: number,
 ///   projectedValue: number,
-///   sftLimit: number,            // optional; if missing we compute from retirementYear
+///   sftLimit: number,            // optional; caller computes if needed
 ///   employerAnnual?: number,
 ///   personalAnnual?: number
 /// }
 
 export const WARN = {
-  SFT: 'sft-standard',
   AGE_PRE50: 'age-pre50',
   AGE_50_59: 'age-50-59',
   AGE_OVER70: 'age-over70',
@@ -25,24 +22,6 @@ export const WARN = {
 };
 
 // Individual warning generators (return HTML strings)
-function sftWarning(ctx) {
-  const year = ctx.retirementYear;
-  const limit = ctx.sftLimit ?? (year ? sftForYear(year) : null);
-  if (!year || !limit) return ''; // not enough info
-  // Show only if helpful: either user is close or exceeds. Keep it simple: always show if you prefer.
-  const exceeds = typeof ctx.projectedValue === 'number' && ctx.projectedValue > limit;
-
-  return `
-    <div class="warning-block" data-warning="${WARN.SFT}">
-      ⚠️ <strong>Standard Fund Threshold (SFT)</strong><br><br>
-      The SFT is a lifetime cap on tax-advantaged pension savings.
-      Exceeding it can trigger a 40% Chargeable Excess Tax on the excess at retirement/crystallisation.
-      ${exceeds ? `<br><br>Your projection (${euro(ctx.projectedValue)}) exceeds the ${year} SFT (${euro(limit)}). Please seek professional advice.` : ''}
-      <br><br><small>Compared to the Revenue SFT for ${year}: ${euro(limit)}.</small>
-    </div>
-  `;
-}
-
 function agePre50(ctx){
   if (ctx.retireAge >= 50) return '';
   return `
@@ -85,10 +64,12 @@ function age75Plus(ctx){
 }
 
 // Registry (order matters = render order)
-const REGISTRY = [agePre50, age50to59, ageOver70, age75Plus, sftWarning];
+const REGISTRY = [agePre50, age50to59, ageOver70, age75Plus];
 
 /** Build warnings HTML list for a page, based on context */
-export function buildWarningsHTML(ctx) {
-  return REGISTRY.map(fn => fn(ctx)).filter(Boolean).join('');
+export function buildWarningsHTML(ctx, { variant = 'block' } = {}) {
+  const blocks = [];
+  blocks.push(getSftWarningHTML({ ...ctx, variant }));
+  REGISTRY.forEach(fn => blocks.push(fn(ctx)));
+  return blocks.filter(Boolean).join('');
 }
-
