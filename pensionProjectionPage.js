@@ -447,16 +447,12 @@ const retirementYear = new Date().getFullYear() + Math.ceil(yearsToRet);
 const sftLimit       = sftForYear(retirementYear);
 sftLimitGlobal = sftLimit;
 
-const unifiedWarnings = buildWarningsHTML({
+const warningsHTML = buildWarningsHTML({
   retireAge,
   retirementYear,
   projectedValue: projValue,
-  sftLimit,
-  personalAnnual: personalUsed,
-  employerAnnual: employerCalc
-});
-
-const warningsHTML = unifiedWarnings;
+  sftLimit
+}, { variant: 'block' });
 const resultsHTML = `
   <p>
     Max personal contribution allowed (age ${Math.floor(curAge)}):
