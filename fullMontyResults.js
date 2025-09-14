@@ -256,12 +256,15 @@ function renderComplianceNotices(container){
     ? lastPensionOutput.sftLimit
     : (retirementYr != null ? sftForYear(retirementYr) : null);
 
-  const warningsHTML = buildWarningsHTML({
-    retireAge,
-    retirementYear: retirementYr,
-    projectedValue: projAtRet,
-    sftLimit
-  });
+  const warningsHTML = buildWarningsHTML(
+    {
+      retireAge,
+      retirementYear: retirementYr,
+      projectedValue: projAtRet,
+      sftLimit
+    },
+    { variant: 'fullmonty' }
+  );
 
   const mandatoryCard = `
     <div class="warning-block">
@@ -1093,12 +1096,15 @@ document.addEventListener('fm-pension-output', (e) => {
   const projValue = projectedAtRetirementValue();
   const sftLimit = lastPensionOutput?.sftLimit ?? (retirementYear ? sftForYear(retirementYear) : null);
 
-  const unifiedWarnings = buildWarningsHTML({
-    retireAge,
-    retirementYear,
-    projectedValue: projValue,
-    sftLimit
-  });
+  const unifiedWarnings = buildWarningsHTML(
+    {
+      retireAge,
+      retirementYear,
+      projectedValue: projValue,
+      sftLimit
+    },
+    { variant: 'fullmonty' }
+  );
 
   const mandatoryWarning = `
   <div class="warning-block">
