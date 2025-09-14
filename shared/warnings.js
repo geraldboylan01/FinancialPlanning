@@ -3,6 +3,7 @@
 // Keep .warning-block structure so existing CSS/PDF code continues to work.
 
 import { getSftWarningHTML } from './sftWarning.js';
+import { getMinWithdrawalsHTML } from './minWithdrawalsWarning.js';
 
 /** Context contract all tools can provide */
 /// ctx = {
@@ -70,6 +71,7 @@ const REGISTRY = [agePre50, age50to59, ageOver70, age75Plus];
 export function buildWarningsHTML(ctx, { variant = 'block' } = {}) {
   const blocks = [];
   blocks.push(getSftWarningHTML({ ...ctx, variant }));
+  blocks.push(getMinWithdrawalsHTML({ variant }));
   REGISTRY.forEach(fn => blocks.push(fn(ctx)));
   return blocks.filter(Boolean).join('');
 }

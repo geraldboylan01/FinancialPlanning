@@ -245,8 +245,8 @@ window.addEventListener('fm-renderer-ready', () => {
 });
 
 function renderComplianceNotices(container){
-  container = ensureNoticesMount() || container || document.getElementById('compliance-notices');
-  if (!container) return;
+  const el = ensureNoticesMount() || container || document.getElementById('compliance-notices');
+  if (!el) return;
 
   const projAtRet = projectedAtRetirementValue();
   const retireAge = lastWizard?.retireAge ?? null;
@@ -256,7 +256,7 @@ function renderComplianceNotices(container){
     ? lastPensionOutput.sftLimit
     : (retirementYr != null ? sftForYear(retirementYr) : null);
 
-  const warningsHTML = buildWarningsHTML(
+  const fmWarnings = buildWarningsHTML(
     {
       retireAge,
       retirementYear: retirementYr,
@@ -266,14 +266,8 @@ function renderComplianceNotices(container){
     { variant: 'fullmonty' }
   );
 
-  const mandatoryCard = `
-    <div class="warning-block">
-      ⚠️ <strong>Mandatory withdrawals (ARF / vested PRSA)</strong><br><br>
-      Minimum annual drawdowns apply in retirement under Revenue’s imputed-distribution rules. Our charts do <b>not</b> model these minimum withdrawals.
-    </div>
-  `;
-
-  container.innerHTML = `<div class="notice-cards">${warningsHTML}${mandatoryCard}</div>`;
+  el.innerHTML = '';
+  el.insertAdjacentHTML('beforeend', fmWarnings);
   document.querySelectorAll('.warning-block strong').forEach(s=>{
     if (s.textContent.trim() === 'Standard Fund Threshold (SFT) Assumptions') {
       s.closest('.warning-block')?.remove();
@@ -1096,7 +1090,7 @@ document.addEventListener('fm-pension-output', (e) => {
   const projValue = projectedAtRetirementValue();
   const sftLimit = lastPensionOutput?.sftLimit ?? (retirementYear ? sftForYear(retirementYear) : null);
 
-  const unifiedWarnings = buildWarningsHTML(
+  const warningsHTML = buildWarningsHTML(
     {
       retireAge,
       retirementYear,
@@ -1105,15 +1099,6 @@ document.addEventListener('fm-pension-output', (e) => {
     },
     { variant: 'fullmonty' }
   );
-
-  const mandatoryWarning = `
-  <div class="warning-block">
-    ⚠️ <strong>Mandatory Withdrawals (ARF / vested PRSA)</strong><br><br>
-    Revenue’s imputed distribution rules require minimum annual drawdowns from ARFs and vested PRSAs. Rates increase with age and may vary with overall ARF/vested PRSA size. Our charts do not model these minimum withdrawals; actual net income and fund paths may differ.
-  </div>
-`;
-
-  const warningsHTML = unifiedWarnings + mandatoryWarning;
   const cw = document.getElementById('calcWarnings');
   if (cw) {
     cw.innerHTML = warningsHTML;
