@@ -1,6 +1,7 @@
 import { drawBanner, getBannerHeight } from './pdfWarningHelpers.js';
 import { numFromInput, clampPercent } from './ui-inputs.js';
 import { MAX_SALARY_CAP, sftForYear } from './shared/assumptions.js';
+import { buildWarningsHTML } from './shared/warnings.js';
 const AGE_BANDS = [
   { max: 29,  pct: 0.15 },
   { max: 39,  pct: 0.20 },
@@ -446,61 +447,16 @@ const retirementYear = new Date().getFullYear() + Math.ceil(yearsToRet);
 const sftLimit       = sftForYear(retirementYear);
 sftLimitGlobal = sftLimit;
 
-  let sftAssumpWarning = '';
-  if (retirementYear >= 2030) {
-    sftAssumpWarning = `
-      <div class="warning-block">
-        ⚠️ <strong>Standard Fund Threshold (SFT) Assumptions</strong><br><br>
-        This pension projection tool uses the Standard Fund Threshold (SFT) figures as published by the Irish Government for each year up to and including 2029. These are the most recent years for which official, fixed SFT values have been confirmed.<br><br>
-        While the Government has indicated that the SFT will increase in line with wage inflation beyond 2029, no definitive figures or formulae have been published to date. As a result, this tool does not project future increases to the SFT beyond 2029, as doing so would require speculative or unreliable assumptions.<br><br>
-        Users should be aware that actual SFT limits post-2029 may differ significantly depending on future policy decisions and economic conditions. We recommend consulting a qualified financial advisor for guidance specific to your circumstances.
-      </div>`;
-  }
+const unifiedWarnings = buildWarningsHTML({
+  retireAge,
+  retirementYear,
+  projectedValue: projValue,
+  sftLimit,
+  personalAnnual: personalUsed,
+  employerAnnual: employerCalc
+});
 
-let ageWarning = '';
-if (retireAge < 50) {
-  ageWarning = `
-    <div class="warning-block danger">
-      ⛔ <strong>Retiring Before Age 50</strong><br><br>
-      Under Irish Revenue rules, pensions cannot be accessed before age 50, except in rare cases such as ill-health retirement.<br>
-      These projections are illustrative only — professional guidance is strongly recommended.
-    </div>`;
-} else if (retireAge < 60) {
-  ageWarning = `
-    <div class="warning-block">
-      ⚠️ <strong>Retiring Between Age 50–59</strong><br><br>
-      Access to pension benefits before the usual retirement age is only possible in limited cases.<br><br>
-      Typical Normal Retirement Ages (NRAs) are:<br>
-      60–70 for most occupational pensions and Personal Retirement Bonds (PRBs)<br>
-      60–75 for PRSAs<br><br>
-      Early access (from age 50) may be possible only if certain Revenue conditions are met — e.g.:<br>
-      You’ve left employment linked to the pension<br>
-      You’re a proprietary director who fully severs ties with the sponsoring company<br><br>
-      Please seek professional advice before relying on projections assuming early access.
-    </div>`;
-} else if (retireAge < 70) {
-  // Ages 60–69: no warning block needed
-  ageWarning = '';
-} else if (retireAge < 75) {
-  ageWarning = `
-    <div class="warning-block">
-      ⚠️ <strong>Retirement Age Over 70 (Occupational Pensions &amp; PRBs)</strong><br><br>
-      Most occupational pensions and Personal Retirement Bonds (PRBs) must be drawn down by age 70 under Irish Revenue rules.<br>
-      If your selected retirement age is over 70, please be aware this may not be allowed for those pension types.<br><br>
-      Note: The exception to this is PRSAs, which can remain unretired until age 75.<br><br>
-      Please seek professional advice to ensure your retirement plan complies with pension access rules.
-    </div>`;
-} else {
-  ageWarning = `
-    <div class="warning-block danger">
-      ⛔ <strong>Retirement Age 75 and Over</strong><br><br>
-      Under Irish Revenue rules, all pensions — including PRSAs — must be accessed by age 75.<br>
-      If benefits are not drawn down by this age, the pension is automatically deemed to vest, and the full value may be treated as taxable income.<br>
-      These projections are illustrative only — professional guidance is strongly recommended.
-    </div>`;
-}
-
-const warningsHTML = ageWarning + sftAssumpWarning;
+const warningsHTML = unifiedWarnings;
 const resultsHTML = `
   <p>
     Max personal contribution allowed (age ${Math.floor(curAge)}):
@@ -610,6 +566,11 @@ function gatherData(value, year, sftText, personalAnnual, employerAnnual, maxVal
     const tableHTML = `<h3>Inputs</h3><table class="assumptions-table"><tbody>${rows}</tbody></table>`;
     document.getElementById('results').innerHTML = tableHTML + resultsHTML;
     document.getElementById('calcWarnings').innerHTML = warningsHTML;
+    document.querySelectorAll('.warning-block strong').forEach(s=>{
+      if (s.textContent.trim() === 'Standard Fund Threshold (SFT) Assumptions') {
+        s.closest('.warning-block')?.remove();
+      }
+    });
 
     latestRun.warningBlocks = [...document.querySelectorAll('#results .warning-block, #postCalcContent .warning-block')].map(el => {
       const strong = el.querySelector('strong');
