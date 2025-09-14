@@ -2,6 +2,7 @@
 import { fyRequiredPot } from './shared/fyRequiredPot.js';
 import { sftForYear, CPI, STATE_PENSION, SP_START, MAX_SALARY_CAP } from './shared/assumptions.js';
 import { setUIMode } from './uiMode.js';
+import { buildWarningsHTML } from './shared/warnings.js';
 
 const AGE_BANDS = [
   { max: 29,  pct: 0.15 },
@@ -247,142 +248,34 @@ function renderComplianceNotices(container){
   container = ensureNoticesMount() || container || document.getElementById('compliance-notices');
   if (!container) return;
 
-  const projAtRet = projectedAtRetirementValue(); // number or null
+  const projAtRet = projectedAtRetirementValue();
   const retireAge = lastWizard?.retireAge ?? null;
   const retirementYr = lastPensionOutput?.retirementYear ?? null;
 
-  // Year-aware SFT (do not print the year in the prose)
   const sftLimit = (lastPensionOutput?.sftLimit != null)
     ? lastPensionOutput.sftLimit
     : (retirementYr != null ? sftForYear(retirementYr) : null);
 
-  // FY target (required pension)
-  const fyReq = lastFYOutput?.requiredPot ?? null;
-
-  // Decide severity + reason
-  let sftLevel = 'warn';
-  let reasonHTML = '';
-
-  if (sftLimit != null) {
-    const reqOver = (fyReq != null) && (fyReq > sftLimit);
-    const projOver = (projAtRet != null) && (projAtRet > sftLimit);
-
-    if (reqOver) {
-      sftLevel = 'danger';
-      reasonHTML = 'Your target (required) pension is projected to be above the Standard Fund Threshold (SFT).';
-    } else if (projOver) {
-      sftLevel = 'danger';
-      reasonHTML = 'Your projected pension is projected to be above the Standard Fund Threshold (SFT).';
-    } else if (fyReq != null || projAtRet != null) {
-      const val = Math.max(fyReq ?? 0, projAtRet ?? 0);
-      const ratio = val / sftLimit;
-      if (ratio >= 0.8) {
-        sftLevel = 'warn';
-        reasonHTML = 'You are getting close to the Standard Fund Threshold (SFT).';
-      } else {
-        sftLevel = 'ok';
-        reasonHTML = 'You are currently below the Standard Fund Threshold (SFT).';
-      }
-    }
-  } else {
-    // No SFT value available (still render an info card)
-    sftLevel = 'warn';
-    reasonHTML = 'We couldn’t compare your pension to the Standard Fund Threshold (SFT).';
-  }
-
-  // --- Card copy (no retirement-year callout) ---
-  const definitionHTML = `
-    <p>The Standard Fund Threshold (SFT) is the cap on pension savings in Ireland. Any amount above it when your pension is “crystallised” (typically retirement) is taxed at <b>40%</b>.</p>
-  `;
-
-  const compareLineHTML = (sftLimit != null)
-    ? `<p>${reasonHTML} We’re comparing against a current SFT limit of <b>${formatEUR(sftLimit)}</b> based on today’s rules.</p>`
-    : `<p>${reasonHTML}</p>`;
-
-  const pathNoteHTML = `
-    <p class="dim">
-      <em>Reference:</em> The Irish Government has legislated that the <b>Standard Fund Threshold (SFT)</b> will increase by
-      <b>€200,000 each year</b> — rising from <b>€2.0m in 2025</b> to <b>€2.8m in 2029</b>.
-      Beyond 2029, the Government has said the SFT will be linked to wage inflation,
-      but they have not published how this will be calculated or what figures will apply,
-      and future Budgets could change the rules.
-      To avoid giving a misleading picture, this tool takes a <b>conservative approach</b> and assumes the SFT stays fixed at <b>€2.8m from 2030 onward</b>, until official guidance is released.
-    </p>
-  `;
-
-  const sftCard = `
-    <div class="notice-card ${sftLevel==='danger'?'danger':(sftLevel==='warn'?'warn':'ok')}">
-      <div class="title">Standard Fund Threshold (SFT)</div>
-      <div class="meta">
-        ${definitionHTML}
-        ${compareLineHTML}
-        ${pathNoteHTML}
-      </div>
-    </div>
-  `;
-
-  // --- Age card + assumptions card (unchanged except wording already updated earlier) ---
-  // (keep your existing age selection logic and assWB fallback)
-
-  // --- Age severity (unchanged)
-  let ageLevel='ok';
-  if (retireAge != null){
-    if (retireAge < 50 || retireAge >= 75) ageLevel='danger';
-    else if ((retireAge >= 50 && retireAge < 60) || (retireAge >= 70 && retireAge < 75)) ageLevel='warn';
-  }
-
-  // Pull legacy blocks for body copy (keep as-is)
-  const wb = lastPensionOutput?.warningBlocks || [];
-  const findWB = (pred) => wb.find(w => pred((w.title||'').toLowerCase()));
-  const ageWB = findWB(t => t.includes('retiring before age 50') || t.includes('retiring between age 50') || t.includes('over 70') || t.includes('75 and over'));
-  const assWB = findWB(t => t.includes('standard fund threshold (sft) assumptions'));
-
-  const ageBody = ageWB ? ageWB.body : (
-    retireAge==null
-      ? 'No retirement age selected.'
-      : (retireAge < 50
-          ? 'Pensions generally cannot be accessed before age 50 except in rare cases (ill-health).'
-          : (retireAge < 60
-              ? 'Access before the usual retirement age is limited and condition-dependent.'
-              : (retireAge < 75
-                  ? 'Many schemes must be drawn by age 70; PRSAs may defer to 75.'
-                  : 'All pensions must be accessed by age 75; automatic vesting applies.')))
-  );
-
-  const ageCard = (ageLevel==='ok' && !ageWB) ? '' : `
-    <div class="notice-card ${ageLevel==='danger'?'danger':(ageLevel==='warn'?'warn':'ok')}">
-      <div class="title">Retirement age selection</div>
-      <div class="meta">${ageBody}</div>
-    </div>
-  `;
-
-  const assumpCard = (retirementYr>=2030) ? `
-    <div class="notice-card warn">
-      <div class="title">SFT assumptions notice</div>
-      <div class="meta">
-        ${assWB ? assWB.body :
-          'Official SFT values are confirmed to 2029 (+€200k per year to €2.8m). For 2030+ we hold the SFT at €2.8m pending guidance.'}
-      </div>
-    </div>
-  ` : '';
+  const warningsHTML = buildWarningsHTML({
+    retireAge,
+    retirementYear: retirementYr,
+    projectedValue: projAtRet,
+    sftLimit
+  });
 
   const mandatoryCard = `
-    <div class="notice-card warn">
-      <div class="title">Mandatory withdrawals (ARF / vested PRSA)</div>
-      <div class="meta">
-        Minimum annual drawdowns apply in retirement under Revenue’s imputed-distribution rules. Our charts do <b>not</b> model these minimum withdrawals.
-      </div>
+    <div class="warning-block">
+      ⚠️ <strong>Mandatory withdrawals (ARF / vested PRSA)</strong><br><br>
+      Minimum annual drawdowns apply in retirement under Revenue’s imputed-distribution rules. Our charts do <b>not</b> model these minimum withdrawals.
     </div>
   `;
 
-  container.innerHTML = `
-    <div class="notice-cards">
-      ${sftCard}
-      ${ageCard ?? ''}
-      ${assumpCard ?? ''}
-      ${mandatoryCard ?? ''}
-    </div>
-  `;
+  container.innerHTML = `<div class="notice-cards">${warningsHTML}${mandatoryCard}</div>`;
+  document.querySelectorAll('.warning-block strong').forEach(s=>{
+    if (s.textContent.trim() === 'Standard Fund Threshold (SFT) Assumptions') {
+      s.closest('.warning-block')?.remove();
+    }
+  });
 
   // Ensure old static SFT sections are removed
   removeLegacySFTStatic();
@@ -1197,64 +1090,15 @@ document.addEventListener('fm-pension-output', (e) => {
 
   const retireAge = lastWizard?.retireAge ?? lastPensionOutput?.balances?.at(-1)?.age ?? null;
   const retirementYear = lastPensionOutput?.retirementYear;
-  let earlyWarning = '';
-  if (retireAge != null){
-    if (retireAge < 50){
-      earlyWarning = `
-<div class="warning-block danger">
-⛔ <strong>Retiring Before Age 50</strong><br><br>
-Under Irish Revenue rules, pensions cannot be accessed before age 50, except in rare cases such as ill-health retirement.<br>
-These projections are illustrative only — professional guidance is strongly recommended.
-</div>`;
-    }
-    else if (retireAge < 60){
-      earlyWarning = `
-<div class="warning-block">
-⚠️ <strong>Retiring Between Age 50–59</strong><br><br>
-Access to pension benefits before the usual retirement age is only possible in limited cases.<br><br>
-Typical Normal Retirement Ages (NRAs) are:<br>
-60–70 for most occupational pensions and Personal Retirement Bonds (PRBs)<br>
-60–75 for PRSAs<br><br>
-Early access (from age 50) may be possible only if certain Revenue conditions are met — e.g.:<br>
-You’ve left employment linked to the pension<br>
-You’re a proprietary director who fully severs ties with the sponsoring company<br><br>
-Please seek professional advice before relying on projections assuming early access.
-</div>`;
-    }
-    else if (retireAge < 70){
-      earlyWarning = '';
-    }
-    else if (retireAge < 75){
-      earlyWarning = `
-<div class="warning-block">
-⚠️ <strong>Retirement Age Over 70 (Occupational Pensions &amp; PRBs)</strong><br><br>
-Most occupational pensions and Personal Retirement Bonds (PRBs) must be drawn down by age 70 under Irish Revenue rules.<br>
-If your selected retirement age is over 70, please be aware this may not be allowed for those pension types.<br><br>
-Note: The exception to this is PRSAs, which can remain unretired until age 75.<br><br>
-Please seek professional advice to ensure your retirement plan complies with pension access rules.
-</div>`;
-    }
-    else {
-      earlyWarning = `
-<div class="warning-block danger">
-⛔ <strong>Retirement Age 75 and Over</strong><br><br>
-Under Irish Revenue rules, all pensions — including PRSAs — must be accessed by age 75.<br>
-If benefits are not drawn down by this age, the pension is automatically deemed to vest, and the full value may be treated as taxable income.<br>
-These projections are illustrative only — professional guidance is strongly recommended.
-</div>`;
-    }
-  }
+  const projValue = projectedAtRetirementValue();
+  const sftLimit = lastPensionOutput?.sftLimit ?? (retirementYear ? sftForYear(retirementYear) : null);
 
-  let sftAssumpWarning = '';
-  if (retirementYear >= 2030) {
-    sftAssumpWarning = `
-      <div class="warning-block">
-        ⚠️ <strong>Standard Fund Threshold (SFT) Assumptions</strong><br><br>
-        This pension projection tool uses the Standard Fund Threshold (SFT) figures as published by the Irish Government for each year up to and including 2029. These are the most recent years for which official, fixed SFT values have been confirmed.<br><br>
-        While the Government has indicated that the SFT will increase in line with wage inflation beyond 2029, no definitive figures or formulae have been published to date. As a result, this tool does not project future increases to the SFT beyond 2029, as doing so would require speculative or unreliable assumptions.<br><br>
-        Users should be aware that actual SFT limits post-2029 may differ significantly depending on future policy decisions and economic conditions. We recommend consulting a qualified financial advisor for guidance specific to your circumstances.
-      </div>`;
-  }
+  const unifiedWarnings = buildWarningsHTML({
+    retireAge,
+    retirementYear,
+    projectedValue: projValue,
+    sftLimit
+  });
 
   const mandatoryWarning = `
   <div class="warning-block">
@@ -1263,9 +1107,16 @@ These projections are illustrative only — professional guidance is strongly re
   </div>
 `;
 
-  const warningsHTML = (earlyWarning || '') + (sftAssumpWarning || '') + mandatoryWarning;
+  const warningsHTML = unifiedWarnings + mandatoryWarning;
   const cw = document.getElementById('calcWarnings');
-  if (cw) cw.innerHTML = warningsHTML;
+  if (cw) {
+    cw.innerHTML = warningsHTML;
+    document.querySelectorAll('.warning-block strong').forEach(s=>{
+      if (s.textContent.trim() === 'Standard Fund Threshold (SFT) Assumptions') {
+        s.closest('.warning-block')?.remove();
+      }
+    });
+  }
 
   lastPensionOutput.warningBlocks = [...document.querySelectorAll('#calcWarnings .warning-block')].map(el => {
     const strong = el.querySelector('strong');
