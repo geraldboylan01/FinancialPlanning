@@ -1,7 +1,6 @@
 // fullMontyResults.js
 import { fyRequiredPot } from './shared/fyRequiredPot.js';
 import { sftForYear, CPI, STATE_PENSION, SP_START, MAX_SALARY_CAP } from './shared/assumptions.js';
-import { setUIMode } from './uiMode.js';
 import { buildWarningsHTML } from './shared/warnings.js';
 
 const AGE_BANDS = [
@@ -233,6 +232,9 @@ function renderHeroNowOrQueue(){
   const mount = document.getElementById('resultsView');
   if (typeof window.renderResults === 'function'){
     window.renderResults(mount, payload);
+    if (typeof window.setUIMode === 'function') {
+      window.setUIMode('results');
+    }
   } else {
     window.__pendingHeroPayload = payload;
   }
@@ -538,8 +540,6 @@ function mountBelowHeroToggle(){
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  setUIMode('results');
-
   // Ensure the Max toggle gets mounted into #belowHeroControls
   mountBelowHeroToggle();
 
