@@ -7,7 +7,47 @@ import { animate, addKeyboardNav } from './wizardCore.js';
 import { currencyInput, percentInput, numFromInput, clampPercent } from './ui-inputs.js';
 import { renderStepPensionRisk } from './stepPensionRisk.js';
 import { MAX_SALARY_CAP, sftForYear } from './shared/assumptions.js';
-import { setUIMode } from './uiMode.js';
+
+// === UI mode controller: 'wizard' | 'results' ===
+function setUIMode(mode) {
+  const body = document.body;
+  if (!body) return;
+
+  // Remove any previous value and set new one
+  body.removeAttribute('data-ui-mode');
+  if (mode === 'results') body.setAttribute('data-ui-mode', 'results');
+
+  // Also reflect visibility explicitly as a safety net
+  const fab = document.getElementById('editInputsFab');
+  if (fab) {
+    const shouldShow = mode === 'results';
+    // never use 'hidden' attr because CSS already governs display
+    fab.classList.toggle('is-visible', shouldShow); // optional utility class
+    // ensure inline display isn't forced elsewhere
+    fab.style.removeProperty('display');
+    fab.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+    fab.tabIndex = shouldShow ? 0 : -1;
+  }
+
+  // Show/hide wizard modal
+  const modal = document.getElementById('fullMontyModal');
+  if (modal) {
+    modal.classList.toggle('is-open', mode === 'wizard');
+  }
+
+  body.classList.toggle('modal-open', mode === 'wizard');
+}
+window.setUIMode = setUIMode; // expose for other modules if needed
+
+document.addEventListener('click', (e) => {
+  const btn = e.target && typeof e.target.closest === 'function'
+    ? e.target.closest('#editInputsFab')
+    : null;
+  if (!btn) return;
+  e.preventDefault();
+  setUIMode('wizard');
+  openFullMontyWizard();
+});
 
 // Temporary debug flag: set true to emit fake pension output without engine
 const FM_DEBUG_FAKE_PENSION_OUTPUT = false;
@@ -360,9 +400,7 @@ let cur = 0;
 let steps = [];
 
 function closeModal() {
-  modal.classList.remove('is-open');
   if (window.__destroyFmWizardUX) window.__destroyFmWizardUX();
-  document.body.classList.remove('modal-open');
   setUIMode('results');
 }
 
@@ -770,7 +808,6 @@ function yearsFrom(dobStr) {
 
 function render() {
   setUIMode('wizard');
-  hideEditFab();
   refreshSteps();
   if (cur >= steps.length) cur = steps.length - 1;
   const step = steps[cur];
@@ -1388,21 +1425,6 @@ function restoreBaseline(){
   announce('Inputs restored to your original values.');
 }
 
-// ====== FAB VISIBILITY ======
-function showEditFab(onClick){
-  const fab = document.getElementById('editInputsFab');
-  if(!fab) return;
-  fab.style.display = 'flex';
-  fab.onclick = onClick;
-}
-
-function hideEditFab(){
-  const fab = document.getElementById('editInputsFab');
-  if(!fab) return;
-  fab.style.display = 'none';
-  fab.onclick = null;
-}
-
 function makeMetricChip(label, value){
   const chip = document.createElement('div');
   chip.className = 'metric-chip';
@@ -1712,8 +1734,7 @@ window.dispatchEvent(new Event('fm-renderer-ready'));
 
 export function openFullMontyWizard() {
   cur = 0;
-  modal.classList.add('is-open');
-  document.body.classList.add('modal-open');
+  setUIMode('wizard');
   render();
   initFmWizardMobileUX();
 }
@@ -1729,8 +1750,6 @@ if (document.readyState !== 'loading') {
   document.addEventListener('DOMContentLoaded', openFullMontyWizard);
 }
 
-window.showEditFab = showEditFab;
-window.hideEditFab = hideEditFab;
 window.navigateToInputs = openFullMontyWizard;
 window.getUseMaxContributions = getUseMaxContributions;
 window.getCurrentPersonalContribution = getCurrentPersonalContribution;
