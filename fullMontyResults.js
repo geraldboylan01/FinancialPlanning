@@ -26,6 +26,33 @@ function getRestoreBtn() {
       || document.getElementById('btnRestoreOriginal');
 }
 
+// Ensure we have a single hero restore button inside #resultsView.
+// Returns the button element (existing or newly created).
+function ensureHeroRestoreExists(){
+  const root = document.getElementById('resultsView');
+  if (!root) return null;
+
+  let btn = root.querySelector('#btnRestoreOriginal');
+  if (!btn){
+    btn = document.createElement('button');
+    btn.id = 'btnRestoreOriginal';
+    btn.type = 'button';
+    btn.className = 'pill pill--ghost';
+    btn.textContent = 'Return to original';
+    // Start hidden; your visibility helpers will manage it after.
+    btn.hidden = true;
+    btn.setAttribute('aria-hidden', 'true');
+
+    // Prefer a logical spot if present; otherwise append to resultsView.
+    const host =
+      root.querySelector('[data-hero-tools]') ||
+      root.querySelector('.hero-tools, .summary-row .actions') ||
+      root;
+    host.appendChild(btn);
+  }
+  return btn;
+}
+
 function setRestoreVisible(show) {
   const btn = getRestoreBtn();
   if (!btn) return;
@@ -252,9 +279,11 @@ function renderHeroNowOrQueue(){
 window.addEventListener('fm-renderer-ready', renderHeroNowOrQueue);
 window.addEventListener('fm-renderer-ready', mountBelowHeroToggle);
 window.addEventListener('fm-renderer-ready', () => {
+  // Make sure the hero has the correct restore button
+  ensureHeroRestoreExists();
+
   // On renderer readiness, we are at baseline → keep it hidden
-  clearAdjustedState();  // hides button
-  // If the renderer injected a fresh button node, ensure it's hidden now
+  clearAdjustedState();    // hides button via your existing logic
   setRestoreVisible(false);
 });
 window.addEventListener('fm-renderer-ready', () => {
@@ -1146,6 +1175,8 @@ document.addEventListener('fm-pension-output', (e) => {
 
   // DO NOT call renderHeroNowOrQueue here directly
   scheduleHeroRender();
+  // The hero may have just re-rendered; ensure the button exists inside it.
+  setTimeout(ensureHeroRestoreExists, 0);
   updateRestoreVisibility();
 });
 
@@ -1186,6 +1217,8 @@ document.addEventListener('fm-run-fy', (e) => {
 
   // Only render hero when both datasets present
   scheduleHeroRender();
+  // The hero may have just re-rendered; ensure the button exists inside it.
+  setTimeout(ensureHeroRestoreExists, 0);
   updateRestoreVisibility();
 });
 
