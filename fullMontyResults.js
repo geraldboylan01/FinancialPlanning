@@ -20,17 +20,25 @@ let useMax = false;
 // --- Restore-to-original visibility control (simple, single button) ---
 let _userHasAdjusted = false; // set true only by tweak actions (not by Max toggle)
 
+// Prefer the hero-injected restore button (inside #resultsView)
+function getRestoreBtn() {
+  return document.querySelector('#resultsView #btnRestoreOriginal')
+      || document.getElementById('btnRestoreOriginal');
+}
+
 function setRestoreVisible(show) {
-  const btn = document.getElementById('btnRestoreOriginal');
+  const btn = getRestoreBtn();
   if (!btn) return;
   if (show) {
     btn.hidden = false;
     btn.setAttribute('aria-hidden', 'false');
     btn.style.display = ''; // allow CSS to lay it out
+    btn.tabIndex = 0;
   } else {
     btn.hidden = true;
     btn.setAttribute('aria-hidden', 'true');
     btn.style.display = 'none'; // belt & braces
+    btn.tabIndex = -1;
   }
 }
 
@@ -51,26 +59,27 @@ function clearAdjustedState() {
 }
 
 function bindRestoreButtonClick(){
-  const btn = document.getElementById('btnRestoreOriginal');
-  if (!btn) return;
-
-  // Start hidden on mount
+  // Ensure hidden to start (if it exists at this moment)
   setRestoreVisible(false);
 
-  btn.addEventListener('click', (e) => {
+  // Delegated handler so we don't care when the hero button is injected
+  document.addEventListener('click', (e) => {
+    const btn = e.target && e.target.closest ? e.target.closest('#btnRestoreOriginal') : null;
+    if (!btn) return;
+
     e.preventDefault();
     e.stopPropagation();
 
-    // Reset tweak state -> hides the button
+    // Reset tweak state (back to baseline)
     resetHeroNudges();
     clearAdjustedState();
 
-    // Optional: if a broader reset is exposed, call it
+    // Optional project-wide reset hook (if present)
     if (typeof window.resetContributionEdits === 'function') {
       try { window.resetContributionEdits(); } catch {}
     }
 
-    // Enforce hide immediately
+    // Immediately hide the button (we're now at baseline)
     setRestoreVisible(false);
   }, { passive: false });
 }
@@ -242,6 +251,12 @@ function renderHeroNowOrQueue(){
 
 window.addEventListener('fm-renderer-ready', renderHeroNowOrQueue);
 window.addEventListener('fm-renderer-ready', mountBelowHeroToggle);
+window.addEventListener('fm-renderer-ready', () => {
+  // On renderer readiness, we are at baseline → keep it hidden
+  clearAdjustedState();  // hides button
+  // If the renderer injected a fresh button node, ensure it's hidden now
+  setRestoreVisible(false);
+});
 window.addEventListener('fm-renderer-ready', () => {
   deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); if (typeof refreshContribUX === 'function') refreshContribUX();
 });
