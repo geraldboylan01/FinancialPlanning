@@ -1138,7 +1138,7 @@ const sheetSeeLimit = document.getElementById('sheetSeeLimit');
 
 // Anchors
 const elMaxToggle       = document.getElementById('maxContribToggle');
-const elTaxTable        = document.getElementById('taxReliefLimits');
+const elTaxTable        = document.getElementById('maxTableSection');
 const actionStack = [];        // { type: 'contrib'|'age', delta: number }
 
 // Tap counters (since baseline). Keys: 'contrib+100','contrib-100','age+1','age-1'
