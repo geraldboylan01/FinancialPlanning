@@ -89,6 +89,8 @@ function saveStore(){
 let saveTimer = null;
 function queueSave(){ clearTimeout(saveTimer); saveTimer = setTimeout(saveStore, 150); }
 
+let _salaryEvtBound = false;
+
 function toNumber(v) {
   const n = parseFloat(String(v).replace(/[^\d.-]/g, ''));
   return isNaN(n) ? 0 : n;
@@ -186,14 +188,20 @@ export function setStore(patch) {
 function q(id) { return document.getElementById(id); }
 
 
-function formGroup(id, labelText, input) {
+function formGroup(id, labelText, inputEl) {
   const g = document.createElement('div');
   g.className = 'form-group';
   const lab = document.createElement('label');
   lab.htmlFor = id;
   lab.textContent = labelText;
-  input.id = id;
-  g.append(lab, input);
+
+  // set id on wrapper
+  inputEl.id = id;
+  // set id on the actual field if present
+  const inner = inputEl.querySelector?.('input, select, textarea');
+  if (inner) inner.id = id;
+
+  g.append(lab, inputEl);
   return g;
 }
 
@@ -335,13 +343,11 @@ function bindStepPensions(root, store){
   const empYrPartnerEl   = root.querySelector('#employerContribPerYearPartner');
 
   try {
-    if (window.percentInput) {
-      if (userPctEl)        percentInput(userPctEl, { clamp: true });
-      if (empPctEl)         percentInput(empPctEl,  { clamp: true });
-      if (userPctPartnerEl) percentInput(userPctPartnerEl, { clamp: true });
-      if (empPctPartnerEl)  percentInput(empPctPartnerEl,  { clamp: true });
-    }
-  } catch(e){ /* no-op */ }
+    if (userPctEl)        percentInput(userPctEl, { clamp: true });
+    if (empPctEl)         percentInput(empPctEl,  { clamp: true });
+    if (userPctPartnerEl) percentInput(userPctPartnerEl, { clamp: true });
+    if (empPctPartnerEl)  percentInput(empPctPartnerEl,  { clamp: true });
+  } catch(e) { /* no-op */ }
 
   const fmt = (n) => (!isFinite(n) || n === 0)
     ? '—'
@@ -374,18 +380,20 @@ function bindStepPensions(root, store){
     const { monthly, yearly } = euroFromPct(salarySelf(), userPctEl.value);
     if (userMoEl) userMoEl.textContent = fmt(monthly);
     if (userYrEl) userYrEl.textContent = fmt(yearly);
-    store.personalPctSelf = Number(userPctEl.value) || 0;
-    store.personalContribSelf = monthly;
-    queueSave();
+    setStore({
+      personalPctSelf: Number(userPctEl.value) || 0,
+      personalContribSelf: monthly
+    });
   }
   function renderEmployerSelf(){
     if (!empPctEl) return;
     const { monthly, yearly } = euroFromPct(salarySelf(), empPctEl.value);
     if (empMoEl) empMoEl.textContent = fmt(monthly);
     if (empYrEl) empYrEl.textContent = fmt(yearly);
-    store.employerPctSelf = Number(empPctEl.value) || 0;
-    store.employerContribSelf = monthly;
-    queueSave();
+    setStore({
+      employerPctSelf: Number(empPctEl.value) || 0,
+      employerContribSelf: monthly
+    });
   }
 
   // ---- Partner % → € bindings ----
@@ -394,18 +402,20 @@ function bindStepPensions(root, store){
     const { monthly, yearly } = euroFromPct(salaryPartner(), userPctPartnerEl.value);
     if (userMoPartnerEl) userMoPartnerEl.textContent = fmt(monthly);
     if (userYrPartnerEl) userYrPartnerEl.textContent = fmt(yearly);
-    store.personalPctPartner = Number(userPctPartnerEl.value) || 0;
-    store.personalContribPartner = monthly;
-    queueSave();
+    setStore({
+      personalPctPartner: Number(userPctPartnerEl.value) || 0,
+      personalContribPartner: monthly
+    });
   }
   function renderEmployerPartner(){
     if (!empPctPartnerEl) return;
     const { monthly, yearly } = euroFromPct(salaryPartner(), empPctPartnerEl.value);
     if (empMoPartnerEl) empMoPartnerEl.textContent = fmt(monthly);
     if (empYrPartnerEl) empYrPartnerEl.textContent = fmt(yearly);
-    store.employerPctPartner = Number(empPctPartnerEl.value) || 0;
-    store.employerContribPartner = monthly;
-    queueSave();
+    setStore({
+      employerPctPartner: Number(empPctPartnerEl.value) || 0,
+      employerContribPartner: monthly
+    });
   }
 
   // Wire listeners
@@ -414,10 +424,13 @@ function bindStepPensions(root, store){
   if (userPctPartnerEl) userPctPartnerEl.addEventListener('input', renderUserPartner);
   if (empPctPartnerEl)  empPctPartnerEl.addEventListener('input',  renderEmployerPartner);
 
-  // Re-render on salary updates
-  document.addEventListener('fm-salary-updated', () => {
-    renderUserSelf(); renderEmployerSelf(); renderUserPartner(); renderEmployerPartner();
-  });
+  // Re-render on salary updates (bind once)
+  if (!_salaryEvtBound) {
+    document.addEventListener('fm-salary-updated', () => {
+      renderUserSelf(); renderEmployerSelf(); renderUserPartner(); renderEmployerPartner();
+    });
+    _salaryEvtBound = true;
+  }
 
   // Seed from store
   if (userPctEl && store.personalPctSelf != null) userPctEl.value = store.personalPctSelf;
@@ -687,12 +700,18 @@ const baseSteps = [
       form.className = 'form';
 
       const gross = currencyInput({ id: 'grossIncome', value: fullMontyStore.grossIncome ?? '' });
-      gross.querySelector('input').addEventListener('input', () => setStore({ grossIncome: numFromInput(gross.querySelector('input')) }));
+      gross.querySelector('input').addEventListener('input', () => {
+        setStore({ grossIncome: numFromInput(gross.querySelector('input')) });
+        document.dispatchEvent(new Event('fm-salary-updated'));
+      });
       form.appendChild(formGroup('grossIncome', 'Your gross annual income', gross));
 
       if (fullMontyStore.hasPartner) {
         const gp = currencyInput({ id: 'grossIncomePartner', value: fullMontyStore.grossIncomePartner ?? '' });
-        gp.querySelector('input').addEventListener('input', () => setStore({ grossIncomePartner: numFromInput(gp.querySelector('input')) }));
+        gp.querySelector('input').addEventListener('input', () => {
+          setStore({ grossIncomePartner: numFromInput(gp.querySelector('input')) });
+          document.dispatchEvent(new Event('fm-salary-updated'));
+        });
         form.appendChild(formGroup('grossIncomePartner', "Partner's gross annual income", gp));
       }
 
