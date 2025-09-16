@@ -1331,16 +1331,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+function _currentFMStore(){
+  // preferred: live wizard store
+  const s = (window.getFullMontyData && window.getFullMontyData())
+         || (window.getStore && window.getStore());
+  if (s && Object.keys(s).length) return s;
+  // fallback: last FY inputs (has dob/grossIncome/partner flags)
+  return (lastFYOutput && lastFYOutput._inputs) ? lastFYOutput._inputs : {};
+}
+
 window.addEventListener('fm:results:ready', () => {
-  try { window.renderMaxContributionTable?.(window.getStore?.() || window.getFullMontyData?.() || {}); } catch(e){}
+  try { window.renderMaxContributionTable?.(_currentFMStore()); } catch(e){}
 });
 
 document.addEventListener('fm-salary-updated', () => {
-  try { window.renderMaxContributionTable?.(window.getStore?.() || window.getFullMontyData?.() || {}); } catch(e){}
+  try { window.renderMaxContributionTable?.(_currentFMStore()); } catch(e){}
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  try { window.renderMaxContributionTable?.(window.getStore?.() || window.getFullMontyData?.() || {}); } catch(e){}
+  try { window.renderMaxContributionTable?.(_currentFMStore()); } catch(e){}
 });
 
 // Keep restore hidden on any re-render of results
