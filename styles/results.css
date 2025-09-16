@@ -150,11 +150,17 @@ td.is-highlight-partner .result {
 }
 
 /* If your table has zebra striping, the highlight should win */
-tr:nth-child(even) td.is-highlight-self {
-  background: var(--fm-self-bg);
-}
+tr:nth-child(even) td.is-highlight-self,
 tr:nth-child(even) td.is-highlight-partner {
-  background: var(--fm-partner-bg);
+  background: inherit; /* the class already sets bg; this line prevents double-blend */
+}
+
+tr:nth-child(even) td.is-highlight-self {
+  background-color: var(--fm-self-bg);
+}
+
+tr:nth-child(even) td.is-highlight-partner {
+  background-color: var(--fm-partner-bg);
 }
 
 /* If a cell was previously styled via a row highlight, make sure it doesn't fight */
