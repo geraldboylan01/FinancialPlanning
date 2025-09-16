@@ -675,6 +675,7 @@ const baseSteps = [
         const p = partnerBlock.querySelector('input');
         if (!chk) { p.value = ''; }
         validateStep();
+        document.dispatchEvent(new CustomEvent('fm-salary-updated'));
       });
 
       cont.appendChild(form);
@@ -702,7 +703,7 @@ const baseSteps = [
       const gross = currencyInput({ id: 'grossIncome', value: fullMontyStore.grossIncome ?? '' });
       gross.querySelector('input').addEventListener('input', () => {
         setStore({ grossIncome: numFromInput(gross.querySelector('input')) });
-        document.dispatchEvent(new Event('fm-salary-updated'));
+        document.dispatchEvent(new CustomEvent('fm-salary-updated'));
       });
       form.appendChild(formGroup('grossIncome', 'Your gross annual income', gross));
 
@@ -710,7 +711,7 @@ const baseSteps = [
         const gp = currencyInput({ id: 'grossIncomePartner', value: fullMontyStore.grossIncomePartner ?? '' });
         gp.querySelector('input').addEventListener('input', () => {
           setStore({ grossIncomePartner: numFromInput(gp.querySelector('input')) });
-          document.dispatchEvent(new Event('fm-salary-updated'));
+          document.dispatchEvent(new CustomEvent('fm-salary-updated'));
         });
         form.appendChild(formGroup('grossIncomePartner', "Partner's gross annual income", gp));
       }
@@ -1019,6 +1020,11 @@ document.addEventListener('DOMContentLoaded', enhanceInputsForMobile);
 
 
 function runAll() {
+  // ----- Household combined income for retirement target -----
+  const combinedIncome =
+    (Number(fullMontyStore.grossIncome) || 0) +
+    (fullMontyStore.hasPartner ? (Number(fullMontyStore.grossIncomePartner) || 0) : 0);
+
   const pensionArgs = {
     // Self
     salary: Math.min(fullMontyStore.grossIncome || 0, MAX_SALARY_CAP),
@@ -1071,7 +1077,8 @@ function runAll() {
   }
 
   const fyArgs = {
-    grossIncome: fullMontyStore.grossIncome || 0,
+    // IMPORTANT: the FY calculator should target % of HOUSEHOLD income
+    grossIncome: combinedIncome,
     targetType: 'percent',
     incomePercent: fullMontyStore.incomePercent || 70,
     dob: fullMontyStore.dobSelf,
