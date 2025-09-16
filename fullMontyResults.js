@@ -249,6 +249,14 @@ function buildHeroPayload(){
 
   if (projected == null || fyReq == null) return null;
 
+  const baseSelf    = Number(lastPensionOutput?.projValueSelf ?? 0);
+  const basePartner = Number(lastPensionOutput?.projValuePartner ?? 0);
+  const maxSelf     = Number(lastPensionOutput?.projValueSelfMax ?? baseSelf);
+  const maxPartner  = Number(lastPensionOutput?.projValuePartnerMax ?? basePartner);
+  const useMaxNow   = !!useMax;
+  const effSelf     = useMaxNow ? maxSelf : baseSelf;
+  const effPartner  = useMaxNow ? maxPartner : basePartner;
+
   return {
     projectedPotAtRetirement: projected,
     projectedPot: projected,
@@ -258,7 +266,13 @@ function buildHeroPayload(){
     retirementYear: lastPensionOutput?.retirementYear ?? null,
     partnerIncluded: !!lastFYOutput?._inputs?.hasPartner,
     partnerDOB: lastFYOutput?._inputs?.partnerDob || null,
-    useMaxContributions: !!useMax
+    useMaxContributions: useMaxNow,
+    projValueSelf: effSelf,
+    projValuePartner: effPartner,
+    projValueSelfBase: baseSelf,
+    projValuePartnerBase: basePartner,
+    projValueSelfMax: maxSelf,
+    projValuePartnerMax: maxPartner
   };
 }
 
