@@ -246,25 +246,24 @@ const maxPctForAge = age => AGE_BANDS.find(b => age <= b.max)?.pct ?? 0.15;
       // Self €
       const selfMax = perBandMaxEuro(selfSalary, b.pct);
       const tdSelf  = document.createElement('td');
+      tdSelf.className = 'max-euro self-euro';
       tdSelf.textContent = fmtEUR(selfMax);
+      // highlight the exact cell for user's band
       if (selfBand && selfBand.label === b.label) {
-        const badge = document.createElement('span');
-        badge.className = 'badge hl-self';
-        badge.textContent = 'You';
-        tdSelf.appendChild(badge);
+        tdSelf.classList.add('is-highlight-self');
+        tdSelf.setAttribute('data-hl', 'self');
       }
 
       // Partner €
       const tdPartner = document.createElement('td');
-      tdPartner.className = 'partner-col';
+      tdPartner.className = 'partner-col max-euro partner-euro';
       if (hasPartner) {
         const partnerMax = perBandMaxEuro(partnerSalary, b.pct);
         tdPartner.textContent = fmtEUR(partnerMax);
+        // highlight the exact cell for partner's band
         if (partnerBand && partnerBand.label === b.label) {
-          const badge = document.createElement('span');
-          badge.className = 'badge hl-partner';
-          badge.textContent = 'Partner';
-          tdPartner.appendChild(badge);
+          tdPartner.classList.add('is-highlight-partner');
+          tdPartner.setAttribute('data-hl', 'partner');
         }
       } else {
         tdPartner.setAttribute('hidden', 'true');
