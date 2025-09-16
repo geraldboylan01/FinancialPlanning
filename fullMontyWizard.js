@@ -1954,4 +1954,7 @@ window.navigateToInputs = openFullMontyWizard;
 window.getUseMaxContributions = getUseMaxContributions;
 window.getCurrentPersonalContribution = getCurrentPersonalContribution;
 window.setCurrentPersonalContributionAnnual = setCurrentPersonalContributionAnnual;
+// 🔧 Make the data getters visible to Results.js
+window.getFullMontyData = () => getStore();
+window.getStore = getStore;
 
