@@ -311,75 +311,207 @@ renderStepGoal.validate = () => {
 };
 
 function bindStepPensions(root, store){
-  const salary = () => {
-    return Number(store.grossIncome || store.salary || 0);
-  };
+  const salarySelf = () => Number(store.grossIncome || store.salary || 0);
+  const salaryPartner = () => Number(store.grossIncomePartner || 0);
 
+  // Self selectors (existing)
   const userPctEl = root.querySelector('#userContribPct');
   const empPctEl  = root.querySelector('#employerContribPct');
+  const userMoEl  = root.querySelector('#userContribPerMonth');
+  const userYrEl  = root.querySelector('#userContribPerYear');
+  const empMoEl   = root.querySelector('#employerContribPerMonth');
+  const empYrEl   = root.querySelector('#employerContribPerYear');
 
-  const userMoEl = root.querySelector('#userContribPerMonth');
-  const userYrEl = root.querySelector('#userContribPerYear');
-  const empMoEl  = root.querySelector('#employerContribPerMonth');
-  const empYrEl  = root.querySelector('#employerContribPerYear');
+  // NEW: pot fields
+  const potSelfEl    = root.querySelector('#currentPensionValue');
+  const potPartnerEl = root.querySelector('#currentPensionValuePartner');
+
+  // Partner selectors (optional, present only if hasPartner)
+  const userPctPartnerEl = root.querySelector('#userContribPctPartner');
+  const empPctPartnerEl  = root.querySelector('#employerContribPctPartner');
+  const userMoPartnerEl  = root.querySelector('#userContribPerMonthPartner');
+  const userYrPartnerEl  = root.querySelector('#userContribPerYearPartner');
+  const empMoPartnerEl   = root.querySelector('#employerContribPerMonthPartner');
+  const empYrPartnerEl   = root.querySelector('#employerContribPerYearPartner');
 
   try {
     if (window.percentInput) {
-      percentInput(userPctEl, { clamp: true });
-      percentInput(empPctEl,  { clamp: true });
+      if (userPctEl)        percentInput(userPctEl, { clamp: true });
+      if (empPctEl)         percentInput(empPctEl,  { clamp: true });
+      if (userPctPartnerEl) percentInput(userPctPartnerEl, { clamp: true });
+      if (empPctPartnerEl)  percentInput(empPctPartnerEl,  { clamp: true });
     }
   } catch(e){ /* no-op */ }
 
-  const format = (n) => {
-    if (!isFinite(n) || n === 0) return '—';
-    return new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
-  };
+  const fmt = (n) => (!isFinite(n) || n === 0)
+    ? '—'
+    : new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 
-  function computeEuro(perCent){
-    const s = salary();
-    const pct = Number(perCent) || 0;
-    const yearly = s * (pct / 100);
+  const euroFromPct = (annualSalary, pct) => {
+    const p = Number(pct) || 0;
+    const yearly = (Number(annualSalary) || 0) * (p / 100);
     const monthly = yearly / 12;
     return { monthly, yearly };
+  };
+
+  // ---- Seed current pots from store & persist on change ----
+  if (potSelfEl) {
+    if (store.currentPensionValueSelf != null) potSelfEl.value = store.currentPensionValueSelf;
+    potSelfEl.addEventListener('input', () => {
+      setStore({ currentPensionValueSelf: numFromInput(potSelfEl) || 0 });
+    });
+  }
+  if (potPartnerEl) {
+    if (store.currentPensionValuePartner != null) potPartnerEl.value = store.currentPensionValuePartner;
+    potPartnerEl.addEventListener('input', () => {
+      setStore({ currentPensionValuePartner: numFromInput(potPartnerEl) || 0 });
+    });
   }
 
-  function renderUser(){
-    const { monthly, yearly } = computeEuro(userPctEl.value);
-    userMoEl.textContent = format(monthly);
-    userYrEl.textContent = format(yearly);
+  // ---- Self % → € bindings ----
+  function renderUserSelf(){
+    if (!userPctEl) return;
+    const { monthly, yearly } = euroFromPct(salarySelf(), userPctEl.value);
+    if (userMoEl) userMoEl.textContent = fmt(monthly);
+    if (userYrEl) userYrEl.textContent = fmt(yearly);
     store.personalPctSelf = Number(userPctEl.value) || 0;
     store.personalContribSelf = monthly;
     queueSave();
   }
-
-  function renderEmployer(){
-    const { monthly, yearly } = computeEuro(empPctEl.value);
-    empMoEl.textContent = format(monthly);
-    empYrEl.textContent = format(yearly);
+  function renderEmployerSelf(){
+    if (!empPctEl) return;
+    const { monthly, yearly } = euroFromPct(salarySelf(), empPctEl.value);
+    if (empMoEl) empMoEl.textContent = fmt(monthly);
+    if (empYrEl) empYrEl.textContent = fmt(yearly);
     store.employerPctSelf = Number(empPctEl.value) || 0;
     store.employerContribSelf = monthly;
     queueSave();
   }
 
-  userPctEl.addEventListener('input', renderUser);
-  empPctEl.addEventListener('input', renderEmployer);
+  // ---- Partner % → € bindings ----
+  function renderUserPartner(){
+    if (!userPctPartnerEl) return;
+    const { monthly, yearly } = euroFromPct(salaryPartner(), userPctPartnerEl.value);
+    if (userMoPartnerEl) userMoPartnerEl.textContent = fmt(monthly);
+    if (userYrPartnerEl) userYrPartnerEl.textContent = fmt(yearly);
+    store.personalPctPartner = Number(userPctPartnerEl.value) || 0;
+    store.personalContribPartner = monthly;
+    queueSave();
+  }
+  function renderEmployerPartner(){
+    if (!empPctPartnerEl) return;
+    const { monthly, yearly } = euroFromPct(salaryPartner(), empPctPartnerEl.value);
+    if (empMoPartnerEl) empMoPartnerEl.textContent = fmt(monthly);
+    if (empYrPartnerEl) empYrPartnerEl.textContent = fmt(yearly);
+    store.employerPctPartner = Number(empPctPartnerEl.value) || 0;
+    store.employerContribPartner = monthly;
+    queueSave();
+  }
 
+  // Wire listeners
+  if (userPctEl)        userPctEl.addEventListener('input', renderUserSelf);
+  if (empPctEl)         empPctEl.addEventListener('input',  renderEmployerSelf);
+  if (userPctPartnerEl) userPctPartnerEl.addEventListener('input', renderUserPartner);
+  if (empPctPartnerEl)  empPctPartnerEl.addEventListener('input',  renderEmployerPartner);
+
+  // Re-render on salary updates
   document.addEventListener('fm-salary-updated', () => {
-    renderUser();
-    renderEmployer();
+    renderUserSelf(); renderEmployerSelf(); renderUserPartner(); renderEmployerPartner();
   });
 
-  if (store.personalPctSelf != null) userPctEl.value = store.personalPctSelf;
-  if (store.employerPctSelf != null) empPctEl.value = store.employerPctSelf;
-  renderUser();
-  renderEmployer();
+  // Seed from store
+  if (userPctEl && store.personalPctSelf != null) userPctEl.value = store.personalPctSelf;
+  if (empPctEl  && store.employerPctSelf != null) empPctEl.value  = store.employerPctSelf;
+  if (userPctPartnerEl && store.personalPctPartner != null) userPctPartnerEl.value = store.personalPctPartner;
+  if (empPctPartnerEl  && store.employerPctPartner != null) empPctPartnerEl.value  = store.employerPctPartner;
+
+  // Initial paint
+  renderUserSelf(); renderEmployerSelf(); renderUserPartner(); renderEmployerPartner();
 }
 
 function renderStepPensions(cont){
   const tmpl = document.getElementById('tpl-step-pensions');
   if (!tmpl) return;
   cont.innerHTML = '';
-  cont.appendChild(tmpl.content.cloneNode(true));
+  const frag = tmpl.content.cloneNode(true);
+
+  // If a partner exists, append a mirror of the user blocks with Partner IDs
+  if (fullMontyStore.hasPartner) {
+    const step = document.createElement('section');
+    step.className = 'wizard-step';
+    step.setAttribute('data-step', '4-partner');
+
+    step.innerHTML = `
+      <h2 class="step-title">Partner – Pensions &amp; entitlements</h2>
+
+      <!-- Partner current pension value -->
+      <label for="currentPensionValuePartner" class="fm-label">Current pension value (partner)</label>
+      <div id="currentPensionValuePartnerWrap" class="input-wrap prefix">
+        <span>€</span>
+        <input id="currentPensionValuePartner" name="currentPensionValuePartner" type="number" inputmode="decimal" placeholder="e.g. 20000" />
+      </div>
+
+      <!-- ===== Partner (employee) ===== -->
+      <div class="contrib-group contrib-group--user card-like">
+        <div class="contrib-head">
+          <h3 class="contrib-title">Partner contribution</h3>
+          <p class="contrib-sub">Enter % of salary — we calculate the € automatically.</p>
+        </div>
+
+        <label for="userContribPctPartner" class="fm-label">% of salary (partner)</label>
+        <div class="input-row">
+          <div id="userContribPctPartnerWrap" class="input-wrap suffix">
+            <input id="userContribPctPartner" name="userContribPctPartner" type="number" inputmode="decimal" placeholder="e.g. 5" />
+            <span>%</span>
+          </div>
+
+          <div class="result-chip" aria-live="polite" id="userContribEuroChipPartner" title="Auto-calculated from partner %">
+            <div class="result-main">
+              <span class="result-label">€ / mo</span>
+              <span class="result-value" id="userContribPerMonthPartner">—</span>
+            </div>
+            <div class="result-sub">
+              <span class="sub-label">€ / yr</span>
+              <span class="sub-value" id="userContribPerYearPartner">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="userPctCapNotePartner" class="cap-note" aria-live="polite" style="display:none;"></div>
+      </div>
+
+      <!-- ===== Employer (partner) ===== -->
+      <div class="contrib-group contrib-group--employer card-like">
+        <div class="contrib-head">
+          <h3 class="contrib-title">Partner’s employer contribution</h3>
+          <p class="contrib-sub">Enter % of salary — we calculate the € automatically.</p>
+        </div>
+
+        <label for="employerContribPctPartner" class="fm-label">% of salary (employer for partner)</label>
+        <div class="input-row">
+          <div id="employerContribPctPartnerWrap" class="input-wrap suffix">
+            <input id="employerContribPctPartner" name="employerContribPctPartner" type="number" inputmode="decimal" placeholder="e.g. 5" />
+            <span>%</span>
+          </div>
+
+          <div class="result-chip" aria-live="polite" id="employerContribEuroChipPartner" title="Auto-calculated from employer % (partner)">
+            <div class="result-main">
+              <span class="result-label">€ / mo</span>
+              <span class="result-value" id="employerContribPerMonthPartner">—</span>
+            </div>
+            <div class="result-sub">
+              <span class="sub-label">€ / yr</span>
+              <span class="sub-value" id="employerContribPerYearPartner">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    frag.appendChild(step);
+  }
+
+  cont.appendChild(frag);
   bindStepPensions(cont, fullMontyStore);
 }
 renderStepPensions.validate = () => ({ ok: true, errors: {} });
@@ -869,6 +1001,7 @@ document.addEventListener('DOMContentLoaded', enhanceInputsForMobile);
 
 function runAll() {
   const pensionArgs = {
+    // Self
     salary: Math.min(fullMontyStore.grossIncome || 0, MAX_SALARY_CAP),
     currentValue: fullMontyStore.currentPensionValueSelf || 0,
     personalContrib: fullMontyStore.personalContribSelf,
@@ -879,7 +1012,17 @@ function runAll() {
     retireAge: Math.max(50, Math.min(70, fullMontyStore.retireAge || 0)),
     growth: fullMontyStore.pensionGrowthRate || 0.05,
     pensionRisk: fullMontyStore.pensionRisk,
-    sftAwareness: fullMontyStore.sftAwareness
+    sftAwareness: fullMontyStore.sftAwareness,
+
+    // Partner (new; optional)
+    hasPartner: !!fullMontyStore.hasPartner,
+    salaryPartner: Math.min(fullMontyStore.grossIncomePartner || 0, MAX_SALARY_CAP),
+    currentValuePartner: fullMontyStore.currentPensionValuePartner || 0,
+    personalContribPartner: fullMontyStore.personalContribPartner,
+    personalPctPartner: fullMontyStore.personalPctPartner,
+    employerContribPartner: fullMontyStore.employerContribPartner,
+    employerPctPartner: fullMontyStore.employerPctPartner,
+    dobPartner: fullMontyStore.dobPartner
   };
   document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: pensionArgs }));
 
@@ -922,11 +1065,22 @@ function runAll() {
     rentalIncomeNow: fullMontyStore.rentalIncomeNow || 0,
     growthRate: fullMontyStore.pensionGrowthRate || 0.05,
     pensionRisk: fullMontyStore.pensionRisk,
+
+    // Partner toggles & DB
     hasPartner: !!fullMontyStore.hasPartner,
     statePensionPartner: !!fullMontyStore.statePensionPartner,
     hasDbPartner: !!fullMontyStore.hasDbPartner,
     dbPensionPartner: fullMontyStore.dbPensionPartner || 0,
-    dbStartAgePartner: fullMontyStore.dbStartAgePartner || null
+    dbStartAgePartner: fullMontyStore.dbStartAgePartner || null,
+
+    // NEW: partner DC inputs
+    currentPensionValueSelf: fullMontyStore.currentPensionValueSelf || 0,
+    personalContribSelf: fullMontyStore.personalContribSelf || 0,
+    employerContribSelf: fullMontyStore.employerContribSelf || 0,
+
+    currentPensionValuePartner: fullMontyStore.currentPensionValuePartner || 0,
+    personalContribPartner: fullMontyStore.personalContribPartner || 0,
+    employerContribPartner: fullMontyStore.employerContribPartner || 0
   };
   document.dispatchEvent(new CustomEvent('fm-run-fy', { detail: fyArgs }));
 
@@ -1541,19 +1695,22 @@ export function renderResults(mountEl, storeRef = {}) {
 
     // year-aware SFT chip (no globals!)
     if (Number.isFinite(retirementYear)) {
-      const sftY = sftForYear(retirementYear);
-      if (sftY) {
-        const reqOver = required > sftY;
-        const projOver = projected > sftY;
+      const sftPerPerson = sftForYear(retirementYear);
+      if (sftPerPerson) {
+        const sftCap = partnerIncluded ? (sftPerPerson * 2) : sftPerPerson;
+
+        const reqOver = required  > sftCap;
+        const projOver = projected > sftCap;
+
         if (reqOver || projOver) {
-          const over = (reqOver ? required : projected) - sftY;
+          const over = (reqOver ? required : projected) - sftCap;
           const which = reqOver ? 'target (required)' : 'projected';
           const warn = document.createElement('div');
           warn.className = 'hero-sft-chip';
           warn.setAttribute('role','note');
           warn.innerHTML = `
             <span class="icon" aria-hidden="true">⚠️</span>
-            Your ${which} <b>pension</b> exceeds the Standard Fund Threshold (SFT) by <b>${formatEUR(over)}</b>. <button class="link-btn" type="button" id="sftInfoBtn">What’s this?</button>
+            Your ${which} <b>pension</b> exceeds the ${partnerIncluded ? 'combined ' : ''}Standard Fund Threshold (SFT) by <b>${formatEUR(over)}</b>. <button class="link-btn" type="button" id="sftInfoBtn">What’s this?</button>
           `;
           hero.appendChild(warn);
           warn.querySelector('#sftInfoBtn')?.addEventListener('click', () => {
