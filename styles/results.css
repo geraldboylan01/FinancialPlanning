@@ -100,3 +100,62 @@
 
 /* Let us hide the partner column entirely when not needed */
 .partner-col[hidden] { display: none; }
+
+/* Base cell look (optional guard if we want a common hook) */
+.max-euro {
+  position: relative;
+  font-weight: 600;
+}
+
+/* Colors: reuse the app’s “You / Partner” colors.
+   If you already have CSS variables, prefer those. */
+:root {
+  /* fallback colors if no existing tokens present */
+  --fm-self-bg: #0d5d47;     /* greenish used for "You" pill */
+  --fm-self-fg: #ffffff;
+  --fm-partner-bg: #2b4761;  /* bluish used for "Partner" pill */
+  --fm-partner-fg: #ffffff;
+
+  /* subtle border for contrast on dark themes */
+  --fm-hl-border: color-mix(in oklab, #000 15%, transparent);
+}
+
+/* Highlighted cell for the user */
+td.is-highlight-self {
+  background: var(--fm-self-bg);
+  color: var(--fm-self-fg);
+  border-radius: 8px;              /* keeps the same rounded feel as cards */
+  box-shadow: inset 0 0 0 1px var(--fm-hl-border);
+}
+
+/* Highlighted cell for the partner */
+td.is-highlight-partner {
+  background: var(--fm-partner-bg);
+  color: var(--fm-partner-fg);
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--fm-hl-border);
+}
+
+/* Make the highlight fill the cell nicely without crowding */
+td.is-highlight-self,
+td.is-highlight-partner {
+  padding: 10px 12px;              /* a touch roomier */
+  transition: background-color .15s ease, color .15s ease;
+}
+
+/* Ensure long numbers stay readable */
+td.is-highlight-self .result,
+td.is-highlight-partner .result {
+  color: inherit;
+}
+
+/* If your table has zebra striping, the highlight should win */
+tr:nth-child(even) td.is-highlight-self {
+  background: var(--fm-self-bg);
+}
+tr:nth-child(even) td.is-highlight-partner {
+  background: var(--fm-partner-bg);
+}
+
+/* If a cell was previously styled via a row highlight, make sure it doesn't fight */
+tr.is-highlight-row td { background: transparent; }
