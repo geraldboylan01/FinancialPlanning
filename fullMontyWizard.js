@@ -1639,6 +1639,8 @@ export function renderResults(mountEl, storeRef = {}) {
     if (typeof onMaxContribsToggleChanged === 'function') onMaxContribsToggleChanged(useMaxOn);
     const deficit   = Math.max(required - projected, 0);
     const partnerIncluded = !!(storeRef.partnerDOB || storeRef.partnerIncluded || storeRef.hasPartner);
+    const projSelf    = Number(storeRef.projValueSelf ?? storeRef.projectedPotSelf ?? 0);
+    const projPartner = Number(storeRef.projValuePartner ?? storeRef.projectedPotPartner ?? 0);
 
     const recommendMoreContribs = deficit > 0;
 
@@ -1693,30 +1695,62 @@ export function renderResults(mountEl, storeRef = {}) {
     chips.appendChild(makeMetricChip('Required',     formatEUR(required)));
     hero.appendChild(chips);
 
-    // year-aware SFT chip (no globals!)
-    if (Number.isFinite(retirementYear)) {
-      const sftPerPerson = sftForYear(retirementYear);
-      if (sftPerPerson) {
-        const sftCap = partnerIncluded ? (sftPerPerson * 2) : sftPerPerson;
+    // ===== Person-level SFT checks (no naive doubling) =====
+    const sftPerPerson = Number.isFinite(retirementYear) ? sftForYear(retirementYear) : null;
 
-        const reqOver = required  > sftCap;
-        const projOver = projected > sftCap;
+    if (sftPerPerson) {
+      // Determine who breaches their own SFT
+      const selfOver    = projSelf > sftPerPerson;
+      const partnerOver = partnerIncluded && (projPartner > sftPerPerson);
 
-        if (reqOver || projOver) {
-          const over = (reqOver ? required : projected) - sftCap;
-          const which = reqOver ? 'target (required)' : 'projected';
-          const warn = document.createElement('div');
-          warn.className = 'hero-sft-chip';
-          warn.setAttribute('role','note');
+      // Helper to format an overage amount as €X
+      const overAmt = (val) => formatEUR(Math.max(0, (val - sftPerPerson)));
+
+      if (selfOver || partnerOver) {
+        // Build a single chip that names exactly who breaches
+        const warn = document.createElement('div');
+        warn.className = 'hero-sft-chip';
+        warn.setAttribute('role','note');
+
+        if (selfOver && partnerOver) {
           warn.innerHTML = `
             <span class="icon" aria-hidden="true">⚠️</span>
-            Your ${which} <b>pension</b> exceeds the ${partnerIncluded ? 'combined ' : ''}Standard Fund Threshold (SFT) by <b>${formatEUR(over)}</b>. <button class="link-btn" type="button" id="sftInfoBtn">What’s this?</button>
+            <b>Both</b> your pension (<b>${overAmt(projSelf)}</b> over) <b>and</b> your partner’s pension (<b>${overAmt(projPartner)}</b> over) are projected to exceed the Standard Fund Threshold (SFT). <button class="link-btn" type="button" id="sftInfoBtn">What’s this?</button>
           `;
-          hero.appendChild(warn);
-          warn.querySelector('#sftInfoBtn')?.addEventListener('click', () => {
-            document.getElementById('compliance-notices')?.scrollIntoView({ behavior:'smooth', block:'start' });
-          });
+        } else if (selfOver) {
+          warn.innerHTML = `
+            <span class="icon" aria-hidden="true">⚠️</span>
+            <b>Your</b> pension is projected to exceed the SFT by <b>${overAmt(projSelf)}</b>. <button class="link-btn" type="button" id="sftInfoBtn">What’s this?</button>
+          `;
+        } else {
+          warn.innerHTML = `
+            <span class="icon" aria-hidden="true">⚠️</span>
+            <b>Your partner’s</b> pension is projected to exceed the SFT by <b>${overAmt(projPartner)}</b>. <button class="link-btn" type="button" id="sftInfoBtn">What’s this?</button>
+          `;
         }
+
+        hero.appendChild(warn);
+        warn.querySelector('#sftInfoBtn')?.addEventListener('click', () => {
+          document.getElementById('compliance-notices')?.scrollIntoView({ behavior:'smooth', block:'start' });
+        });
+      }
+
+      // OPTIONAL: a separate combined-cap notice (only if exceeded).
+      // Household total can exceed combined SFT even if just one breaches individually—or neither.
+      const combinedCap = partnerIncluded ? (sftPerPerson * 2) : sftPerPerson;
+      const combinedProjected = (projSelf + (partnerIncluded ? projPartner : 0));
+      if (combinedProjected > combinedCap) {
+        const warnCombined = document.createElement('div');
+        warnCombined.className = 'hero-sft-chip';
+        warnCombined.setAttribute('role','note');
+        warnCombined.innerHTML = `
+          <span class="icon" aria-hidden="true">ℹ️</span>
+          Together, your household’s projected pension pots exceed the <b>${partnerIncluded ? 'combined ' : ''}SFT</b> by <b>${formatEUR(combinedProjected - combinedCap)}</b>. The SFT is assessed per person, but combined amounts may help frame overall planning. <button class="link-btn" type="button" id="sftInfoBtn2">Learn more</button>
+        `;
+        hero.appendChild(warnCombined);
+        warnCombined.querySelector('#sftInfoBtn2')?.addEventListener('click', () => {
+          document.getElementById('compliance-notices')?.scrollIntoView({ behavior:'smooth', block:'start' });
+        });
       }
     }
 
