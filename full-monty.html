@@ -904,10 +904,15 @@
       <section id="compliance-notices" aria-label="Important notices" class="notices-section"></section>
 
       <!-- Max table section (bottom of page) -->
-      <section id="taxReliefLimits">
-        <section id="maxTableSection" class="max-table-section" aria-live="polite">
-          <!-- JS will inject a heading + table OR a helpful message -->
-        </section>
+      <section id="maxTableSection" class="max-table-section" aria-live="polite">
+        <h3>Maximum personal pension contributions by age band</h3>
+        <div id="maxLegend" class="max-legend"></div>
+        <div class="table-scroll">
+          <table id="taxReliefLimits" class="max-table">
+            <!-- JS will (re)build the whole thead/tbody -->
+          </table>
+        </div>
+        <p id="maxNote" class="help max-note"></p>
       </section>
       <div id="calcWarnings" style="display:none;"></div>
       </div>

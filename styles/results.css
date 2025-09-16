@@ -59,3 +59,44 @@
   cursor: pointer;
   font: inherit;
 }
+
+/* Legend above the table */
+.max-legend {
+  margin: .5rem 0 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem .75rem;
+  align-items: center;
+  font-size: .9rem;
+  opacity: .9;
+}
+
+/* Tiny rounded in-cell badges */
+.badge {
+  display: inline-block;
+  margin-left: .5rem;
+  padding: .15rem .45rem;
+  font-size: .75rem;
+  line-height: 1.2;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* Colours chosen to work in light/dark; adjust if you have design tokens */
+.badge.hl-self {
+  background: rgba(46, 204, 113, .15);     /* greenish */
+  border-color: rgba(46, 204, 113, .5);
+}
+.badge.hl-partner {
+  background: rgba(52, 152, 219, .15);     /* blueish */
+  border-color: rgba(52, 152, 219, .5);
+}
+
+/* Turn off any legacy “full-row” highlight class for this table */
+.max-table .is-current-row {
+  background: transparent !important;
+}
+
+/* Let us hide the partner column entirely when not needed */
+.partner-col[hidden] { display: none; }

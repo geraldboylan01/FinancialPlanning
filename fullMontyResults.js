@@ -173,6 +173,133 @@ const fmtEuro = n => '€' + (Math.round(n||0)).toLocaleString();
 const yrDiff = (d, ref = new Date()) => (ref - d) / (1000*60*60*24*365.25);
 const maxPctForAge = age => AGE_BANDS.find(b => age <= b.max)?.pct ?? 0.15;
 
+// === Partner-aware “Max personal contributions by age band” renderer ==========
+
+(function attachPartnerAwareMaxTable(){
+  const MAX_CAP = 115000; // per-person Revenue cap for personal contributions
+  const BANDS = [
+    { label: 'Up to 29',  min:   0, max: 29, pct: 15 },
+    { label: '30 – 39',   min:  30, max: 39, pct: 20 },
+    { label: '40 – 49',   min:  40, max: 49, pct: 25 },
+    { label: '50 – 54',   min:  50, max: 54, pct: 30 },
+    { label: '55 – 59',   min:  55, max: 59, pct: 35 },
+    { label: '60 +',      min:  60, max: 200, pct: 40 }
+  ];
+
+  function fmtEUR(n){
+    try { return new Intl.NumberFormat('en-IE', { style:'currency', currency:'EUR', maximumFractionDigits:0 }).format(Number(n)||0); }
+    catch { return '€' + Math.round(Number(n)||0).toLocaleString(); }
+  }
+  const yearsFrom = (dobStr) => {
+    if (!dobStr) return null;
+    const diff = Date.now() - new Date(dobStr).getTime();
+    return Math.floor(diff / (365.25 * 24 * 3600 * 1000));
+  };
+  const bandForAge = (age) => {
+    if (age == null) return null;
+    return BANDS.find(b => age >= b.min && age <= b.max) || null;
+  };
+  const salaryCapped = (raw) => Math.max(0, Math.min(Number(raw)||0, MAX_CAP));
+  const perBandMaxEuro = (salary, pct) => Math.round(salaryCapped(salary) * (pct/100));
+
+  /**
+   * Renders the table into #taxReliefLimits, legend into #maxLegend, note into #maxNote.
+   * @param {object} store – Full Monty store (needs: dobSelf, dobPartner, hasPartner, grossIncome, grossIncomePartner)
+   */
+  window.renderMaxContributionTable = function renderMaxContributionTable(store){
+    const table = document.getElementById('taxReliefLimits');
+    const legend = document.getElementById('maxLegend');
+    const note = document.getElementById('maxNote');
+    if (!table) return;
+
+    const hasPartner = !!store?.hasPartner;
+
+    // Per-person data
+    const selfAge     = yearsFrom(store?.dobSelf || store?.dob);
+    const partnerAge  = hasPartner ? yearsFrom(store?.dobPartner) : null;
+    const selfBand    = bandForAge(selfAge);
+    const partnerBand = hasPartner ? bandForAge(partnerAge) : null;
+
+    const selfSalary     = Number(store?.grossIncome || store?.salary || 0);
+    const partnerSalary  = Number(store?.grossIncomePartner || 0);
+
+    // Build THEAD
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headRow.innerHTML = `
+      <th>Age band</th>
+      <th>Max&nbsp;%</th>
+      <th>You (€/yr)</th>
+      ${hasPartner ? `<th class="partner-col">Partner (€/yr)</th>` : `<th class="partner-col" hidden>Partner (€/yr)</th>`}
+    `;
+    thead.appendChild(headRow);
+
+    // Build TBODY
+    const tbody = document.createElement('tbody');
+    BANDS.forEach(b => {
+      const tr = document.createElement('tr');
+
+      // cells
+      const tdBand = document.createElement('td');   tdBand.textContent = b.label;
+      const tdPct  = document.createElement('td');   tdPct.textContent  = `${b.pct} %`;
+
+      // Self €
+      const selfMax = perBandMaxEuro(selfSalary, b.pct);
+      const tdSelf  = document.createElement('td');
+      tdSelf.textContent = fmtEUR(selfMax);
+      if (selfBand && selfBand.label === b.label) {
+        const badge = document.createElement('span');
+        badge.className = 'badge hl-self';
+        badge.textContent = 'You';
+        tdSelf.appendChild(badge);
+      }
+
+      // Partner €
+      const tdPartner = document.createElement('td');
+      tdPartner.className = 'partner-col';
+      if (hasPartner) {
+        const partnerMax = perBandMaxEuro(partnerSalary, b.pct);
+        tdPartner.textContent = fmtEUR(partnerMax);
+        if (partnerBand && partnerBand.label === b.label) {
+          const badge = document.createElement('span');
+          badge.className = 'badge hl-partner';
+          badge.textContent = 'Partner';
+          tdPartner.appendChild(badge);
+        }
+      } else {
+        tdPartner.setAttribute('hidden', 'true');
+      }
+
+      tr.append(tdBand, tdPct, tdSelf, tdPartner);
+      tbody.appendChild(tr);
+    });
+
+    // (Re)mount table
+    table.innerHTML = '';
+    table.appendChild(thead);
+    table.appendChild(tbody);
+
+    // Legend
+    if (legend) {
+      legend.innerHTML = hasPartner
+        ? `<span class="badge hl-self">You</span> <span class="badge hl-partner">Partner</span>`
+        : '';
+    }
+
+    // Note copy
+    if (note) {
+      if (!hasPartner) {
+        const ageTxt = (selfAge != null) ? `Your current age (${selfAge})` : 'Your current age';
+        note.innerHTML = `${ageTxt} is indicated. Personal limits are calculated on a max reckonable salary of €115,000; employer contributions are <strong>not</strong> subject to this cap.`;
+      } else {
+        const you   = (selfAge != null)    ? `your current age (${selfAge})` : 'your current age';
+        const them  = (partnerAge != null) ? `your partner’s age (${partnerAge})` : 'your partner’s age';
+        note.innerHTML = `Note: ${you} and ${them} are indicated. Personal limits are calculated <em>separately for each person</em> on a max reckonable salary of €115,000; employer contributions are <strong>not</strong> subject to this cap.`;
+      }
+    }
+  };
+})();
+
 // ===== Color constants (dark-theme friendly, colorblind-aware) =====
 const COLORS = {
   pensionCurrent: { fill: 'rgba(0,230,118,0.95)', border: '#00E676' }, // green
@@ -1062,71 +1189,6 @@ function drawCharts() {
   }
 }
 
-function renderMaxTable(wiz){
-  const sect = document.querySelector('#maxTableSection');
-  if (!sect) return;
-
-  const dobStr = wiz?.dob;
-  const salaryRaw = +wiz?.salary || 0;
-
-  sect.innerHTML = `
-    <h3>Maximum personal pension contributions by age band</h3>
-    <p class="max-note" id="maxTableHelp"></p>
-  `;
-
-  const help = sect.querySelector('#maxTableHelp');
-
-  if (!dobStr || !salaryRaw){
-    help.textContent = 'We couldn’t determine your age and/or salary. Edit inputs to see a personalised breakdown.';
-    return;
-  }
-
-  const dob = new Date(dobStr);
-  const ageNow = Math.floor(yrDiff(dob, new Date()));
-  const capBase = Math.min(salaryRaw, MAX_SALARY_CAP);
-
-  const rows = AGE_BANDS.map((band, idx) => {
-    const bandLabel =
-      idx === 0 ? 'Up to 29'
-      : idx === 1 ? '30 – 39'
-      : idx === 2 ? '40 – 49'
-      : idx === 3 ? '50 – 54'
-      : idx === 4 ? '55 – 59'
-      : '60 +';
-    const pct = band.pct;
-    const euro = Math.round(pct * capBase);
-    const inBand = ageNow <= band.max && (idx === 0 || ageNow > AGE_BANDS[idx-1].max);
-    return `
-      <tr class="${inBand ? 'highlight' : ''}">
-        <td>${bandLabel}</td>
-        <td>${(pct*100).toFixed(0)} %</td>
-        <td>${fmtEuro(euro)}</td>
-      </tr>`;
-  }).join('');
-
-  const table = document.createElement('div');
-  table.innerHTML = `
-    <div class="table-scroll">
-      <table class="max-table" role="table">
-        <thead>
-          <tr>
-            <th>Age band</th>
-            <th>Max %</th>
-            <th>Max € (on ${fmtEuro(capBase)})</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-    <p class="max-note">
-      <strong>Note:</strong> Your current age (${ageNow}) is highlighted.
-      Personal limits are calculated on a max reckonable salary of €115,000;
-      employer contributions are <strong>not</strong> subject to this cap.
-    </p>
-  `;
-  sect.appendChild(table);
-}
-
 // Listen for inputs from the wizard
 document.addEventListener('fm-run-pension', (e) => {
   const d = e.detail || {};
@@ -1180,7 +1242,6 @@ document.addEventListener('fm-pension-output', (e) => {
   ensureMaxScenario();
 
   try { drawCharts(); } catch (e) { console.error('[FM Results] drawCharts error:', e); }
-  try { renderMaxTable(lastWizard); } catch (e) { console.error('[FM Results] renderMaxTable error:', e); }
 
   ensureNoticesMount();
   deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); if (typeof refreshContribUX === 'function') refreshContribUX();
@@ -1222,7 +1283,6 @@ document.addEventListener('fm-run-fy', (e) => {
   ensureMaxScenario();
 
   try { drawCharts(); } catch (e) { console.error('[FM Results] drawCharts error:', e); }
-  try { renderMaxTable(lastWizard); } catch (e) { console.error('[FM Results] renderMaxTable error:', e); }
 
   ensureNoticesMount();
   deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); if (typeof refreshContribUX === 'function') refreshContribUX();
@@ -1241,7 +1301,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnOnMax   = document.getElementById('sheetGoToMax');  // primary CTA
   const btnSeeLim  = document.getElementById('sheetSeeLimit'); // secondary CTA
   const elMax      = document.getElementById('maxContribToggle');
-  const elLimits   = document.getElementById('taxReliefLimits');
+  const elLimits   = document.getElementById('maxTableSection');
   const sheet      = document.getElementById('sheetTaxRelief');
 
   function closeSheet(){ if (sheet) sheet.hidden = true; }
@@ -1269,6 +1329,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (elLimits) elLimits.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }
+});
+
+window.addEventListener('fm:results:ready', () => {
+  try { window.renderMaxContributionTable?.(window.getStore?.() || window.getFullMontyData?.() || {}); } catch(e){}
+});
+
+document.addEventListener('fm-salary-updated', () => {
+  try { window.renderMaxContributionTable?.(window.getStore?.() || window.getFullMontyData?.() || {}); } catch(e){}
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  try { window.renderMaxContributionTable?.(window.getStore?.() || window.getFullMontyData?.() || {}); } catch(e){}
 });
 
 // Keep restore hidden on any re-render of results
