@@ -1121,8 +1121,8 @@ let baselinePersonalAnnual = 0;
 // We use this to decide when to show the “Return to original” button.
 let _heroContribNudged = false;
 // Controls
-let btnAdd200 = null;
-let btnRemove200 = null;
+let btnAdd100 = null;
+let btnRemove100 = null;
 let btnEarlier = null;
 let btnLater = null;
 let btnRevertContrib = null;
@@ -1785,28 +1785,38 @@ export function renderResults(mountEl, storeRef = {}) {
     // Contribution nudges + meter
     const contribControls = document.createElement('div');
 
-    btnAdd200 = document.createElement('button');
-    btnAdd200.id = 'btnAdd200'; btnAdd200.type = 'button';
-    btnAdd200.className = 'pill';
-    btnAdd200.textContent = '+ Add €100/mo';
+    const contribNudgers = document.createElement('div');
+    contribNudgers.id = 'contribNudgers';
+    contribNudgers.className = 'cta-stack';
 
-    btnRemove200 = document.createElement('button');
-    btnRemove200.id = 'btnRemove200'; btnRemove200.type = 'button';
-    btnRemove200.className = 'pill pill--neutral';
-    btnRemove200.textContent = '– Remove €100/mo';
+    btnAdd100 = document.createElement('button');
+    btnAdd100.id = 'btnAdd100';
+    btnAdd100.type = 'button';
+    btnAdd100.className = 'pill';
+    btnAdd100.textContent = '+ Add €100/mo';
+    btnAdd100.setAttribute('data-increment', '+100');
 
-    contribControls.append(btnAdd200, btnRemove200);
+    btnRemove100 = document.createElement('button');
+    btnRemove100.id = 'btnRemove100';
+    btnRemove100.type = 'button';
+    btnRemove100.className = 'pill pill--neutral';
+    btnRemove100.textContent = '– Remove €100/mo';
+    btnRemove100.setAttribute('data-increment', '-100');
+
+    contribNudgers.append(btnAdd100, btnRemove100);
 
     // Contribution meter (info chip not a button)
-    const contribMeter = document.createElement('div');
-    contribMeter.className = 'contrib-meter';
-    contribMeter.setAttribute('aria-live','polite');
+    const contribSummary = document.createElement('div');
+    contribSummary.id = 'contribSummary';
+    contribSummary.className = 'contrib-meter';
+    contribSummary.setAttribute('aria-live','polite');
     const annualNow = Math.round((getCurrentMonthlyContrib?.() || 0) * 12);
-    contribMeter.innerHTML = `
+    contribSummary.innerHTML = `
       <div class="label">Your contributions</div>
-      <div class="value" id="heroContribAnnual">€${annualNow.toLocaleString()} /yr</div>
+      <div class="value" id="contribSummaryValue">€${annualNow.toLocaleString()} /yr</div>
     `;
-    contribControls.appendChild(contribMeter);
+
+    contribControls.append(contribNudgers, contribSummary);
 
     /* Row 2: Return to original + age-band nudge */
     const row2 = document.createElement('div');
@@ -1855,13 +1865,13 @@ export function renderResults(mountEl, storeRef = {}) {
     function applyAddBtnState() {
       const atMax = contributionsAtMax?.() || atMaxContrib;
 
-      btnAdd200.disabled = !!atMax;
-      btnAdd200.classList.toggle('pill--cta',  recommendMoreContribs && !atMax);
-      btnAdd200.classList.toggle('pill--neutral', !recommendMoreContribs || atMax);
-      btnAdd200.classList.toggle('pill--disabled', !!atMax);
+      btnAdd100.disabled = !!atMax;
+      btnAdd100.classList.toggle('pill--cta',  recommendMoreContribs && !atMax);
+      btnAdd100.classList.toggle('pill--neutral', !recommendMoreContribs || atMax);
+      btnAdd100.classList.toggle('pill--disabled', !!atMax);
 
       // Cap note (simple hint under the Add button)
-      let note = contribControls.querySelector('.cap-note');
+      let note = contribNudgers.querySelector('.cap-note');
       if (!note) {
         note = document.createElement('div');
         note.className = 'cap-note';
@@ -1869,7 +1879,7 @@ export function renderResults(mountEl, storeRef = {}) {
       You’ve reached today’s tax-relievable limit.
       <button type="button" class="link-soft" id="goToMaxToggle">Maximise contributions</button>
     `;
-        contribControls.insertBefore(note, btnRemove200);
+        contribNudgers.insertBefore(note, btnRemove100);
         note.addEventListener('click', (e) => {
           const t = e.target;
           if (t && t.id === 'goToMaxToggle') {
@@ -1883,7 +1893,7 @@ export function renderResults(mountEl, storeRef = {}) {
     // helper: keep the /yr value live
     function updateContribMeter(){
       const annual = Math.round((getCurrentMonthlyContrib?.() || 0) * 12);
-      const v = contribControls.querySelector('#heroContribAnnual');
+      const v = contribControls.querySelector('#contribSummaryValue');
       if (v) v.textContent = '€' + annual.toLocaleString() + ' /yr';
     }
 
@@ -1892,11 +1902,11 @@ export function renderResults(mountEl, storeRef = {}) {
     btnLater.classList.add(recommendMoreContribs ? 'pill--cta' : 'pill--neutral');
 
     // Wire nudge buttons to refresh the meter & state immediately
-    btnAdd200.addEventListener('click', () => {
+    btnAdd100.addEventListener('click', () => {
       window.fmApplyNudge?.({ contribDelta: +100 });
       updateContribMeter(); applyAddBtnState();
     });
-    btnRemove200.addEventListener('click', () => {
+    btnRemove100.addEventListener('click', () => {
       window.fmApplyNudge?.({ contribDelta: -100 });
       updateContribMeter(); applyAddBtnState();
     });
