@@ -173,6 +173,31 @@ const fmtEuro = n => '€' + (Math.round(n||0)).toLocaleString();
 const yrDiff = (d, ref = new Date()) => (ref - d) / (1000*60*60*24*365.25);
 const maxPctForAge = age => AGE_BANDS.find(b => age <= b.max)?.pct ?? 0.15;
 
+// Is this a partner scenario?
+function isPartnerScenario(wiz = lastWizard) {
+  return !!(
+    wiz?.partner?.enabled ||
+    wiz?.partner?.present ||
+    wiz?.hasPartner ||
+    wiz?.includePartner ||
+    (wiz?.partner && typeof wiz.partner === 'object' && Object.keys(wiz.partner).length > 0)
+  );
+}
+
+// Show/hide controls when partner is present
+function toggleHeroControlsForPartner() {
+  const altInputs = lastFYOutput?._inputs;
+  const hide = isPartnerScenario() || (altInputs ? isPartnerScenario(altInputs) : false);
+
+  // €100 nudgers
+  const nudgers = document.getElementById('contribNudgers');
+  if (nudgers) nudgers.hidden = hide;
+
+  // “Your contributions” summary
+  const contribSummary = document.getElementById('contribSummary');
+  if (contribSummary) contribSummary.hidden = hide;
+}
+
 // === Partner-aware “Max personal contributions by age band” renderer ==========
 
 (function attachPartnerAwareMaxTable(){
@@ -313,7 +338,7 @@ function formatEUR(x){
 }
 
 function updateContributionSummaryUI(){
-  const el = document.getElementById('contribSummaryVal');
+  const el = document.getElementById('contribSummaryValue');
   if (!el) return;
 
   // Prefer the wizard’s getter (returns €/yr). Fallback: compute locally.
@@ -411,6 +436,7 @@ function renderHeroNowOrQueue(){
     if (typeof window.setUIMode === 'function') {
       window.setUIMode('results');
     }
+    toggleHeroControlsForPartner();
   } else {
     window.__pendingHeroPayload = payload;
   }
@@ -418,6 +444,7 @@ function renderHeroNowOrQueue(){
 
 window.addEventListener('fm-renderer-ready', renderHeroNowOrQueue);
 window.addEventListener('fm-renderer-ready', mountBelowHeroToggle);
+window.addEventListener('fm-renderer-ready', toggleHeroControlsForPartner);
 window.addEventListener('fm-renderer-ready', () => {
   // Make sure the hero has the correct restore button
   ensureHeroRestoreExists();
@@ -582,12 +609,12 @@ window.setUseMaxContributions = setUseMaxContributions;
 
 function findHeroButtons(){
   // Prefer explicit data attributes if present
-  const addBtn = document.querySelector('#resultsView [data-increment="+200"], #resultsView #btnAdd200') ||
+  const addBtn = document.querySelector('#resultsView [data-increment="+100"], #resultsView [data-increment="+200"], #resultsView #btnAdd100, #resultsView #btnAdd200') ||
                  Array.from(document.querySelectorAll('#resultsView button, #resultsView [role="button"]'))
-                      .find(b => /add\s*€?\s*200/i.test(b.textContent||''));
-  const remBtn = document.querySelector('#resultsView [data-increment="-200"], #resultsView #btnRemove200') ||
+                      .find(b => /add\s*€?\s*(100|200)/i.test(b.textContent||''));
+  const remBtn = document.querySelector('#resultsView [data-increment="-100"], #resultsView [data-increment="-200"], #resultsView #btnRemove100, #resultsView #btnRemove200') ||
                  Array.from(document.querySelectorAll('#resultsView button, #resultsView [role="button"]'))
-                      .find(b => /(remove|−|-)\s*€?\s*200/i.test(b.textContent||''));
+                      .find(b => /(remove|−|-)\s*€?\s*(100|200)/i.test(b.textContent||''));
   return { addBtn, remBtn };
 }
 
@@ -1198,6 +1225,22 @@ document.addEventListener('fm-run-pension', (e) => {
     updateRetirementAgeChips(+d.retireAge);
   }
   if (d.growth != null) lastWizard.growthRate = +d.growth;
+  if ('hasPartner' in d) {
+    lastWizard.hasPartner = !!d.hasPartner;
+    lastWizard.includePartner = !!(d.includePartner ?? d.hasPartner);
+    if (d.hasPartner) {
+      lastWizard.partner = {
+        ...(lastWizard.partner || {}),
+        enabled: true,
+        present: true,
+        dob: d.dobPartner || lastWizard.partner?.dob,
+        salary: d.salaryPartner ?? lastWizard.partner?.salary
+      };
+    } else {
+      delete lastWizard.partner;
+    }
+  }
+  toggleHeroControlsForPartner();
 });
 
 document.addEventListener('fm-pension-output', (e) => {
@@ -1252,12 +1295,25 @@ document.addEventListener('fm-pension-output', (e) => {
   // The hero may have just re-rendered; ensure the button exists inside it.
   setTimeout(ensureHeroRestoreExists, 0);
   updateRestoreVisibility();
+  toggleHeroControlsForPartner();
 });
 
 document.addEventListener('fm-run-fy', (e) => {
   console.debug('[FM Results] got fm-run-fy', e.detail);
   const d = e.detail || {};
   lastWizard = { ...lastWizard, dob: d.dob, salary: +d.grossIncome || 0, retireAge: +d.retireAge, growthRate: +d.growthRate };
+  lastWizard.hasPartner = !!d.hasPartner;
+  lastWizard.includePartner = !!(d.includePartner ?? d.hasPartner);
+  if (lastWizard.hasPartner) {
+    lastWizard.partner = {
+      ...(lastWizard.partner || {}),
+      enabled: true,
+      present: true,
+      dob: d.partnerDob || lastWizard.partner?.dob
+    };
+  } else {
+    delete lastWizard.partner;
+  }
   updateRetirementAgeChips(+d.retireAge);
   const fy = fyRequiredPot({
     grossIncome: d.grossIncome || 0,
@@ -1293,6 +1349,7 @@ document.addEventListener('fm-run-fy', (e) => {
   // The hero may have just re-rendered; ensure the button exists inside it.
   setTimeout(ensureHeroRestoreExists, 0);
   updateRestoreVisibility();
+  toggleHeroControlsForPartner();
 });
 
 // Wire bottom-sheet CTAs (exists in full-monty.html)
