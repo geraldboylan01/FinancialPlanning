@@ -1754,23 +1754,6 @@ export function renderResults(mountEl, storeRef = {}) {
         });
       }
 
-      // OPTIONAL: a separate combined-cap notice (only if exceeded).
-      // Household total can exceed combined SFT even if just one breaches individually—or neither.
-      const combinedCap = partnerIncluded ? (sftPerPerson * 2) : sftPerPerson;
-      const combinedProjected = (projSelf + (partnerIncluded ? projPartner : 0));
-      if (combinedProjected > combinedCap) {
-        const warnCombined = document.createElement('div');
-        warnCombined.className = 'hero-sft-chip';
-        warnCombined.setAttribute('role','note');
-        warnCombined.innerHTML = `
-          <span class="icon" aria-hidden="true">ℹ️</span>
-          Together, your household’s projected pension pots exceed the <b>${partnerIncluded ? 'combined ' : ''}SFT</b> by <b>${formatEUR(combinedProjected - combinedCap)}</b>. The SFT is assessed per person, but combined amounts may help frame overall planning. <button class="link-btn" type="button" id="sftInfoBtn2">Learn more</button>
-        `;
-        hero.appendChild(warnCombined);
-        warnCombined.querySelector('#sftInfoBtn2')?.addEventListener('click', () => {
-          document.getElementById('compliance-notices')?.scrollIntoView({ behavior:'smooth', block:'start' });
-        });
-      }
     }
 
     const parts = [];
