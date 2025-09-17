@@ -26,30 +26,44 @@ function getRestoreBtn() {
       || document.getElementById('btnRestoreOriginal');
 }
 
-// Ensure we have a single hero restore button inside #resultsView.
-// Returns the button element (existing or newly created).
+// Ensure we have a single hero restore button and mount it next to the retire +/-1yr buttons
 function ensureHeroRestoreExists(){
   const root = document.getElementById('resultsView');
   if (!root) return null;
 
-  let btn = root.querySelector('#btnRestoreOriginal');
-  if (!btn){
+  // Find the best host: the container that holds the retirement year controls
+  // Try explicit data hooks first, then fall back to text search.
+  const retireLaterBtn =
+    root.querySelector('[data-action="retire-later"], [data-year-delta="+1"], [data-role="retire-forward"]')
+    || Array.from(root.querySelectorAll('button, [role="button"]'))
+         .find(b => /\bretire\s*1\s*yr\s*later\b/i.test(b.textContent || ''));
+
+  const retireSoonerBtn =
+    root.querySelector('[data-action="retire-sooner"], [data-year-delta="-1"], [data-role="retire-delay"]')
+    || Array.from(root.querySelectorAll('button, [role="button"]'))
+         .find(b => /\bretire\s*1\s*yr\s*(earlier|sooner)\b/i.test(b.textContent || ''));
+
+  // Preferred host is the shared parent of the ±1yr buttons; otherwise fallback to a known actions row; otherwise resultsView.
+  const host =
+    (retireLaterBtn && retireLaterBtn.parentElement === retireSoonerBtn?.parentElement && retireLaterBtn.parentElement)
+    || root.querySelector('.summary-row .actions, [data-hero-tools], .controls-row')
+    || root;
+
+  // Get or create the button
+  let btn = host.querySelector('#btnRestoreOriginal') || root.querySelector('#btnRestoreOriginal');
+  if (!btn) {
     btn = document.createElement('button');
     btn.id = 'btnRestoreOriginal';
     btn.type = 'button';
     btn.className = 'pill pill--ghost';
     btn.textContent = 'Return to original';
-    // Start hidden; your visibility helpers will manage it after.
     btn.hidden = true;
     btn.setAttribute('aria-hidden', 'true');
-
-    // Prefer a logical spot if present; otherwise append to resultsView.
-    const host =
-      root.querySelector('[data-hero-tools]') ||
-      root.querySelector('.hero-tools, .summary-row .actions') ||
-      root;
     host.appendChild(btn);
+  } else if (btn.parentElement !== host) {
+    host.appendChild(btn); // move it into the correct host
   }
+
   return btn;
 }
 
@@ -70,6 +84,7 @@ function setRestoreVisible(show) {
 }
 
 function updateRestoreVisibility() {
+  ensureHeroRestoreExists(); // make sure it’s in the Hero actions row
   // Show ONLY if user tweaked AND Max toggle is OFF
   const show = !!_userHasAdjusted && !useMax;
   setRestoreVisible(show);
@@ -77,8 +92,20 @@ function updateRestoreVisibility() {
 
 function markAdjustedByTweaks() {
   _userHasAdjusted = true;
+  ensureHeroRestoreExists();
   updateRestoreVisibility();
 }
+
+(function observeResultsView() {
+  const root = document.getElementById('resultsView');
+  if (!root) return;
+  const mo = new MutationObserver(() => {
+    // If the actions row is replaced, make sure our button is in there again
+    ensureHeroRestoreExists();
+    updateRestoreVisibility();
+  });
+  mo.observe(root, { childList: true, subtree: true });
+})();
 
 function clearAdjustedState() {
   _userHasAdjusted = false;
