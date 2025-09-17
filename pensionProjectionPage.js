@@ -782,22 +782,34 @@ function generatePDF() {
 // ----------------------------------------------------------------
 document.addEventListener('fm-run-pension', e => {
   const d = e.detail || {};
-  const salaryRaw  = +d.salary || 0;
-  const salaryCapped = Math.min(salaryRaw, MAX_SALARY_CAP);
-  const currentPv   = +d.currentValue || 0;
-  const personalRaw = +d.personalContrib || 0;
+  const salaryRaw     = +d.salary || 0;
+  const salaryCapped  = Math.min(salaryRaw, MAX_SALARY_CAP);
+  const currentPv     = +d.currentValue || 0;
+  const dob           = new Date(d.dob);
+  const curAge        = ageInYears(dob, new Date());
+  const retireAge     = +d.retireAge;
+  const gRate         = +d.growth || 0.05;
+
+  // ---- Prefer explicit ANNUAL euros; otherwise fall back to % (annual) ----
+  const personalAnnualInput =
+    Number(d.personalContribAnnual) ||
+    Number(d.personalContrib) || 0;          // treated as annual
+  const employerAnnualInput =
+    Number(d.employerContribAnnual) ||
+    Number(d.employerContrib) || 0;          // treated as annual
+
   const personalPct = (+d.personalPct || 0) / 100;
-  const employerRaw = +d.employerContrib || 0;
   const employerPct = (+d.employerPct || 0) / 100;
-  const employerCalc = employerRaw > 0 ? employerRaw : salaryRaw * employerPct;
-  const dob         = new Date(d.dob);
-  const curAge      = ageInYears(dob, new Date());
-  const personalCalc  = personalRaw > 0 ? personalRaw : salaryCapped * personalPct;
-  const limitValue    = maxPersonalPct(Math.floor(curAge)) * salaryCapped;
-  const personalUsed  = Math.min(personalCalc, limitValue);
-  const retireAge   = +d.retireAge;
-  const gRate       = +d.growth || 0.05;
-  const yearsToRet  = Math.ceil(retireAge - curAge);
+
+  const personalFromPct = salaryCapped * personalPct;   // annual
+  const employerFromPct = salaryRaw * employerPct;      // annual (no cap on employer)
+
+  const limitValue   = maxPersonalPct(Math.floor(curAge)) * salaryCapped; // annual personal cap
+  const personalCalc = personalAnnualInput > 0 ? personalAnnualInput : personalFromPct;
+  const personalUsed = Math.min(personalCalc, limitValue);               // annual personal used
+  const employerCalc = employerAnnualInput > 0 ? employerAnnualInput : employerFromPct; // annual employer
+
+  const yearsToRet = Math.ceil(retireAge - curAge);
 
   const balances = [];
   let bal = currentPv;

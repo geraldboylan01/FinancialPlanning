@@ -135,8 +135,10 @@ const fullMontyStore = {
   // pensions (self/partner as before)
   currentPensionValueSelf: 0,
   personalContribSelf: null,
+  personalContribSelfAnnual: null,
   personalPctSelf: null,
   employerContribSelf: null,
+  employerContribSelfAnnual: null,
   employerPctSelf: null,
   hasDbSelf: false,
   dbPensionSelf: null,
@@ -145,8 +147,10 @@ const fullMontyStore = {
 
   currentPensionValuePartner: 0,
   personalContribPartner: null,
+  personalContribPartnerAnnual: null,
   personalPctPartner: null,
   employerContribPartner: null,
+  employerContribPartnerAnnual: null,
   employerPctPartner: null,
   hasDbPartner: false,
   dbPensionPartner: null,
@@ -382,7 +386,10 @@ function bindStepPensions(root, store){
     if (userYrEl) userYrEl.textContent = fmt(yearly);
     setStore({
       personalPctSelf: Number(userPctEl.value) || 0,
-      personalContribSelf: monthly
+      // UI convenience (€/mo)
+      personalContribSelf: monthly,
+      // 🔑 Source of truth for math (€/yr)
+      personalContribSelfAnnual: yearly
     });
   }
   function renderEmployerSelf(){
@@ -392,7 +399,8 @@ function bindStepPensions(root, store){
     if (empYrEl) empYrEl.textContent = fmt(yearly);
     setStore({
       employerPctSelf: Number(empPctEl.value) || 0,
-      employerContribSelf: monthly
+      employerContribSelf: monthly,
+      employerContribSelfAnnual: yearly
     });
   }
 
@@ -404,7 +412,8 @@ function bindStepPensions(root, store){
     if (userYrPartnerEl) userYrPartnerEl.textContent = fmt(yearly);
     setStore({
       personalPctPartner: Number(userPctPartnerEl.value) || 0,
-      personalContribPartner: monthly
+      personalContribPartner: monthly,
+      personalContribPartnerAnnual: yearly
     });
   }
   function renderEmployerPartner(){
@@ -414,7 +423,8 @@ function bindStepPensions(root, store){
     if (empYrPartnerEl) empYrPartnerEl.textContent = fmt(yearly);
     setStore({
       employerPctPartner: Number(empPctPartnerEl.value) || 0,
-      employerContribPartner: monthly
+      employerContribPartner: monthly,
+      employerContribPartnerAnnual: yearly
     });
   }
 
@@ -1025,13 +1035,20 @@ function runAll() {
     (Number(fullMontyStore.grossIncome) || 0) +
     (fullMontyStore.hasPartner ? (Number(fullMontyStore.grossIncomePartner) || 0) : 0);
 
+  const annSelfPersonal = Number(fullMontyStore.personalContribSelfAnnual || 0)
+    || Number(fullMontyStore.personalContribSelf || 0) * 12;
+  const annSelfEmployer = Number(fullMontyStore.employerContribSelfAnnual || 0)
+    || Number(fullMontyStore.employerContribSelf || 0) * 12;
+  const annPartPersonal = Number(fullMontyStore.personalContribPartnerAnnual || 0)
+    || Number(fullMontyStore.personalContribPartner || 0) * 12;
+  const annPartEmployer = Number(fullMontyStore.employerContribPartnerAnnual || 0)
+    || Number(fullMontyStore.employerContribPartner || 0) * 12;
+
   const pensionArgs = {
     // Self
     salary: Math.min(fullMontyStore.grossIncome || 0, MAX_SALARY_CAP),
     currentValue: fullMontyStore.currentPensionValueSelf || 0,
-    personalContrib: fullMontyStore.personalContribSelf,
     personalPct: fullMontyStore.personalPctSelf,
-    employerContrib: fullMontyStore.employerContribSelf,
     employerPct: fullMontyStore.employerPctSelf,
     dob: fullMontyStore.dobSelf,
     retireAge: Math.max(50, Math.min(70, fullMontyStore.retireAge || 0)),
@@ -1039,15 +1056,26 @@ function runAll() {
     pensionRisk: fullMontyStore.pensionRisk,
     sftAwareness: fullMontyStore.sftAwareness,
 
+    // 🔑 Annual source of truth (these are €/yr)
+    personalContrib: annSelfPersonal,
+    employerContrib: annSelfEmployer,
+    personalContribAnnual: annSelfPersonal,
+    employerContribAnnual: annSelfEmployer,
+
     // Partner (new; optional)
     hasPartner: !!fullMontyStore.hasPartner,
     salaryPartner: Math.min(fullMontyStore.grossIncomePartner || 0, MAX_SALARY_CAP),
     currentValuePartner: fullMontyStore.currentPensionValuePartner || 0,
-    personalContribPartner: fullMontyStore.personalContribPartner,
     personalPctPartner: fullMontyStore.personalPctPartner,
-    employerContribPartner: fullMontyStore.employerContribPartner,
     employerPctPartner: fullMontyStore.employerPctPartner,
-    dobPartner: fullMontyStore.dobPartner
+    dobPartner: fullMontyStore.dobPartner,
+
+    // Partner annuals (handy if projector reads them later)
+    personalContribPartnerAnnual: annPartPersonal,
+    employerContribPartnerAnnual: annPartEmployer,
+
+    // (optional hint to the projector)
+    contributionUnit: 'annual'
   };
   document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: pensionArgs }));
 
@@ -1443,6 +1471,9 @@ function setCurrentMonthlyContrib(val){
 
   // Clear % so the engine doesn't override with a percent-based value
   CONTRIB_KEYS.percent.forEach(pk => { if (pk in store) patch[pk] = null; });
+
+  // 🔁 Keep the annual (source of truth) in sync for self
+  patch.personalContribSelfAnnual = monthly * 12;
 
   setStore(patch);
   return true;
