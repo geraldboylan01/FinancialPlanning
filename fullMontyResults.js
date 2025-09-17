@@ -19,6 +19,7 @@ let useMax = false;
 
 // --- Restore-to-original visibility control (simple, single button) ---
 let _userHasAdjusted = false; // set true only by tweak actions (not by Max toggle)
+let _baselineInitialised = false;
 
 // Prefer the hero-injected restore button (inside #resultsView)
 function getRestoreBtn() {
@@ -31,8 +32,6 @@ function ensureHeroRestoreExists(){
   const root = document.getElementById('resultsView');
   if (!root) return null;
 
-  // Find the best host: the container that holds the retirement year controls
-  // Try explicit data hooks first, then fall back to text search.
   const retireLaterBtn =
     root.querySelector('[data-action="retire-later"], [data-year-delta="+1"], [data-role="retire-forward"]')
     || Array.from(root.querySelectorAll('button, [role="button"]'))
@@ -43,13 +42,17 @@ function ensureHeroRestoreExists(){
     || Array.from(root.querySelectorAll('button, [role="button"]'))
          .find(b => /\bretire\s*1\s*yr\s*(earlier|sooner)\b/i.test(b.textContent || ''));
 
-  // Preferred host is the shared parent of the ±1yr buttons; otherwise fallback to a known actions row; otherwise resultsView.
-  const host =
-    (retireLaterBtn && retireLaterBtn.parentElement === retireSoonerBtn?.parentElement && retireLaterBtn.parentElement)
-    || root.querySelector('.summary-row .actions, [data-hero-tools], .controls-row')
-    || root;
+  // Prefer the parent of whichever ±1yr button we can find.
+  const candidateParent =
+    retireLaterBtn?.parentElement ||
+    retireSoonerBtn?.parentElement ||
+    null;
 
-  // Get or create the button
+  const host =
+    candidateParent ||
+    root.querySelector('.summary-row .actions, [data-hero-tools], .controls-row') ||
+    root;
+
   let btn = host.querySelector('#btnRestoreOriginal') || root.querySelector('#btnRestoreOriginal');
   if (!btn) {
     btn = document.createElement('button');
@@ -61,7 +64,7 @@ function ensureHeroRestoreExists(){
     btn.setAttribute('aria-hidden', 'true');
     host.appendChild(btn);
   } else if (btn.parentElement !== host) {
-    host.appendChild(btn); // move it into the correct host
+    host.appendChild(btn);
   }
 
   return btn;
@@ -473,12 +476,17 @@ window.addEventListener('fm-renderer-ready', renderHeroNowOrQueue);
 window.addEventListener('fm-renderer-ready', mountBelowHeroToggle);
 window.addEventListener('fm-renderer-ready', toggleHeroControlsForPartner);
 window.addEventListener('fm-renderer-ready', () => {
-  // Make sure the hero has the correct restore button
+  // Ensure the hero has the correct restore button
   ensureHeroRestoreExists();
 
-  // On renderer readiness, we are at baseline → keep it hidden
-  clearAdjustedState();    // hides button via your existing logic
-  setRestoreVisible(false);
+  // Only on the first render should we consider ourselves at baseline.
+  if (!_baselineInitialised) {
+    clearAdjustedState();    // hides button once, for initial baseline only
+    _baselineInitialised = true;
+  } else {
+    // On subsequent re-renders (e.g., after +1 yr), KEEP the user-adjusted state
+    updateRestoreVisibility();
+  }
 });
 window.addEventListener('fm-renderer-ready', () => {
   deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); if (typeof refreshContribUX === 'function') refreshContribUX();
@@ -804,7 +812,6 @@ document.addEventListener('DOMContentLoaded', () => {
     computeMonthlyCap();
     updateTapBadges();
     if (typeof refreshContribUX === 'function') refreshContribUX();
-    clearAdjustedState();
   }, 0);
 });
 
