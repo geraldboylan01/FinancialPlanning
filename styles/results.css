@@ -105,6 +105,36 @@
 /* Let us hide the partner column entirely when not needed */
 .partner-col[hidden] { display: none; }
 
+/* Skinny restore bar under the year buttons */
+#resultsView #heroRestoreSlot {
+  margin-top: 10px;
+}
+
+#resultsView #btnRestoreOriginal.restore-bar {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px dashed rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+  box-shadow: none;
+}
+
+#resultsView #btnRestoreOriginal.restore-bar:hover {
+  background: rgba(255,255,255,0.10);
+}
+
+#resultsView #btnRestoreOriginal.restore-bar:focus-visible {
+  outline: 2px solid rgba(0, 230, 118, 0.85);
+  outline-offset: 2px;
+}
+
+/* Belt & braces: hidden truly hides */
+#resultsView #btnRestoreOriginal[hidden] { display: none !important; }
+
 /* Base cell look (optional guard if we want a common hook) */
 .max-euro {
   position: relative;

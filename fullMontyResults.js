@@ -21,13 +21,41 @@ let useMax = false;
 let _userHasAdjusted = false; // set true only by tweak actions (not by Max toggle)
 let _baselineInitialised = false;
 
+// --- Baseline snapshot (per session) ---
+const BASELINE_KEY = () => `FM_BASELINE_${(window.FullMonty?.sessionId || 'default')}`;
+function saveBaselineOnce(d){
+  if (sessionStorage.getItem(BASELINE_KEY())) return;
+  if (!d || !d.dob || d.retireAge == null || d.grossIncome == null) return;
+  const snap = {
+    dob: d.dob ?? null,
+    partnerDob: d.partnerDob ?? null,
+    hasPartner: !!d.hasPartner,
+    grossIncome: +d.grossIncome || 0,
+    incomePercent: +d.incomePercent || 0,
+    statePensionSelf: !!d.statePensionSelf,
+    statePensionPartner: !!d.statePensionPartner,
+    hasDbSelf: !!d.hasDbSelf,
+    dbPensionSelf: +d.dbPensionSelf || 0,
+    dbStartAgeSelf: (d.dbStartAgeSelf ?? Infinity),
+    hasDbPartner: !!d.hasDbPartner,
+    dbPensionPartner: +d.dbPensionPartner || 0,
+    dbStartAgePartner: (d.dbStartAgePartner ?? Infinity),
+    retireAge: +d.retireAge || 0,
+    growthRate: +d.growthRate || 0
+  };
+  try { sessionStorage.setItem(BASELINE_KEY(), JSON.stringify(snap)); } catch {}
+}
+function loadBaseline(){
+  try { return JSON.parse(sessionStorage.getItem(BASELINE_KEY()) || ''); } catch { return null; }
+}
+
 // Prefer the hero-injected restore button (inside #resultsView)
 function getRestoreBtn() {
   return document.querySelector('#resultsView #btnRestoreOriginal')
       || document.getElementById('btnRestoreOriginal');
 }
 
-// Ensure we have a single hero restore button and mount it next to the retire +/-1yr buttons
+// Ensure we have a single hero restore button and mount it UNDER the retire +/-1yr buttons
 function ensureHeroRestoreExists(){
   const root = document.getElementById('resultsView');
   if (!root) return null;
@@ -42,29 +70,37 @@ function ensureHeroRestoreExists(){
     || Array.from(root.querySelectorAll('button, [role="button"]'))
          .find(b => /\bretire\s*1\s*yr\s*(earlier|sooner)\b/i.test(b.textContent || ''));
 
-  // Prefer the parent of whichever ±1yr button we can find.
-  const candidateParent =
-    retireLaterBtn?.parentElement ||
-    retireSoonerBtn?.parentElement ||
-    null;
+  // Prefer the shared parent of both ±1 buttons; we'll insert a slot after it
+  const candidateParent = (retireLaterBtn && retireSoonerBtn &&
+    retireLaterBtn.parentElement === retireSoonerBtn.parentElement)
+      ? retireLaterBtn.parentElement
+      : (retireLaterBtn?.parentElement || retireSoonerBtn?.parentElement || null);
 
-  const host =
-    candidateParent ||
-    root.querySelector('.summary-row .actions, [data-hero-tools], .controls-row') ||
-    root;
+  const yearRow = candidateParent
+    || root.querySelector('.summary-row .actions, [data-hero-tools], .controls-row')
+    || root;
 
-  let btn = host.querySelector('#btnRestoreOriginal') || root.querySelector('#btnRestoreOriginal');
+  // Create/move a dedicated slot right after the yearRow
+  let slot = yearRow ? yearRow.nextElementSibling : null;
+  if (!slot || slot.id !== 'heroRestoreSlot') {
+    slot = document.createElement('div');
+    slot.id = 'heroRestoreSlot';
+    if (yearRow?.parentElement) yearRow.parentElement.insertBefore(slot, yearRow.nextSibling);
+    else root.appendChild(slot);
+  }
+
+  let btn = slot.querySelector('#btnRestoreOriginal') || root.querySelector('#btnRestoreOriginal');
   if (!btn) {
     btn = document.createElement('button');
     btn.id = 'btnRestoreOriginal';
     btn.type = 'button';
-    btn.className = 'pill pill--ghost';
+    btn.className = 'pill pill--ghost restore-bar';
     btn.textContent = 'Return to original';
     btn.hidden = true;
     btn.setAttribute('aria-hidden', 'true');
-    host.appendChild(btn);
-  } else if (btn.parentElement !== host) {
-    host.appendChild(btn);
+    slot.appendChild(btn);
+  } else if (btn.parentElement !== slot) {
+    slot.appendChild(btn);
   }
 
   return btn;
@@ -127,18 +163,39 @@ function bindRestoreButtonClick(){
     e.preventDefault();
     e.stopPropagation();
 
-    // Reset tweak state (back to baseline)
-    resetHeroNudges();
-    clearAdjustedState();
-
-    // Optional project-wide reset hook (if present)
-    if (typeof window.resetContributionEdits === 'function') {
-      try { window.resetContributionEdits(); } catch {}
-    }
-
-    // Immediately hide the button (we're now at baseline)
-    setRestoreVisible(false);
+    restoreToBaseline();
   }, { passive: false });
+}
+
+// Apply the baseline by replaying the same events the app listens to
+function restoreToBaseline(){
+  const snap = loadBaseline();
+  if (!snap) { resetHeroNudges?.(); clearAdjustedState?.(); setRestoreVisible(false); return; }
+
+  // 1) make sure Max is OFF and nudges are cleared
+  try { window.setUseMaxContributions?.(false); } catch {}
+  try { resetHeroNudges?.(); } catch {}
+  if (typeof window.resetContributionEdits === 'function') { try { window.resetContributionEdits(); } catch {} }
+
+  // 2) re-dispatch baseline inputs so all charts/UI recompute
+  document.dispatchEvent(new CustomEvent('fm-run-fy', { detail: { ...snap } }));
+  document.dispatchEvent(new CustomEvent('fm-run-pension', {
+    detail: {
+      dob: snap.dob,
+      salary: snap.grossIncome,
+      retireAge: snap.retireAge,
+      growth: snap.growthRate,
+      hasPartner: snap.hasPartner,
+      dobPartner: snap.partnerDob
+    }
+  }));
+
+  // Optional: clear any “+N yrs” trackers if you have a helper
+  try { window.resetRetirementAgeDelta?.(); } catch {}
+
+  // 3) hide the bar
+  clearAdjustedState?.();
+  setRestoreVisible(false);
 }
 
 // --- Hero nudge state (session-scoped) ---
@@ -1337,6 +1394,8 @@ document.addEventListener('fm-pension-output', (e) => {
 document.addEventListener('fm-run-fy', (e) => {
   console.debug('[FM Results] got fm-run-fy', e.detail);
   const d = e.detail || {};
+  // Snapshot the very first complete input set as the baseline
+  saveBaselineOnce(d);
   const prevAge = lastWizard?.retireAge;
   lastWizard = { ...lastWizard, dob: d.dob, salary: +d.grossIncome || 0, retireAge: +d.retireAge, growthRate: +d.growthRate };
   lastWizard.hasPartner = !!d.hasPartner;
