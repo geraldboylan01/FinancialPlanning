@@ -729,10 +729,8 @@ function bindHeroTapDelegation(){
 }
 
 function bindYearAdjustmentDelegation(){
-  const root = document.getElementById('resultsView');
-  if (!root) return;
-
-  root.addEventListener('click', (e) => {
+  // Use capture so stopPropagation in inner handlers can't block us.
+  document.addEventListener('click', (e) => {
     const btn = e.target && e.target.closest ? e.target.closest('button,[role="button"]') : null;
     if (!btn) return;
 
@@ -752,7 +750,7 @@ function bindYearAdjustmentDelegation(){
       markAdjustedByTweaks();
       return;
     }
-  });
+  }, true); // ← capture phase
 }
 
 function resetHeroNudges(){
@@ -1252,6 +1250,7 @@ function drawCharts() {
 // Listen for inputs from the wizard
 document.addEventListener('fm-run-pension', (e) => {
   const d = e.detail || {};
+  const prevAge = lastWizard?.retireAge;
   if (d.dob) lastWizard.dob = d.dob;
   if (d.salary != null) lastWizard.salary = +d.salary;
   if (d.retireAge != null) {
@@ -1275,6 +1274,9 @@ document.addEventListener('fm-run-pension', (e) => {
     }
   }
   toggleHeroControlsForPartner();
+  if (prevAge != null && d.retireAge != null && +d.retireAge !== +prevAge) {
+    markAdjustedByTweaks();
+  }
 });
 
 document.addEventListener('fm-pension-output', (e) => {
@@ -1335,6 +1337,7 @@ document.addEventListener('fm-pension-output', (e) => {
 document.addEventListener('fm-run-fy', (e) => {
   console.debug('[FM Results] got fm-run-fy', e.detail);
   const d = e.detail || {};
+  const prevAge = lastWizard?.retireAge;
   lastWizard = { ...lastWizard, dob: d.dob, salary: +d.grossIncome || 0, retireAge: +d.retireAge, growthRate: +d.growthRate };
   lastWizard.hasPartner = !!d.hasPartner;
   lastWizard.includePartner = !!(d.includePartner ?? d.hasPartner);
@@ -1349,6 +1352,9 @@ document.addEventListener('fm-run-fy', (e) => {
     delete lastWizard.partner;
   }
   updateRetirementAgeChips(+d.retireAge);
+  if (prevAge != null && d.retireAge != null && +d.retireAge !== +prevAge) {
+    markAdjustedByTweaks();
+  }
   const fy = fyRequiredPot({
     grossIncome: d.grossIncome || 0,
     incomePercent: d.incomePercent || 0,
