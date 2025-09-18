@@ -24,6 +24,17 @@ let _baselineInitialised = false;
 // --- Baseline snapshot (per session; keep latest and final) ---
 const BASELINE_KEY = () => `FM_BASELINE_${(window.FullMonty?.sessionId || 'default')}`;
 
+// ---- Baseline lock (prevents overwrite after first final submit) ----
+const BASELINE_LOCKED = () => `${BASELINE_KEY()}_LOCKED`;
+
+function isBaselineLocked(){
+  try { return sessionStorage.getItem(BASELINE_LOCKED()) === '1'; }
+  catch { return false; }
+}
+function lockBaseline(){
+  try { sessionStorage.setItem(BASELINE_LOCKED(), '1'); } catch {}
+}
+
 function jsonSafeClone(x) {
   return JSON.parse(JSON.stringify(x, (_k, v) => {
     if (v === undefined) return undefined;
@@ -48,12 +59,16 @@ function mergeAndSave(partial){
 // Record the **latest** FY payload seen
 function saveBaselineFYLatest(rawDetail){
   if (!rawDetail) return;
+  if (isBaselineLocked()) return;         // 🔒 do not overwrite baseline
+  if (_userHasAdjusted) return;           // don’t redefine baseline after tweaks
   mergeAndSave({ rawFy: jsonSafeClone(rawDetail), tsFy: Date.now() });
 }
 
 // Record the **latest** Pension payload seen
 function saveBaselinePensionLatest(rawDetail){
   if (!rawDetail) return;
+  if (isBaselineLocked()) return;         // 🔒 do not overwrite baseline
+  if (_userHasAdjusted) return;           // don’t redefine baseline after tweaks
   mergeAndSave({ rawPension: jsonSafeClone(rawDetail), tsPension: Date.now() });
 }
 
@@ -147,10 +162,35 @@ function updateRestoreVisibility() {
   setRestoreVisible(show);
 }
 
+if (typeof window !== 'undefined') {
+  try {
+    const existing = window._userHasAdjusted;
+    Object.defineProperty(window, '_userHasAdjusted', {
+      configurable: true,
+      enumerable: false,
+      get() { return _userHasAdjusted; },
+      set(value) {
+        _userHasAdjusted = !!value;
+        updateRestoreVisibility();
+      }
+    });
+    const initial = (existing === undefined) ? _userHasAdjusted : !!existing;
+    window._userHasAdjusted = initial;
+  } catch (err) {
+    try {
+      window._userHasAdjusted = _userHasAdjusted;
+    } catch {}
+  }
+}
+
 function markAdjustedByTweaks() {
-  _userHasAdjusted = true;
   ensureHeroRestoreExists();
-  updateRestoreVisibility();
+  try {
+    window._userHasAdjusted = true;
+  } catch {
+    _userHasAdjusted = true;
+    updateRestoreVisibility();
+  }
 }
 
 (function observeResultsView() {
@@ -165,8 +205,12 @@ function markAdjustedByTweaks() {
 })();
 
 function clearAdjustedState() {
-  _userHasAdjusted = false;
-  updateRestoreVisibility();
+  try {
+    window._userHasAdjusted = false;
+  } catch {
+    _userHasAdjusted = false;
+    updateRestoreVisibility();
+  }
 }
 
 function bindRestoreButtonClick(){
@@ -199,10 +243,20 @@ function restoreToBaseline(){
     return;
   }
 
-  // 1) Force Max OFF and clear any tweak state
+  // Guard: markAdjustedByTweaks() should NOT be triggered by this replay
+  try {
+    window._userHasAdjusted = false;
+  } catch {
+    _userHasAdjusted = false;
+    updateRestoreVisibility();
+  }
+
+  // 1) Ensure Max OFF; clear nudges/edits
   try { window.setUseMaxContributions?.(false); } catch {}
-  try { window.resetContributionEdits?.(); } catch {}
   try { resetHeroNudges?.(); } catch {}
+  if (typeof window.resetContributionEdits === 'function') {
+    try { window.resetContributionEdits(); } catch {}
+  }
 
   // 2) Eagerly seed the local view of "wizard snapshot" so chips/UI reflect baseline immediately
   try {
@@ -1520,6 +1574,7 @@ document.addEventListener('fm:wizard:final-submit', (e) => {
     rawFyFinal: detail.rawFy || null,
     rawPensionFinal: detail.rawPension || null
   });
+  lockBaseline(); // 🔒 freeze baseline now
 });
 
 // Wire bottom-sheet CTAs (exists in full-monty.html)

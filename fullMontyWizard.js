@@ -1195,6 +1195,9 @@ window.fmApplyNudge = function fmApplyNudge({ contribDelta = 0, ageDelta = 0 } =
       setStore({ [key]: Math.max(minAge, Math.min(maxAge, cur + ageDelta)) });
       actionStack.push({ type: 'age', delta: ageDelta });
       if (ageDelta > 0) nudgeCounts['age+1'] += ageDelta; else nudgeCounts['age-1'] += -ageDelta;
+      if (typeof window !== 'undefined') {
+        try { window._userHasAdjusted = true; } catch {}
+      }
     }
 
     // Recompute is already invoked inside increaseMonthlyContributionBy;
@@ -1582,6 +1585,9 @@ function increaseMonthlyContributionBy(deltaEuro){
     actionStack.push({ type:'contrib', delta: applied });
     if (applied > 0) nudgeCounts['contrib+100'] += Math.round(applied/100);
     else             nudgeCounts['contrib-100'] += Math.round(Math.abs(applied)/100);
+    if (typeof window !== 'undefined') {
+      try { window._userHasAdjusted = true; } catch {}
+    }
   }
   recomputeAndRefreshUI();
   updateContributionSummaryUI();
@@ -1604,6 +1610,10 @@ function delayRetirementByYears(years){
   actionStack.push({ type:'age', delta: (to - from) });
   if (to - from > 0) nudgeCounts['age+1'] += (to - from);
   else               nudgeCounts['age-1'] += (from - to);
+
+  if (typeof window !== 'undefined') {
+    try { window._userHasAdjusted = true; } catch {}
+  }
 
   recomputeAndRefreshUI();
   announce(`Retirement age set to ${to}.`);
@@ -1632,6 +1642,9 @@ function undoLast(){
 
 function restoreBaseline(){
   if (!baselineSnapshot) return;
+  if (typeof window !== 'undefined') {
+    try { window._userHasAdjusted = false; } catch {}
+  }
   const mk = firstKey(store, CONTRIB_KEYS.monthlyEuro);
   const ak = firstKey(store, CONTRIB_KEYS.annualEuro);
   const pk = firstKey(store, CONTRIB_KEYS.percent);
@@ -1875,6 +1888,9 @@ export function renderResults(mountEl, storeRef = {}) {
     btnRevertContrib.addEventListener('click', () => {
       restoreBaseline();          // restores contribs (€, %), retireAge, and max-toggle
       _heroContribNudged = false; // hide the button again until the next hero change
+      if (typeof window !== 'undefined') {
+        try { window._userHasAdjusted = false; } catch {}
+      }
       refreshContribUX();
     });
 
