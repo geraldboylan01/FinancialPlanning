@@ -21,38 +21,50 @@ let useMax = false;
 let _userHasAdjusted = false; // set true only by tweak actions (not by Max toggle)
 let _baselineInitialised = false;
 
-// --- Baseline snapshot (per session, store raw events verbatim) ---
+// --- Baseline snapshot (per session; keep latest and final) ---
 const BASELINE_KEY = () => `FM_BASELINE_${(window.FullMonty?.sessionId || 'default')}`;
 
-/** JSON-safe clone: drop undefined; replace Infinity with a very large number */
 function jsonSafeClone(x) {
   return JSON.parse(JSON.stringify(x, (_k, v) => {
-    if (v === undefined) return undefined;     // pruned by JSON
-    if (v === Infinity) return 1e9;            // sentinel large age
+    if (v === undefined) return undefined;
+    if (v === Infinity) return 1e9;
     if (v === -Infinity) return -1e9;
     return v;
   }));
 }
 
-function saveBaselineFYOnce(rawDetail){
-  if (!rawDetail) return;
-  const existing = loadBaseline() || {};
-  if (existing.rawFy) return; // only once
-  const snap = { ...existing, rawFy: jsonSafeClone(rawDetail) };
-  try { sessionStorage.setItem(BASELINE_KEY(), JSON.stringify(snap)); } catch {}
-}
-
-function saveBaselinePensionOnce(rawDetail){
-  if (!rawDetail) return;
-  const existing = loadBaseline() || {};
-  if (existing.rawPension) return; // only once
-  const snap = { ...existing, rawPension: jsonSafeClone(rawDetail) };
-  try { sessionStorage.setItem(BASELINE_KEY(), JSON.stringify(snap)); } catch {}
-}
-
 function loadBaseline(){
   try { return JSON.parse(sessionStorage.getItem(BASELINE_KEY()) || '{}'); }
-  catch { return null; }
+  catch { return {}; }
+}
+function saveBaseline(next){
+  try { sessionStorage.setItem(BASELINE_KEY(), JSON.stringify(next)); } catch {}
+}
+function mergeAndSave(partial){
+  const cur = loadBaseline();
+  saveBaseline({ ...cur, ...partial });
+}
+
+// Record the **latest** FY payload seen
+function saveBaselineFYLatest(rawDetail){
+  if (!rawDetail) return;
+  mergeAndSave({ rawFy: jsonSafeClone(rawDetail), tsFy: Date.now() });
+}
+
+// Record the **latest** Pension payload seen
+function saveBaselinePensionLatest(rawDetail){
+  if (!rawDetail) return;
+  mergeAndSave({ rawPension: jsonSafeClone(rawDetail), tsPension: Date.now() });
+}
+
+// Record a **final** pair on submit (preferred for restore)
+function saveFinalSnapshots({ rawFyFinal, rawPensionFinal }){
+  const cur = loadBaseline();
+  mergeAndSave({
+    rawFyFinal: rawFyFinal ? jsonSafeClone(rawFyFinal) : cur.rawFyFinal,
+    rawPensionFinal: rawPensionFinal ? jsonSafeClone(rawPensionFinal) : cur.rawPensionFinal,
+    tsFinal: Date.now()
+  });
 }
 
 // Prefer the hero-injected restore button (inside #resultsView)
@@ -176,41 +188,42 @@ function bindRestoreButtonClick(){
 // Apply the baseline by replaying the same events the app listens to
 function restoreToBaseline(){
   const snap = loadBaseline();
-  if (!snap || (!snap.rawFy && !snap.rawPension)) {
+  const rawFy = snap.rawFyFinal || snap.rawFy || null;
+  const rawPension = snap.rawPensionFinal || snap.rawPension || null;
+
+  if (!rawFy && !rawPension) {
     resetHeroNudges?.(); clearAdjustedState?.(); setRestoreVisible(false);
     return;
   }
 
-  // 1) Make sure Max is OFF; clear nudges/edits
+  // 1) Ensure Max OFF; clear nudges/edits
   try { window.setUseMaxContributions?.(false); } catch {}
   try { resetHeroNudges?.(); } catch {}
   if (typeof window.resetContributionEdits === 'function') { try { window.resetContributionEdits(); } catch {} }
 
-  // 2) Replay raw baseline events exactly as captured
-  if (snap.rawFy) {
-    document.dispatchEvent(new CustomEvent('fm-run-fy', { detail: snap.rawFy }));
+  // 2) Replay baseline in **correct order**: FY → Pension
+  if (rawFy) {
+    document.dispatchEvent(new CustomEvent('fm-run-fy', { detail: rawFy }));
   }
-  if (snap.rawPension) {
-    document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: snap.rawPension }));
-  }
-
-  // 3) Keep UI bits in sync
-  try {
-    const baseAge =
-      (snap.rawFy && +snap.rawFy.retireAge) ??
-      (snap.rawPension && +snap.rawPension.retireAge);
-    if (Number.isFinite(baseAge)) {
-      updateRetirementAgeChips?.(baseAge);
-      window.resetRetirementAgeDelta?.();
+  setTimeout(() => {
+    if (rawPension) {
+      document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: rawPension }));
     }
-  } catch {}
 
-  // 4) Hide the bar; we are back at baseline
-  clearAdjustedState?.();
-  setRestoreVisible(false);
+    // 3) Sync UI bits (retirement age chips & +N yrs tracker)
+    try {
+      const baseAge = (rawFy && +rawFy.retireAge) || (rawPension && +rawPension.retireAge);
+      if (Number.isFinite(baseAge)) {
+        updateRetirementAgeChips?.(baseAge);
+        window.resetRetirementAgeDelta?.();
+      }
+    } catch {}
 
-  // 5) Ensure hero re-renders once the new outputs arrive
-  setTimeout(() => { try { scheduleHeroRender(); } catch {} }, 0);
+    // 4) Hide bar; nudge hero render
+    clearAdjustedState?.();
+    setRestoreVisible(false);
+    try { scheduleHeroRender(); } catch {}
+  }, 0);
 }
 
 // --- Hero nudge state (session-scoped) ---
@@ -1322,7 +1335,7 @@ function drawCharts() {
 // Listen for inputs from the wizard
 document.addEventListener('fm-run-pension', (e) => {
   const d = e.detail || {};
-  saveBaselinePensionOnce(d);
+  saveBaselinePensionLatest(d);
   const prevAge = lastWizard?.retireAge;
   if (d.dob) lastWizard.dob = d.dob;
   if (d.salary != null) lastWizard.salary = +d.salary;
@@ -1408,9 +1421,8 @@ document.addEventListener('fm-pension-output', (e) => {
 });
 
 document.addEventListener('fm-run-fy', (e) => {
-  console.debug('[FM Results] got fm-run-fy', e.detail);
   const d = e.detail || {};
-  saveBaselineFYOnce(d);
+  saveBaselineFYLatest(d);
   const prevAge = lastWizard?.retireAge;
   lastWizard = { ...lastWizard, dob: d.dob, salary: +d.grossIncome || 0, retireAge: +d.retireAge, growthRate: +d.growthRate };
   lastWizard.hasPartner = !!d.hasPartner;
@@ -1464,6 +1476,14 @@ document.addEventListener('fm-run-fy', (e) => {
   setTimeout(ensureHeroRestoreExists, 0);
   updateRestoreVisibility();
   toggleHeroControlsForPartner();
+});
+
+document.addEventListener('fm:wizard:final-submit', (e) => {
+  const detail = e.detail || {};
+  saveFinalSnapshots({
+    rawFyFinal: detail.rawFy || null,
+    rawPensionFinal: detail.rawPension || null
+  });
 });
 
 // Wire bottom-sheet CTAs (exists in full-monty.html)

@@ -1138,6 +1138,10 @@ function runAll() {
   };
   document.dispatchEvent(new CustomEvent('fm-run-fy', { detail: fyArgs }));
 
+  document.dispatchEvent(new CustomEvent('fm:wizard:final-submit', {
+    detail: { rawFy: fyArgs, rawPension: pensionArgs }
+  }));
+
   closeModal();
 }
 
