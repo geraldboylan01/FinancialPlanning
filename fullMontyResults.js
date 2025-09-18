@@ -188,29 +188,46 @@ function bindRestoreButtonClick(){
 // Apply the baseline by replaying the same events the app listens to
 function restoreToBaseline(){
   const snap = loadBaseline();
-  const rawFy = snap.rawFyFinal || snap.rawFy || null;
+  const rawFy      = snap.rawFyFinal      || snap.rawFy      || null;
   const rawPension = snap.rawPensionFinal || snap.rawPension || null;
 
   if (!rawFy && !rawPension) {
-    resetHeroNudges?.(); clearAdjustedState?.(); setRestoreVisible(false);
+    // Nothing to restore; just hide & reset local flags.
+    resetHeroNudges?.();
+    clearAdjustedState?.();
+    setRestoreVisible(false);
     return;
   }
 
-  // 1) Ensure Max OFF; clear nudges/edits
+  // 1) Force Max OFF and clear any tweak state
   try { window.setUseMaxContributions?.(false); } catch {}
+  try { window.resetContributionEdits?.(); } catch {}
   try { resetHeroNudges?.(); } catch {}
-  if (typeof window.resetContributionEdits === 'function') { try { window.resetContributionEdits(); } catch {} }
 
-  // 2) Replay baseline in **correct order**: FY → Pension
+  // 2) Eagerly seed the local view of "wizard snapshot" so chips/UI reflect baseline immediately
+  try {
+    if (rawFy?.retireAge != null) {
+      lastWizard.retireAge = +rawFy.retireAge;
+    } else if (rawPension?.retireAge != null) {
+      lastWizard.retireAge = +rawPension.retireAge;
+    }
+    if (rawFy?.dob) lastWizard.dob = rawFy.dob;
+    if (rawPension?.dob) lastWizard.dob = rawPension.dob;
+    if (rawFy?.grossIncome != null) lastWizard.salary = +rawFy.grossIncome;
+    if (rawPension?.salary != null) lastWizard.salary = +rawPension.salary;
+  } catch {}
+
+  // 3) Replay baseline through the existing engine/listeners (FY first, then Pension)
   if (rawFy) {
     document.dispatchEvent(new CustomEvent('fm-run-fy', { detail: rawFy }));
   }
+  // Let FY handler compute required pot before pension replay
   setTimeout(() => {
     if (rawPension) {
       document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: rawPension }));
     }
 
-    // 3) Sync UI bits (retirement age chips & +N yrs tracker)
+    // 4) Update chips from the baseline age (if present) and reset retirement age delta trackers
     try {
       const baseAge = (rawFy && +rawFy.retireAge) || (rawPension && +rawPension.retireAge);
       if (Number.isFinite(baseAge)) {
@@ -219,7 +236,7 @@ function restoreToBaseline(){
       }
     } catch {}
 
-    // 4) Hide bar; nudge hero render
+    // 5) Clear adjusted state, hide button, and ensure hero redraw
     clearAdjustedState?.();
     setRestoreVisible(false);
     try { scheduleHeroRender(); } catch {}
@@ -1148,7 +1165,17 @@ function drawCharts() {
   const partnerAgeAtRet = (partnerCurAge != null) ? (partnerCurAge + yrsToRet) : null;
 
   // Sim paths: Required pension vs projected accumulation
-  const retireAge = +d.retireAge || (lastPensionOutput?.balances?.[0]?.age ?? 65);
+  const firstBalanceAge = lastPensionOutput?.balances?.[0]?.age;
+  const retireAgeCandidate = Number.isFinite(+d.retireAge)
+    ? +d.retireAge
+    : (Number.isFinite(+firstBalanceAge)
+        ? +firstBalanceAge
+        : null);
+  if (!Number.isFinite(retireAgeCandidate)) {
+    console.warn('[FM Results] Unable to determine retirement age for drawdown charts.');
+    return;
+  }
+  const retireAge = retireAgeCandidate;
   const endAge = 100;
   const growthRate = Number.isFinite(+d.growthRate) ? +d.growthRate : (lastPensionOutput?.growth ?? 0.05);
 
@@ -1336,12 +1363,16 @@ function drawCharts() {
 document.addEventListener('fm-run-pension', (e) => {
   const d = e.detail || {};
   saveBaselinePensionLatest(d);
-  const prevAge = lastWizard?.retireAge;
+  const prevAge = Number.isFinite(+lastWizard?.retireAge) ? +lastWizard.retireAge : null;
   if (d.dob) lastWizard.dob = d.dob;
   if (d.salary != null) lastWizard.salary = +d.salary;
-  if (d.retireAge != null) {
-    lastWizard.retireAge = +d.retireAge;
-    updateRetirementAgeChips(+d.retireAge);
+  if (Number.isFinite(+d.retireAge)) {
+    const nextAge = +d.retireAge;
+    lastWizard.retireAge = nextAge;
+    updateRetirementAgeChips(nextAge);
+    if (prevAge != null && nextAge !== prevAge) {
+      markAdjustedByTweaks();
+    }
   }
   if (d.growth != null) lastWizard.growthRate = +d.growth;
   if ('hasPartner' in d) {
@@ -1360,9 +1391,6 @@ document.addEventListener('fm-run-pension', (e) => {
     }
   }
   toggleHeroControlsForPartner();
-  if (prevAge != null && d.retireAge != null && +d.retireAge !== +prevAge) {
-    markAdjustedByTweaks();
-  }
 });
 
 document.addEventListener('fm-pension-output', (e) => {
@@ -1423,8 +1451,8 @@ document.addEventListener('fm-pension-output', (e) => {
 document.addEventListener('fm-run-fy', (e) => {
   const d = e.detail || {};
   saveBaselineFYLatest(d);
-  const prevAge = lastWizard?.retireAge;
-  lastWizard = { ...lastWizard, dob: d.dob, salary: +d.grossIncome || 0, retireAge: +d.retireAge, growthRate: +d.growthRate };
+  const prevAge = Number.isFinite(+lastWizard?.retireAge) ? +lastWizard.retireAge : null;
+  lastWizard = { ...lastWizard, dob: d.dob, salary: +d.grossIncome || 0, growthRate: +d.growthRate };
   lastWizard.hasPartner = !!d.hasPartner;
   lastWizard.includePartner = !!(d.includePartner ?? d.hasPartner);
   if (lastWizard.hasPartner) {
@@ -1437,9 +1465,17 @@ document.addEventListener('fm-run-fy', (e) => {
   } else {
     delete lastWizard.partner;
   }
-  updateRetirementAgeChips(+d.retireAge);
-  if (prevAge != null && d.retireAge != null && +d.retireAge !== +prevAge) {
-    markAdjustedByTweaks();
+  const nextAge = Number.isFinite(+d.retireAge) ? +d.retireAge : null;
+  if (nextAge != null) {
+    lastWizard.retireAge = nextAge;
+    updateRetirementAgeChips(nextAge);
+    if (prevAge != null && nextAge !== prevAge) {
+      markAdjustedByTweaks();
+    }
+  } else if (prevAge != null) {
+    lastWizard.retireAge = prevAge;
+  } else {
+    delete lastWizard.retireAge;
   }
   const fy = fyRequiredPot({
     grossIncome: d.grossIncome || 0,
@@ -1449,7 +1485,7 @@ document.addEventListener('fm-run-fy', (e) => {
     partnerExists: !!d.hasPartner,
     dob: new Date(d.dob),
     partnerDob: d.partnerDob ? new Date(d.partnerDob) : null,
-    retireAge: +d.retireAge,
+    retireAge: nextAge ?? prevAge,
     gRate: +d.growthRate,
     rentalToday: d.rentalIncomeNow || 0,
     hasDbSelf: !!d.hasDbSelf,

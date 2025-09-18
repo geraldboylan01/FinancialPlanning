@@ -1219,6 +1219,16 @@ function recalcAll(){
   updateContributionSummaryUI();
 }
 
+// Public: clear hero tweak session state so Results restore can reset UI cleanly
+window.resetContributionEdits = function resetContributionEdits(){
+  try {
+    actionStack.length = 0;
+    Object.keys(nudgeCounts).forEach(k => { nudgeCounts[k] = 0; });
+    _heroContribNudged = false;
+    if (typeof refreshContribUX === 'function') refreshContribUX();
+  } catch {}
+};
+
 function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
 
 function announce(msg){
@@ -1632,11 +1642,10 @@ function restoreBaseline(){
   if (baselineSnapshot.retireAge !== undefined) patch.retireAge = baselineSnapshot.retireAge;
   setStore(patch);
 
-  actionStack.length = 0;
-  Object.keys(nudgeCounts).forEach(key => nudgeCounts[key]=0);
-  setUseMaxContributions(baselineSnapshot.useMaxContributions);
+  setUseMaxContributions(!!baselineSnapshot.useMaxContributions);
   recomputeAndRefreshUI();
   updateContributionSummaryUI();
+  window.resetContributionEdits?.();
   announce('Inputs restored to your original values.');
 }
 
