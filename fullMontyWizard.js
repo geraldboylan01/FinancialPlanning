@@ -1833,23 +1833,7 @@ export function renderResults(mountEl, storeRef = {}) {
       hero.appendChild(cs);
     }
 
-    // === Controls + summary ===
-    const controls = document.createElement('div');
-
-    // Contribution summary (read-only)
-    const contribControls = document.createElement('div');
-    const contribSummary = document.createElement('div');
-    contribSummary.id = 'contribSummary';
-    contribSummary.className = 'contrib-meter';
-    contribSummary.setAttribute('aria-live','polite');
-    const annualNow = Math.round((getCurrentMonthlyContrib?.() || 0) * 12);
-    contribSummary.innerHTML = `
-      <div class="label">Your contributions</div>
-      <div class="value" id="contribSummaryValue">€${annualNow.toLocaleString()} /yr</div>
-    `;
-    contribControls.append(contribSummary);
-
-    // Retire earlier/later (equal width)
+    // === Controls (age only) ===
     const row3 = document.createElement('div');
     row3.className = 'controls-row';
 
@@ -1865,33 +1849,20 @@ export function renderResults(mountEl, storeRef = {}) {
     btnLater.textContent = '⏩ Retire 1 yr later';
     btnLater.addEventListener('click', () => window.fmApplyNudge?.({ ageDelta: +1 }));
 
-    // Recommendation highlight for the age buttons
+    // Recommendation highlight
     btnEarlier.classList.add('pill--neutral');
     btnLater.classList.add(recommendMoreContribs ? 'pill--cta' : 'pill--neutral');
 
     row3.append(btnEarlier, btnLater);
-
-    // mount
-    controls.append(contribControls, row3);
-    hero.appendChild(controls);
+    hero.appendChild(row3);
 
     // Safety: remove any old inline "Maximise" pill if it still exists
     const strayMaxBtn = hero.querySelector('#btnMaxInline, .btn-max-inline');
     if (strayMaxBtn) strayMaxBtn.remove();
 
-    // helper: keep the /yr value live
-    function updateContribMeter(){
-      const annual = Math.round((getCurrentMonthlyContrib?.() || 0) * 12);
-      const v = contribControls.querySelector('#contribSummaryValue');
-      if (v) v.textContent = '€' + annual.toLocaleString() + ' /yr';
-    }
-
     // expose for external refreshes
-    updateHeroContribMeter = updateContribMeter;
+    updateHeroContribMeter = null;
     applyHeroAddBtnState = null;
-
-    // Initial state pass
-    updateContribMeter();
 
     mountEl.appendChild(hero);
     refreshContribUX();
