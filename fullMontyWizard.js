@@ -1821,10 +1821,7 @@ export function renderResults(mountEl, storeRef = {}) {
     }
 
     const parts = [];
-    if (nudgeCounts['contrib+100']>0 || nudgeCounts['contrib-100']>0){
-      const net = (nudgeCounts['contrib+100'] - nudgeCounts['contrib-100']) * 100;
-      if (net !== 0) parts.push(`${net>0?'+':''}${formatEUR(net)}/mo contributions`);
-    }
+    // Only track deviation in retirement age
     if (nudgeCounts['age+1']>0 || nudgeCounts['age-1']>0){
       const netY = nudgeCounts['age+1'] - nudgeCounts['age-1'];
       if (netY !== 0) parts.push(`${netY>0?'+':''}${netY} yr${Math.abs(netY)===1?'':'s'} to retirement age`);
@@ -1839,30 +1836,8 @@ export function renderResults(mountEl, storeRef = {}) {
     // === Controls + summary ===
     const controls = document.createElement('div');
 
-    // Contribution nudges + meter
+    // Contribution summary (read-only)
     const contribControls = document.createElement('div');
-
-    const contribNudgers = document.createElement('div');
-    contribNudgers.id = 'contribNudgers';
-    contribNudgers.className = 'cta-stack';
-
-    btnAdd100 = document.createElement('button');
-    btnAdd100.id = 'btnAdd100';
-    btnAdd100.type = 'button';
-    btnAdd100.className = 'pill';
-    btnAdd100.textContent = '+ Add €100/mo';
-    btnAdd100.setAttribute('data-increment', '+100');
-
-    btnRemove100 = document.createElement('button');
-    btnRemove100.id = 'btnRemove100';
-    btnRemove100.type = 'button';
-    btnRemove100.className = 'pill pill--neutral';
-    btnRemove100.textContent = '– Remove €100/mo';
-    btnRemove100.setAttribute('data-increment', '-100');
-
-    contribNudgers.append(btnAdd100, btnRemove100);
-
-    // Contribution meter (info chip not a button)
     const contribSummary = document.createElement('div');
     contribSummary.id = 'contribSummary';
     contribSummary.className = 'contrib-meter';
@@ -1872,31 +1847,9 @@ export function renderResults(mountEl, storeRef = {}) {
       <div class="label">Your contributions</div>
       <div class="value" id="contribSummaryValue">€${annualNow.toLocaleString()} /yr</div>
     `;
+    contribControls.append(contribSummary);
 
-    contribControls.append(contribNudgers, contribSummary);
-
-    /* Row 2: Return to original + age-band nudge */
-    const row2 = document.createElement('div');
-    row2.className = 'controls-row';
-
-    btnRevertContrib = document.createElement('button');
-    btnRevertContrib.id = 'btnRevertContrib';
-    btnRevertContrib.type = 'button';
-    btnRevertContrib.className = 'pill pill--ghost';
-    btnRevertContrib.textContent = 'Return to original';
-    btnRevertContrib.hidden = true;
-    btnRevertContrib.addEventListener('click', () => {
-      restoreBaseline();          // restores contribs (€, %), retireAge, and max-toggle
-      _heroContribNudged = false; // hide the button again until the next hero change
-      if (typeof window !== 'undefined') {
-        try { window._userHasAdjusted = false; } catch {}
-      }
-      refreshContribUX();
-    });
-
-    row2.append(btnRevertContrib);
-
-    /* Row 3: Retire earlier/later (equal width) */
+    // Retire earlier/later (equal width)
     const row3 = document.createElement('div');
     row3.className = 'controls-row';
 
@@ -1912,43 +1865,19 @@ export function renderResults(mountEl, storeRef = {}) {
     btnLater.textContent = '⏩ Retire 1 yr later';
     btnLater.addEventListener('click', () => window.fmApplyNudge?.({ ageDelta: +1 }));
 
+    // Recommendation highlight for the age buttons
+    btnEarlier.classList.add('pill--neutral');
+    btnLater.classList.add(recommendMoreContribs ? 'pill--cta' : 'pill--neutral');
+
     row3.append(btnEarlier, btnLater);
 
-    controls.append(contribControls, row2, row3);
+    // mount
+    controls.append(contribControls, row3);
     hero.appendChild(controls);
 
     // Safety: remove any old inline "Maximise" pill if it still exists
     const strayMaxBtn = hero.querySelector('#btnMaxInline, .btn-max-inline');
     if (strayMaxBtn) strayMaxBtn.remove();
-
-    // 2) ADD BUTTON STATE + CAP NOTE
-    function applyAddBtnState() {
-      const atMax = contributionsAtMax?.() || atMaxContrib;
-
-      btnAdd100.disabled = !!atMax;
-      btnAdd100.classList.toggle('pill--cta',  recommendMoreContribs && !atMax);
-      btnAdd100.classList.toggle('pill--neutral', !recommendMoreContribs || atMax);
-      btnAdd100.classList.toggle('pill--disabled', !!atMax);
-
-      // Cap note (simple hint under the Add button)
-      let note = contribNudgers.querySelector('.cap-note');
-      if (!note) {
-        note = document.createElement('div');
-        note.className = 'cap-note';
-        note.innerHTML = `
-      You’ve reached today’s tax-relievable limit.
-      <button type="button" class="link-soft" id="goToMaxToggle">Maximise contributions</button>
-    `;
-        contribNudgers.insertBefore(note, btnRemove100);
-        note.addEventListener('click', (e) => {
-          const t = e.target;
-          if (t && t.id === 'goToMaxToggle') {
-            document.getElementById('maxContribToggle')?.scrollIntoView({ behavior:'smooth', block:'start' });
-          }
-        });
-      }
-      note.style.display = atMax ? '' : 'none';
-    }
 
     // helper: keep the /yr value live
     function updateContribMeter(){
@@ -1957,26 +1886,11 @@ export function renderResults(mountEl, storeRef = {}) {
       if (v) v.textContent = '€' + annual.toLocaleString() + ' /yr';
     }
 
-    // 3) RECOMMENDATION HIGHLIGHTS (delay later if shortfall)
-    btnEarlier.classList.add('pill--neutral');
-    btnLater.classList.add(recommendMoreContribs ? 'pill--cta' : 'pill--neutral');
-
-    // Wire nudge buttons to refresh the meter & state immediately
-    btnAdd100.addEventListener('click', () => {
-      window.fmApplyNudge?.({ contribDelta: +100 });
-      updateContribMeter(); applyAddBtnState();
-    });
-    btnRemove100.addEventListener('click', () => {
-      window.fmApplyNudge?.({ contribDelta: -100 });
-      updateContribMeter(); applyAddBtnState();
-    });
-
     // expose for external refreshes
     updateHeroContribMeter = updateContribMeter;
-    applyHeroAddBtnState = applyAddBtnState;
+    applyHeroAddBtnState = null;
 
     // Initial state pass
-    applyAddBtnState();
     updateContribMeter();
 
     mountEl.appendChild(hero);
