@@ -17,7 +17,14 @@ let lastFYOutput = null;
 let lastWizard = {};
 let useMax = false;
 
-// --- Restore-to-original visibility control (simple, single button) ---
+// --- Restore-to-original: disabled (we don't show or mount this anymore) ---
+function getRestoreBtn() { return null; }
+function ensureHeroRestoreExists() { return null; }
+function setRestoreVisible(_show) {}
+function updateRestoreVisibility() {}
+function bindRestoreButtonClick() {}
+function restoreToBaseline() {}
+
 let _userHasAdjusted = false; // set true only by tweak actions (not by Max toggle)
 let _baselineInitialised = false;
 
@@ -82,86 +89,6 @@ function saveFinalSnapshots({ rawFyFinal, rawPensionFinal }){
   });
 }
 
-// Prefer the hero-injected restore button (inside #resultsView)
-function getRestoreBtn() {
-  return document.querySelector('#resultsView #btnRestoreOriginal')
-      || document.getElementById('btnRestoreOriginal');
-}
-
-// Ensure we have a single hero restore button and mount it UNDER the retire +/-1yr buttons
-function ensureHeroRestoreExists(){
-  const root = document.getElementById('resultsView');
-  if (!root) return null;
-
-  const retireLaterBtn =
-    root.querySelector('[data-action="retire-later"], [data-year-delta="+1"], [data-role="retire-forward"]')
-    || Array.from(root.querySelectorAll('button, [role="button"]'))
-         .find(b => /\bretire\s*1\s*yr\s*later\b/i.test(b.textContent || ''));
-
-  const retireSoonerBtn =
-    root.querySelector('[data-action="retire-sooner"], [data-year-delta="-1"], [data-role="retire-delay"]')
-    || Array.from(root.querySelectorAll('button, [role="button"]'))
-         .find(b => /\bretire\s*1\s*yr\s*(earlier|sooner)\b/i.test(b.textContent || ''));
-
-  // Prefer the shared parent of both ±1 buttons; we'll insert a slot after it
-  const candidateParent = (retireLaterBtn && retireSoonerBtn &&
-    retireLaterBtn.parentElement === retireSoonerBtn.parentElement)
-      ? retireLaterBtn.parentElement
-      : (retireLaterBtn?.parentElement || retireSoonerBtn?.parentElement || null);
-
-  const yearRow = candidateParent
-    || root.querySelector('.summary-row .actions, [data-hero-tools], .controls-row')
-    || root;
-
-  // Create/move a dedicated slot right after the yearRow
-  let slot = yearRow ? yearRow.nextElementSibling : null;
-  if (!slot || slot.id !== 'heroRestoreSlot') {
-    slot = document.createElement('div');
-    slot.id = 'heroRestoreSlot';
-    if (yearRow?.parentElement) yearRow.parentElement.insertBefore(slot, yearRow.nextSibling);
-    else root.appendChild(slot);
-  }
-
-  let btn = slot.querySelector('#btnRestoreOriginal') || root.querySelector('#btnRestoreOriginal');
-  if (!btn) {
-    btn = document.createElement('button');
-    btn.id = 'btnRestoreOriginal';
-    btn.type = 'button';
-    btn.className = 'pill pill--ghost restore-bar';
-    btn.textContent = 'Return to original';
-    btn.hidden = true;
-    btn.setAttribute('aria-hidden', 'true');
-    slot.appendChild(btn);
-  } else if (btn.parentElement !== slot) {
-    slot.appendChild(btn);
-  }
-
-  return btn;
-}
-
-function setRestoreVisible(show) {
-  const btn = getRestoreBtn();
-  if (!btn) return;
-  if (show) {
-    btn.hidden = false;
-    btn.setAttribute('aria-hidden', 'false');
-    btn.style.display = ''; // allow CSS to lay it out
-    btn.tabIndex = 0;
-  } else {
-    btn.hidden = true;
-    btn.setAttribute('aria-hidden', 'true');
-    btn.style.display = 'none'; // belt & braces
-    btn.tabIndex = -1;
-  }
-}
-
-function updateRestoreVisibility() {
-  ensureHeroRestoreExists(); // make sure it’s in the Hero actions row
-  // Show ONLY if user tweaked AND Max toggle is OFF
-  const show = !!_userHasAdjusted && !useMax;
-  setRestoreVisible(show);
-}
-
 if (typeof window !== 'undefined') {
   try {
     const existing = window._userHasAdjusted;
@@ -169,10 +96,7 @@ if (typeof window !== 'undefined') {
       configurable: true,
       enumerable: false,
       get() { return _userHasAdjusted; },
-      set(value) {
-        _userHasAdjusted = !!value;
-        updateRestoreVisibility();
-      }
+      set(value) { _userHasAdjusted = !!value; /* no UI */ }
     });
     const initial = (existing === undefined) ? _userHasAdjusted : !!existing;
     window._userHasAdjusted = initial;
@@ -211,90 +135,6 @@ function clearAdjustedState() {
     _userHasAdjusted = false;
     updateRestoreVisibility();
   }
-}
-
-function bindRestoreButtonClick(){
-  // Ensure hidden to start (if it exists at this moment)
-  setRestoreVisible(false);
-
-  // Delegated handler so we don't care when the hero button is injected
-  document.addEventListener('click', (e) => {
-    const btn = e.target && e.target.closest ? e.target.closest('#btnRestoreOriginal') : null;
-    if (!btn) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    restoreToBaseline();
-  }, { passive: false });
-}
-
-// Apply the baseline by replaying the same events the app listens to
-function restoreToBaseline(){
-  const snap = loadBaseline();
-  const rawFy      = snap.rawFyFinal      || snap.rawFy      || null;
-  const rawPension = snap.rawPensionFinal || snap.rawPension || null;
-
-  if (!rawFy && !rawPension) {
-    // Nothing to restore; just hide & reset local flags.
-    resetHeroNudges?.();
-    clearAdjustedState?.();
-    setRestoreVisible(false);
-    return;
-  }
-
-  // Guard: markAdjustedByTweaks() should NOT be triggered by this replay
-  try {
-    window._userHasAdjusted = false;
-  } catch {
-    _userHasAdjusted = false;
-    updateRestoreVisibility();
-  }
-
-  // 1) Ensure Max OFF; clear nudges/edits
-  try { window.setUseMaxContributions?.(false); } catch {}
-  try { resetHeroNudges?.(); } catch {}
-  if (typeof window.resetContributionEdits === 'function') {
-    try { window.resetContributionEdits(); } catch {}
-  }
-
-  // 2) Eagerly seed the local view of "wizard snapshot" so chips/UI reflect baseline immediately
-  try {
-    if (rawFy?.retireAge != null) {
-      lastWizard.retireAge = +rawFy.retireAge;
-    } else if (rawPension?.retireAge != null) {
-      lastWizard.retireAge = +rawPension.retireAge;
-    }
-    if (rawFy?.dob) lastWizard.dob = rawFy.dob;
-    if (rawPension?.dob) lastWizard.dob = rawPension.dob;
-    if (rawFy?.grossIncome != null) lastWizard.salary = +rawFy.grossIncome;
-    if (rawPension?.salary != null) lastWizard.salary = +rawPension.salary;
-  } catch {}
-
-  // 3) Replay baseline through the existing engine/listeners (FY first, then Pension)
-  if (rawFy) {
-    document.dispatchEvent(new CustomEvent('fm-run-fy', { detail: rawFy }));
-  }
-  // Let FY handler compute required pot before pension replay
-  setTimeout(() => {
-    if (rawPension) {
-      document.dispatchEvent(new CustomEvent('fm-run-pension', { detail: rawPension }));
-    }
-
-    // 4) Update chips from the baseline age (if present) and reset retirement age delta trackers
-    try {
-      const baseAge = (rawFy && +rawFy.retireAge) || (rawPension && +rawPension.retireAge);
-      if (Number.isFinite(baseAge)) {
-        updateRetirementAgeChips?.(baseAge);
-        window.resetRetirementAgeDelta?.();
-      }
-    } catch {}
-
-    // 5) Clear adjusted state, hide button, and ensure hero redraw
-    clearAdjustedState?.();
-    setRestoreVisible(false);
-    try { scheduleHeroRender(); } catch {}
-  }, 0);
 }
 
 // --- Hero nudge state (session-scoped) ---
@@ -798,45 +638,9 @@ function setUseMaxContributions(on){
 }
 window.setUseMaxContributions = setUseMaxContributions;
 
-function findHeroButtons(){
-  // Prefer explicit data attributes if present
-  const addBtn = document.querySelector('#resultsView [data-increment="+100"], #resultsView [data-increment="+200"], #resultsView #btnAdd100, #resultsView #btnAdd200') ||
-                 Array.from(document.querySelectorAll('#resultsView button, #resultsView [role="button"]'))
-                      .find(b => /add\s*€?\s*(100|200)/i.test(b.textContent||''));
-  const remBtn = document.querySelector('#resultsView [data-increment="-100"], #resultsView [data-increment="-200"], #resultsView #btnRemove100, #resultsView #btnRemove200') ||
-                 Array.from(document.querySelectorAll('#resultsView button, #resultsView [role="button"]'))
-                      .find(b => /(remove|−|-)\s*€?\s*(100|200)/i.test(b.textContent||''));
-  return { addBtn, remBtn };
-}
-
-function ensureBadge(el){
-  if (!el) return null;
-  let b = el.querySelector('.tap-badge');
-  if (!b){
-    b = document.createElement('span');
-    b.className = 'tap-badge hidden';
-    el.appendChild(b);
-  }
-  return b;
-}
-
-function updateTapBadges(){
-  const { addBtn, remBtn } = findHeroButtons();
-  const pos = heroNetSteps > 0;
-  const neg = heroNetSteps < 0;
-
-  const addBadge = ensureBadge(addBtn);
-  const remBadge = ensureBadge(remBtn);
-
-  if (addBadge){
-    addBadge.textContent = `×${Math.abs(heroNetSteps)}`;
-    addBadge.classList.toggle('hidden', !pos);
-  }
-  if (remBadge){
-    remBadge.textContent = `×${Math.abs(heroNetSteps)}`;
-    remBadge.classList.toggle('hidden', !neg);
-  }
-}
+function findHeroButtons(){ return { addBtn: null, remBtn: null }; }
+function ensureBadge(_el){ return null; }
+function updateTapBadges(){ /* no badges without add/remove */ }
 
 function applyStep(delta){
   // If Max is on, switch it off (the hero nudges are for "current" path)
@@ -853,36 +657,7 @@ function applyStep(delta){
 }
 
 // Delegate clicks from the hero container (handles re-renders)
-function bindHeroTapDelegation(){
-  const root = document.getElementById('resultsView');
-  if (!root) return;
-
-  root.addEventListener('click', (e)=>{
-    const btn = e.target && e.target.closest ? e.target.closest('button,[role="button"]') : null;
-    if (!btn) return;
-
-    // Prefer explicit data attributes if available on your buttons (e.g., data-increment="+100")
-    const incAttr = btn.getAttribute('data-increment'); // "+100", "-200", etc.
-    if (incAttr) {
-      const v = parseInt(incAttr.trim().replace(/[^\-\d]/g,''), 10);
-      if (Number.isFinite(v)) {
-        applyStep(v);
-        return;
-      }
-    }
-
-    // Fallback: text match for add/reduce 100/200 (labels vary)
-    const txt = (btn.textContent || '').toLowerCase();
-    if (/\b(add|\+)\b.*(100|200)/.test(txt)) {
-      applyStep(+100);
-      return;
-    }
-    if (/\b(remove|reduce|−|-)\b.*(100|200)/.test(txt)) {
-      applyStep(-100);
-      return;
-    }
-  });
-}
+function bindHeroTapDelegation(){ /* removed add/remove €100 listeners */ }
 
 function bindYearAdjustmentDelegation(){
   // Use capture so stopPropagation in inner handlers can't block us.
