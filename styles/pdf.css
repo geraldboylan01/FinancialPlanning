@@ -1,0 +1,43 @@
+/* Floating "Generate PDF" FAB (mirror of .fab-edit, but left) */
+.fab-pdf{
+  /* base look identical to .fab-edit */
+  background: var(--glow, #00ff88);
+  color: #0b1f16;           /* readable on neon green */
+  border: 1px solid rgba(0,255,136,.25);
+  border-radius: 999px;
+  font-weight: 800;
+  padding: .7rem 1rem;
+  box-shadow: 0 8px 24px rgba(0,255,136,.18), 0 0 0 2px rgba(0,255,136,.08) inset;
+  transition: transform .15s ease, box-shadow .2s ease, filter .2s ease;
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 1000;
+  cursor: pointer;
+}
+.fab-pdf:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0,255,136,.24), 0 0 0 3px rgba(0,255,136,.12) inset;
+}
+
+/* Hide on print (if page is printed, not used by jsPDF) */
+@media print{
+  .fab-pdf{ display:none !important; }
+}
+
+/* During export, hide UI to avoid flicker when toggling max/current */
+body.pdf-exporting #app,
+body.pdf-exporting .app-root{
+  visibility: hidden !important;
+}
+
+/* Optional small chip style inside PDF screenshots, kept here for parity */
+.badge-gross{
+  background: rgba(0,255,136,.14);
+  color: #00ff88;
+  padding: .15rem .45rem;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+}

@@ -2,6 +2,11 @@
 import { fyRequiredPot } from './shared/fyRequiredPot.js';
 import { sftForYear, CPI, STATE_PENSION, SP_START, MAX_SALARY_CAP } from './shared/assumptions.js';
 import { buildWarningsHTML } from './shared/warnings.js';
+import { buildFullMontyPDF } from './fullMontyPdf.js';
+
+// --- PDF Export Support ---
+window.fmCharts = window.fmCharts || {};
+window.fmState = window.fmState || {};
 
 const AGE_BANDS = [
   { max: 29,  pct: 0.15 },
@@ -615,6 +620,10 @@ function ensureMaxScenario() {
 function setUseMaxContributions(on){
   useMax = !!on;
 
+  try { window.__USE_MAX__ = useMax; } catch {}
+  try { window.fmState.useMax = useMax; } catch {}
+  try { document.documentElement.setAttribute('data-use-max', useMax ? '1' : '0'); } catch {}
+
   if (useMax) ensureMaxScenario();
 
   try { window.onMaxContribsToggleChanged?.(useMax); } catch {}
@@ -942,6 +951,7 @@ function drawCharts() {
       scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'€'+v.toLocaleString() } } }
     }
   });
+  window.fmCharts.growth = growthChart;
 
   const dataC = showMax && contribsMax ? contribsMax : contribsBase;
   const dataG = showMax && growthMax   ? growthMax   : growthBase;
@@ -968,6 +978,7 @@ function drawCharts() {
       }
     }
   });
+  window.fmCharts.contrib = contribChart;
 
   // ---------- Retirement-phase (drawdown) charts ----------
   const balCan = document.querySelector('#ddBalanceChart');
@@ -1105,6 +1116,7 @@ function drawCharts() {
       scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'€'+v.toLocaleString() } } }
     }
   });
+  window.fmCharts.balance = ddBalanceChart;
 
   // Cashflow chart (stacked bars + need line)
   if (retirementIncomeChart) retirementIncomeChart.destroy();
@@ -1159,6 +1171,7 @@ function drawCharts() {
       }
     }
   });
+  window.fmCharts.cashflow = retirementIncomeChart;
   setRetirementIncomeColorsForToggle(useMax);
 
     if (typeof updateRetirementBalanceConditions === 'function') {
@@ -1178,6 +1191,28 @@ function drawCharts() {
     console.error('[FM Results] drawCharts failed:', err);
   }
 }
+
+window.fmRebuildCharts = async function fmRebuildCharts(){
+  const prev = useMax;
+  const override = (typeof window !== 'undefined' && typeof window.__USE_MAX__ === 'boolean')
+    ? !!window.__USE_MAX__
+    : prev;
+
+  if (override !== useMax) {
+    useMax = override;
+  }
+
+  try { document.body.setAttribute('data-scenario', useMax ? 'max' : 'current'); } catch {}
+
+  try {
+    await Promise.resolve(drawCharts());
+  } catch (e) {
+    console.warn('fmRebuildCharts fallback:', e);
+  } finally {
+    try { window.__USE_MAX__ = useMax; } catch {}
+    try { window.fmState.useMax = useMax; } catch {}
+  }
+};
 
 // Listen for inputs from the wizard
 document.addEventListener('fm-run-pension', (e) => {
@@ -1398,5 +1433,20 @@ document.addEventListener('fm-salary-updated', () => {
 document.addEventListener('DOMContentLoaded', () => {
   try { window.renderMaxContributionTable?.(_currentFMStore()); } catch(e){}
 });
+
+const pdfBtn = document.getElementById('btnGeneratePDF');
+if (pdfBtn) {
+  pdfBtn.addEventListener('click', async () => {
+    if (!window.latestRun) return;
+    document.body.classList.add('pdf-exporting');
+    try {
+      await buildFullMontyPDF(window.latestRun);
+    } catch (err) {
+      console.error('[FM Results] PDF generation failed', err);
+    } finally {
+      document.body.classList.remove('pdf-exporting');
+    }
+  });
+}
 
 // Keep restore hidden on any re-render of results
