@@ -277,7 +277,7 @@
     }
 
     /* Hover/active feedback */
-    .fab-edit:hover{ 
+    .fab-edit:hover{
       transform: translateY(-1px);
       box-shadow: 0 12px 28px rgba(0,255,136,.22), 0 0 0 2px rgba(0,255,136,.18) inset;
       filter: saturate(1.05);
@@ -285,6 +285,49 @@
     .fab-edit:active{
       transform: translateY(0);
       box-shadow: 0 6px 16px rgba(0,255,136,.18), 0 0 0 2px rgba(0,255,136,.18) inset;
+    }
+
+    /* === Generate PDF FAB: only show on results mode === */
+    #btnGeneratePDF { display: none; } /* hidden by default */
+
+    body[data-ui-mode="results"] #btnGeneratePDF {
+      display: inline-flex !important;
+      align-items: center;
+      gap: .5rem;
+    }
+
+    /* Floating styling (desktop >= 980px) */
+    @media (min-width: 980px){
+      #btnGeneratePDF {
+        position: fixed;
+        left: 28px;      /* left instead of right */
+        bottom: 28px;
+        z-index: 50;     /* above charts */
+        padding: .9rem 1.25rem;
+        font-size: 1rem;
+        background: var(--glow, #00ff88);
+        color: #0b1f16;
+        border: 1px solid rgba(0,255,136,.25);
+        border-radius: 999px;
+        font-weight: 800;
+        box-shadow: 0 8px 24px rgba(0,255,136,.18),
+                    0 0 0 2px rgba(0,255,136,.08) inset;
+        transition: transform .15s ease,
+                    box-shadow .2s ease,
+                    filter .2s ease;
+      }
+    }
+
+    #btnGeneratePDF:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 28px rgba(0,255,136,.22),
+                  0 0 0 2px rgba(0,255,136,.18) inset;
+      filter: saturate(1.05);
+    }
+    #btnGeneratePDF:active {
+      transform: translateY(0);
+      box-shadow: 0 6px 16px rgba(0,255,136,.18),
+                  0 0 0 2px rgba(0,255,136,.18) inset;
     }
 
     /* Keep the inline toolbar layout clean on mobile */
