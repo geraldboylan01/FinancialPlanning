@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="styles/inputs.css">
   <link rel="stylesheet" href="styles/results.css">
   <link rel="stylesheet" href="styles/wizard.css"> <!-- must be last -->
+  <link rel="stylesheet" href="styles/pdf.css">
   <style>
     :root{
       --accent:#c000ff;
@@ -923,6 +924,10 @@
       </div>
       </main>
     </section>
+    <!-- Floating Generate PDF Button -->
+    <button class="fab-pdf" id="btnGeneratePDF" aria-label="Generate PDF Report">
+      📄 Generate PDF
+    </button>
     <button id="editInputsFab" class="fab" aria-label="Edit inputs" type="button" style="display:none">Edit inputs</button>
     <!-- removed stray </section> -->
 
@@ -951,6 +956,7 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js/dist/chart.umd.js"></script>
   <script>
     (function initChartInfoUI(){
