@@ -937,16 +937,7 @@ function drawCharts() {
       plugins: {
         legend:{ position:'bottom', labels:{ color:'#ccc', font:{ size:12 }, padding:8 } },
         title:{ display:true, text:'Projected Pension Value', color:'#fff', font:{ size:16, weight:'bold' } },
-        tooltip: {
-          callbacks: {
-            afterBody: (items) => {
-              const idx = items?.[0]?.dataIndex ?? 0;
-              const val = ap.balances?.[idx] || 0;
-              const gap = fy.requiredPot ? (val - fy.requiredPot) : 0;
-              return `Gap vs FY: ${fmtEuro(gap)}`;
-            }
-          }
-        }
+        tooltip: {}
       },
       scales:{ y:{ beginAtZero:true, ticks:{ callback:v=>'€'+v.toLocaleString() } } }
     }
