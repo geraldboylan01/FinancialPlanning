@@ -1569,13 +1569,20 @@ document.addEventListener('DOMContentLoaded', () => {
   try { window.renderMaxContributionTable?.(_currentFMStore()); } catch(e){}
 });
 
-const pdfBtn = document.getElementById('btnGeneratePDF');
-if (pdfBtn) {
-  pdfBtn.addEventListener('click', async () => {
-    // Build or refresh a snapshot if we don't have one yet
+// --- Rebind helper: removes all old listeners by cloning the node
+function rebindGeneratePdfButton() {
+  const btn = document.getElementById('btnGeneratePDF');
+  if (!btn) return;
+
+  // Replace node to drop any existing listeners (including the legacy aborting one)
+  const fresh = btn.cloneNode(true);
+  btn.parentNode.replaceChild(fresh, btn);
+
+  fresh.addEventListener('click', async () => {
+    // Use latest snapshot or build one on the fly
     const run = window.latestRun || (await buildPdfRunSnapshotSafely());
 
-    // Add a harmless overlay (doesn't hide DOM)
+    // Non-destructive overlay (we no longer hide the DOM)
     document.body.classList.add('pdf-exporting');
     try {
       await buildFullMontyPDF(run);
@@ -1587,5 +1594,9 @@ if (pdfBtn) {
     }
   });
 }
+
+// Bind on DOM ready and after your renderer fires (so re-renders keep the right listener)
+document.addEventListener('DOMContentLoaded', rebindGeneratePdfButton);
+window.addEventListener('fm-renderer-ready', rebindGeneratePdfButton);
 
 // Keep restore hidden on any re-render of results
