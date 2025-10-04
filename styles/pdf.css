@@ -25,10 +25,14 @@
   .fab-pdf{ display:none !important; }
 }
 
-/* During export, hide UI to avoid flicker when toggling max/current */
-body.pdf-exporting #app,
-body.pdf-exporting .app-root{
-  visibility: hidden !important;
+/* Non-destructive overlay during PDF export (no DOM hiding) */
+body.pdf-exporting::after{
+  content:'';
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.02);
+  pointer-events: all;
+  z-index: 2147483647;
 }
 
 /* Optional small chip style inside PDF screenshots, kept here for parity */

@@ -1437,12 +1437,17 @@ document.addEventListener('DOMContentLoaded', () => {
 const pdfBtn = document.getElementById('btnGeneratePDF');
 if (pdfBtn) {
   pdfBtn.addEventListener('click', async () => {
-    if (!window.latestRun) return;
+    if (!window.latestRun) {
+      console.warn('[PDF] No latestRun; aborting.');
+      return;
+    }
+    // Add harmless overlay (doesn't hide DOM)
     document.body.classList.add('pdf-exporting');
     try {
       await buildFullMontyPDF(window.latestRun);
     } catch (err) {
-      console.error('[FM Results] PDF generation failed', err);
+      console.error('[PDF] Failed to generate:', err);
+      alert('Sorry — something interrupted PDF generation. Please try again.\n(Details in console)');
     } finally {
       document.body.classList.remove('pdf-exporting');
     }
