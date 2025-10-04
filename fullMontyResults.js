@@ -4,6 +4,117 @@ import { sftForYear, CPI, STATE_PENSION, SP_START, MAX_SALARY_CAP } from './shar
 import { buildWarningsHTML } from './shared/warnings.js';
 import { buildFullMontyPDF } from './fullMontyPdf.js';
 
+// ===== PDF SNAPSHOT UTILITIES =====
+window.latestRun = window.latestRun || null;
+
+/**
+ * Try to read a number from a DOM node's text (e.g. "65" or "Age 65")
+ */
+function numFromText(el) {
+  if (!el || !el.textContent) return null;
+  const m = el.textContent.replace(/[^\d.]/g, '');
+  return m ? Number(m) : null;
+}
+
+function safeAgeFromDob(dob) {
+  if (!dob) return null;
+  const dt = new Date(dob);
+  if (Number.isNaN(dt.getTime())) return null;
+  const years = (Date.now() - dt.getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+  return Math.floor(years);
+}
+
+function firstFiniteNumber(...values) {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+  }
+  return null;
+}
+
+/**
+ * Build a minimal snapshot for the PDF, pulling from your existing globals/state if present,
+ * then falling back to DOM where possible. All fields are optional; the PDF builder is null-safe.
+ */
+async function buildPdfRunSnapshotSafely() {
+  try {
+    const desiredRetAge = firstFiniteNumber(
+      typeof lastWizard?.retireAge === 'number' ? lastWizard.retireAge : null,
+      typeof window.retAge === 'number' ? window.retAge : null,
+      numFromText(document.getElementById('chipRetAgeB'))
+    ) ?? 65;
+
+    const ffnCombined = firstFiniteNumber(
+      typeof lastFYOutput?.requiredPot === 'number' ? lastFYOutput.requiredPot : null,
+      typeof window.lastFYOutput?.requiredPot === 'number' ? window.lastFYOutput.requiredPot : null,
+      typeof window.fy?.requiredPot === 'number' ? window.fy.requiredPot : null
+    );
+
+    const projectedPotValue =
+      typeof projectedAtRetirementValue === 'function' ? projectedAtRetirementValue() : null;
+
+    const potAtRetCurrent = firstFiniteNumber(
+      projectedPotValue,
+      typeof lastPensionOutput?.projValue === 'number' ? lastPensionOutput.projValue : null,
+      typeof window.lastPensionOutput?.combined?.potAtRet === 'number'
+        ? window.lastPensionOutput.combined.potAtRet
+        : null
+    );
+
+    const potAtRetMax = firstFiniteNumber(
+      typeof lastPensionOutput?.maxBalances?.at === 'function' && lastPensionOutput.maxBalances.length
+        ? lastPensionOutput.maxBalances.at(-1)?.value ?? null
+        : null,
+      typeof lastPensionOutput?.projValueMax === 'number' ? lastPensionOutput.projValueMax : null,
+      typeof window.lastPensionOutputMax?.combined?.potAtRet === 'number'
+        ? window.lastPensionOutputMax.combined.potAtRet
+        : null
+    );
+
+    const year1GrossIncome = firstFiniteNumber(
+      typeof window.ddOutputs?.year1Gross === 'number' ? window.ddOutputs.year1Gross : null,
+      typeof window.postRetirement?.year1Gross === 'number' ? window.postRetirement.year1Gross : null
+    );
+
+    const hasPartner = !!(lastWizard?.hasPartner || window.inputs?.partnerIncluded || window.hasPartner);
+    const ageUser = firstFiniteNumber(
+      typeof lastWizard?.age === 'number' ? lastWizard.age : null,
+      safeAgeFromDob(lastWizard?.dob),
+      typeof window.inputs?.ageUser === 'number' ? window.inputs.ageUser : null,
+      typeof window.ageUser === 'number' ? window.ageUser : null
+    );
+    const agePartner = firstFiniteNumber(
+      typeof lastWizard?.partner?.age === 'number' ? lastWizard.partner.age : null,
+      safeAgeFromDob(lastWizard?.partner?.dob),
+      typeof window.inputs?.agePartner === 'number' ? window.inputs.agePartner : null,
+      typeof window.agePartner === 'number' ? window.agePartner : null
+    );
+
+    return {
+      desiredRetAge,
+      ffnCombined,
+      potAtRetCurrent,
+      potAtRetMax,
+      year1GrossIncome,
+      hasPartner,
+      ageUser,
+      agePartner,
+    };
+  } catch (e) {
+    console.warn('[PDF] Snapshot fallback failed:', e);
+    return {}; // still safe for the PDF builder
+  }
+}
+
+/**
+ * Update the global latestRun whenever results are (re)computed.
+ * Call this at the end of your main compute/render pipeline.
+ */
+async function updateLatestRunSnapshot() {
+  window.latestRun = await buildPdfRunSnapshotSafely();
+}
+
 // --- PDF Export Support ---
 window.fmCharts = window.fmCharts || {};
 window.fmState = window.fmState || {};
@@ -617,7 +728,7 @@ function ensureMaxScenario() {
   lastPensionOutput.growthMax   = growthMax;
 }
 
-function setUseMaxContributions(on){
+async function setUseMaxContributions(on){
   useMax = !!on;
 
   try { window.__USE_MAX__ = useMax; } catch {}
@@ -643,6 +754,12 @@ function setUseMaxContributions(on){
     setRestoreVisible(false);
   } else {
     updateRestoreVisibility();
+  }
+
+  try {
+    await updateLatestRunSnapshot();
+  } catch (err) {
+    console.warn('[PDF] Snapshot update failed after max toggle:', err);
   }
 }
 window.setUseMaxContributions = setUseMaxContributions;
@@ -1212,6 +1329,12 @@ window.fmRebuildCharts = async function fmRebuildCharts(){
     try { window.__USE_MAX__ = useMax; } catch {}
     try { window.fmState.useMax = useMax; } catch {}
   }
+
+  try {
+    await updateLatestRunSnapshot();
+  } catch (err) {
+    console.warn('[PDF] Snapshot update failed after rebuild:', err);
+  }
 };
 
 // Listen for inputs from the wizard
@@ -1248,7 +1371,7 @@ document.addEventListener('fm-run-pension', (e) => {
   toggleHeroControlsForPartner();
 });
 
-document.addEventListener('fm-pension-output', (e) => {
+document.addEventListener('fm-pension-output', async (e) => {
   console.debug('[FM Results] got fm-pension-output', e.detail);
   lastPensionOutput = e.detail;
 
@@ -1301,9 +1424,15 @@ document.addEventListener('fm-pension-output', (e) => {
   setTimeout(ensureHeroRestoreExists, 0);
   updateRestoreVisibility();
   toggleHeroControlsForPartner();
+
+  try {
+    await updateLatestRunSnapshot();
+  } catch (err) {
+    console.warn('[PDF] Snapshot update failed after pension output:', err);
+  }
 });
 
-document.addEventListener('fm-run-fy', (e) => {
+document.addEventListener('fm-run-fy', async (e) => {
   const d = e.detail || {};
   saveBaselineFYLatest(d);
   const prevAge = Number.isFinite(+lastWizard?.retireAge) ? +lastWizard.retireAge : null;
@@ -1367,6 +1496,12 @@ document.addEventListener('fm-run-fy', (e) => {
   setTimeout(ensureHeroRestoreExists, 0);
   updateRestoreVisibility();
   toggleHeroControlsForPartner();
+
+  try {
+    await updateLatestRunSnapshot();
+  } catch (err) {
+    console.warn('[PDF] Snapshot update failed after FY output:', err);
+  }
 });
 
 document.addEventListener('fm:wizard:final-submit', (e) => {
@@ -1437,14 +1572,13 @@ document.addEventListener('DOMContentLoaded', () => {
 const pdfBtn = document.getElementById('btnGeneratePDF');
 if (pdfBtn) {
   pdfBtn.addEventListener('click', async () => {
-    if (!window.latestRun) {
-      console.warn('[PDF] No latestRun; aborting.');
-      return;
-    }
-    // Add harmless overlay (doesn't hide DOM)
+    // Build or refresh a snapshot if we don't have one yet
+    const run = window.latestRun || (await buildPdfRunSnapshotSafely());
+
+    // Add a harmless overlay (doesn't hide DOM)
     document.body.classList.add('pdf-exporting');
     try {
-      await buildFullMontyPDF(window.latestRun);
+      await buildFullMontyPDF(run);
     } catch (err) {
       console.error('[PDF] Failed to generate:', err);
       alert('Sorry — something interrupted PDF generation. Please try again.\n(Details in console)');
