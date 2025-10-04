@@ -549,6 +549,27 @@
 
   <div class="learn__grid">
 
+    <!-- NEW FIRST CARD: Who am I? -->
+    <article class="learn-card learn-card--portrait">
+      <button
+        class="yt-thumb yt-thumb--tall"
+        type="button"
+        data-video-id="6cE5fC0At-k"
+        data-title="Who am I?"
+        data-caption="Learn about me and why I created this webpage."
+        aria-haspopup="dialog"
+        aria-controls="videoModal"
+        aria-label="Who am I? Learn about me and why I created this webpage.">
+        <span class="yt-thumb__badge">Short • ~1 min</span>
+        <span class="yt-thumb__play" aria-hidden="true">►</span>
+
+        <div class="learn-card__overlay">
+          <h3 class="learn-card__title">Who am I?</h3>
+          <p class="learn-card__text">Learn about me and why I created this webpage.</p>
+        </div>
+      </button>
+    </article>
+
     <!-- Card 1: 60-second intro (live) -->
     <article class="learn-card learn-card--portrait">
       <button class="yt-thumb yt-thumb--tall" type="button"
@@ -641,10 +662,12 @@
   let iframeInjected = false;
   let hintEl = null;
   let currentId = null;
+  let currentTitle = 'Video';
+  let currentCaption = '';
   let fsListenersBound = false;
 
   thumbBtns.forEach(btn => {
-    btn.addEventListener('click', () => open(btn.getAttribute('data-video-id')));
+    btn.addEventListener('click', () => open(btn));
   });
 
   function buildParams() {
@@ -668,7 +691,7 @@
     iframe.src = `https://www.youtube-nocookie.com/embed/${currentId}?` + buildParams();
     iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen';
     iframe.setAttribute('allowfullscreen','');
-    iframe.setAttribute('title','Why I built these tools');
+    iframe.setAttribute('title', currentTitle || 'Video');
 
     mount.appendChild(iframe);
     iframeInjected = true;
@@ -716,41 +739,48 @@
   }
 
   // Modal controls
-  function open(id){
-    currentId = id;
+  function open(btn){
+    if (!btn) return;
+
+    currentId = btn.getAttribute('data-video-id');
+    currentTitle = btn.getAttribute('data-title') || 'Video';
+    currentCaption = btn.getAttribute('data-caption') || '';
+
     lastFocus = document.activeElement;
     modal.hidden = false;
     document.documentElement.style.overflow = 'hidden';
 
+    // Set modal header + caption from the clicked card
+    const titleEl = modal.querySelector('#videoModalTitle');
+    if (titleEl) titleEl.textContent = currentTitle;
+
+    const captionEl = modal.querySelector('.modal__caption');
+    if (captionEl) captionEl.textContent = currentCaption || captionEl.textContent;
+
     const iframe = injectIframe();
     modal.querySelector('.modal__close')?.focus();
+
     if(location.hash !== '#video') history.pushState(null, '', '#video');
     document.addEventListener('keydown', onKey);
 
     // Mobile: try to enter fullscreen immediately within this click gesture
+    const isMobile  = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
     if (isMobile && iframe) {
       bindFsListenersOnce();
-      // Try the Fullscreen API
       Promise.resolve()
         .then(async () => {
           if (iframe.requestFullscreen) {
             await iframe.requestFullscreen();
           } else if (iframe.webkitRequestFullscreen) {
-            iframe.webkitRequestFullscreen(); // iOS/Safari fallback
+            iframe.webkitRequestFullscreen();
           }
         })
-        .catch(() => {
-          // If fullscreen request is blocked, we simply fall back to YouTube UI
-        })
+        .catch(() => {})
         .finally(() => {
-          // Nudge playback once the player is ready
           setTimeout(() => postToPlayer(iframe, 'playVideo'), 250);
         });
 
-      // Safety: if the tab is hidden while in fullscreen, close modal
-      const onHide = () => {
-        if (document.hidden) close();
-      };
+      const onHide = () => { if (document.hidden) close(); };
       document.addEventListener('visibilitychange', onHide, { once: true, capture: true });
     }
   }
@@ -802,8 +832,8 @@
   });
 
   // Deep link support remains unchanged
-  if(location.hash === '#video'){
-    open(thumbBtns[0].getAttribute('data-video-id'));
+  if(location.hash === '#video' && thumbBtns[0]){
+    open(thumbBtns[0]);
   }
 })();
 </script>
