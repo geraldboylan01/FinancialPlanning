@@ -69,6 +69,12 @@ function placeChartImage(doc, dataURL, x, y, w, h){
   try { doc.addImage(dataURL, 'PNG', x, y, w, h); } catch(_) {}
 }
 
+function fmtEuro(n) {
+  return (typeof n === 'number' && isFinite(n))
+    ? new Intl.NumberFormat('en-IE',{ style:'currency', currency:'EUR', maximumFractionDigits:0 }).format(Math.round(n))
+    : '—';
+}
+
 function euro(n){
   if (n === null || n === undefined || Number.isNaN(n)) return '€–';
   return '€' + Intl.NumberFormat('en-IE', {maximumFractionDigits:0}).format(Math.round(n));
@@ -173,6 +179,106 @@ function extractYear1IncomeCoverage(){
   return null;
 }
 
+/**
+ * Build the narrative summary paragraphs.
+ * @param {object} p - snapshot payload from buildPdfRunSnapshotSafely()
+ * Returns: string[] paragraphs (each one a separate paragraph in the PDF).
+ */
+function buildNarrativeSummary(p) {
+  const P = [];
+  const num = (x) => (typeof x === 'number' && isFinite(x)) ? x : null;
+
+  const ffnCombined     = num(p.ffnCombined);
+  const potAtRetCurrent = num(p.potAtRetCurrent);
+  const potAtRetMax     = num(p.potAtRetMax);
+  const growthRatePct   = num(p.growthRatePct);
+  const sftLimit        = num(p.sftLimit);
+  const hasPartner      = !!p.hasPartner;
+  const ageUser         = num(p.ageUser);
+  const retAge          = num(p.retAge);
+  const riskProfile     = p.riskProfile || null;
+
+  const hasFFN = (ffnCombined != null && ffnCombined > 0);
+  const curPct = (hasFFN && potAtRetCurrent != null) ? potAtRetCurrent / ffnCombined : null;
+  const maxPct = (hasFFN && potAtRetMax     != null) ? potAtRetMax     / ffnCombined : null;
+
+  const below    = (v,t)=> (v!=null && t!=null ? v <  t : false);
+  const atLeast  = (v,t)=> (v!=null && t!=null ? v >= t : false);
+  const nearSFT  = (v)=> (sftLimit!=null && v!=null && v >= 0.9 * sftLimit);
+  const overSFT  = (v)=> (sftLimit!=null && v!=null && v >= sftLimit);
+
+  // 1) Opening facts
+  if (growthRatePct != null && hasFFN) {
+    P.push(`With a projected growth rate of ${growthRatePct.toFixed(1)}% p.a., your Financial Freedom Number is ${fmtEuro(ffnCombined)}.`);
+  }
+  if (retAge != null && potAtRetCurrent != null && hasFFN) {
+    const pct = curPct != null ? Math.round(curPct * 100) : null;
+    P.push(`On current contributions, your projected pot at age ${retAge} is ${fmtEuro(potAtRetCurrent)}${pct!=null ? ` (${pct}% of FFN)` : ''}.`);
+  }
+  if (potAtRetMax != null && hasFFN) {
+    const pct = maxPct != null ? Math.round(maxPct * 100) : null;
+    P.push(`If you maximise contributions within Revenue limits, your projected pot is ${fmtEuro(potAtRetMax)}${pct!=null ? ` (${pct}% of FFN)` : ''}.`);
+  }
+
+  // 2) Core outcome logic
+  if (below(potAtRetCurrent, ffnCombined) && below(potAtRetMax, ffnCombined)) {
+    P.push(`Neither the current nor the maximised contribution path is projected to fully reach your FFN. To close the gap, you’ll likely need a coordinated plan across both pension and non-pension assets (e.g., taxable investments, property, or other savings).`);
+  }
+  if (below(potAtRetCurrent, ffnCombined) && atLeast(potAtRetMax, ffnCombined)) {
+    P.push(`At current contribution levels there is a shortfall versus your FFN; however, maximising contributions is projected to reach or exceed the target, showing the impact of consistent higher savings and time in the market.`);
+  }
+  if (atLeast(potAtRetCurrent, ffnCombined) && atLeast(potAtRetMax, ffnCombined)) {
+    P.push(`Your pension is on track to meet or exceed your FFN under both scenarios. Staying the course should keep you well-positioned, while maximising contributions provides additional resilience against inflation and market variability.`);
+  }
+  if (curPct != null && curPct >= 0.95 && atLeast(potAtRetMax, ffnCombined)) {
+    P.push(`You’re very close to fully funded under current contributions. Even modest increases or gradual step-ups as income grows could bridge the remaining gap.`);
+  }
+
+  // 3) SFT awareness (always evaluate, independent of FFN outcome)
+  if (overSFT(potAtRetCurrent) || overSFT(potAtRetMax)) {
+    P.push(`Your projected fund is at or above the Standard Fund Threshold (SFT: ${fmtEuro(sftLimit)}). From here, additional savings may be more efficient in non-pension vehicles. Consider balancing future contributions between pension and diversified non-pension investments.`);
+  } else if (nearSFT(potAtRetCurrent) || nearSFT(potAtRetMax)) {
+    P.push(`Your pension is approaching the SFT (${fmtEuro(sftLimit)}). Keep an eye on total pension values and consider complementing pensions with non-pension investments to manage future tax exposure.`);
+  }
+  if (hasFFN && sftLimit != null && ffnCombined >= 1.2 * sftLimit) {
+    P.push(`Because your FFN is substantially above the SFT, a purely pension-based route may not be the most efficient path. A coordinated strategy across pension and non-pension assets is likely required to reach the target efficiently.`);
+  }
+
+  // 4) Salary/contribution assumption
+  P.push(`Remember, these projections assume your salary and contribution rates remain fixed from today. In practice, pay growth or staged increases to contributions can materially improve outcomes.`);
+
+  // 5) Risk-profile nudge (only if we have a risk label and it’s not the highest)
+  if (riskProfile && !/very\s*high/i.test(String(riskProfile))) {
+    P.push(`You may wish to review your investment risk profile. A higher-risk allocation can raise long-term return potential, but it must align with your risk appetite and time horizon, and investment values can go down as well as up.`);
+  }
+
+  // 6) Partner micro-phrase
+  if (hasPartner) {
+    P.push(`Where a partner is included, coordinating contributions and drawdown across two pensions can reduce individual funding pressure and increase flexibility at retirement.`);
+  }
+
+  // 7) Young saver micro-phrase
+  if (ageUser != null && ageUser < 35) {
+    P.push(`Because you’re earlier in your career, compounding works strongly in your favour — even small contribution increases now can translate into significant gains over time.`);
+  }
+
+  // 8) Irish retirement-age rules (final wording agreed)
+  if (retAge != null && retAge < 60) {
+    P.push(`As your target retirement age is under 60, please note that in Ireland pensions can normally only be accessed earlier if you have left the employment linked to the scheme or meet specific early-retirement criteria. These projections assume you are eligible to do so, but individual circumstances may differ.`);
+  }
+  if (retAge != null && retAge > 70 && retAge < 75) {
+    P.push(`For retirements after age 70, occupational pensions generally must be drawn down by age 70, whereas PRSAs can be deferred beyond that age. These figures therefore assume continued deferral for illustration purposes.`);
+  }
+  if (retAge != null && retAge >= 75) {
+    P.push(`All Irish pension funds are deemed vested by age 75, so projections beyond this point are illustrative only and not a realistic representation of benefit timing.`);
+  }
+
+  // 9) Disclaimer
+  P.push(`These results are illustrative and do not constitute tax or financial advice. Please consider personalised guidance before making decisions.`);
+
+  return P;
+}
+
 export async function buildFullMontyPDF(run){
   try {
     await _buildFullMontyPDF(run);
@@ -268,6 +374,24 @@ async function _buildFullMontyPDF(run){
   // Explainer under both cards
   const expl = `Max contributions are the age-related Revenue limits applied to your pensionable salary (capped at €115,000). See Page 6 for the full reference table.`;
   writeParagraph(doc, expl, M, cardTop + cardH + 24, W - 2*M, { size:11, color:'#D2D2D2', after:0 });
+
+  // === Narrative Summary ===
+  const narrative = buildNarrativeSummary(run || {});
+  if (narrative.length) {
+    const startNarrativePage = (title = 'Narrative Summary') => {
+      doc.addPage();
+      drawBg(doc);
+      return writeTitle(doc, title, M, M, W - 2*M, { size:14 });
+    };
+
+    let yNarr = startNarrativePage();
+    narrative.forEach((para, idx) => {
+      if (yNarr + 80 > H - M) {
+        yNarr = startNarrativePage('Narrative Summary (cont.)');
+      }
+      yNarr = writeParagraph(doc, para, M, yNarr, W - 2*M, { size:11, lineHeight:16, after:12 });
+    });
+  }
 
   // ---------- Page 3: BEFORE RET — STORY (Current) ----------
   doc.addPage(); drawBg(doc);
