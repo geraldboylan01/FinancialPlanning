@@ -15,6 +15,22 @@ const ACCENT_GREEN = '#00ff88';
 const ACCENT_CYAN  = '#0099ff';
 const COVER_GOLD   = '#BBA26F';
 
+// ===== Summary panel constants =====
+const THEME = {
+  bgPanel:  '#121417',
+  border:   '#22262b',
+  heading:  '#e3c78a',
+  text:     '#ffffff',
+  subtext:  '#cfd6df'
+};
+
+const PAGE_MARGIN = 24;
+const COLUMN_GAP  = 18;
+const PANEL_RADIUS = 6;
+const PANEL_PAD_X = 14;
+const PANEL_PAD_Y = 12;
+const BODY_LINE_GAP = 5;
+
 function hexToRgb(hex){ const h = hex.replace('#',''); const n = parseInt(h,16);
   return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 }; }
 
@@ -415,6 +431,170 @@ function buildNarrativeSummary(p) {
   return P;
 }
 
+/**
+ * Return the narrative paragraphs for the "Summary" panel.
+ * Prefer an existing function if available (e.g. buildNarrativeSummary(run)).
+ * Must return an array of strings (each string is a paragraph).
+ */
+function getSummaryParagraphs(run) {
+  if (typeof buildNarrativeSummary === 'function') {
+    const out = buildNarrativeSummary(run);
+    if (out && Array.isArray(out.paras)) return out.paras;
+    if (Array.isArray(out)) return out;
+  }
+  if (Array.isArray(run?.narrativeLines)) return run.narrativeLines;
+
+  return [
+    'With a projected growth rate, we show current and maximised paths to your retirement target. Results are illustrative and depend on your inputs and assumptions.',
+    'Use this page to see, at a glance, how contributions, time in the market, and investment growth interact with your Financial Freedom Number (FFN).'
+  ];
+}
+
+/**
+ * Draw a styled "Summary" panel that auto-wraps text and continues to a new page if needed.
+ * @param {jsPDF} doc
+ * @param {number} startX
+ * @param {number} startY
+ * @param {number} maxWidth  panel outer width (edges)
+ * @param {string[]} paragraphs  array of paragraphs
+ * @param {boolean} continued   if true, title shows "(continued)"
+ * @returns {number} nextY after the panel (bottom Y you can continue from)
+ */
+function drawSummaryPanel(doc, startX, startY, maxWidth, paragraphs, continued = false) {
+  const pageH = doc.internal.pageSize.getHeight();
+  const innerW = Math.max(10, maxWidth - (PANEL_PAD_X * 2));
+  const title = continued ? 'Summary (continued)' : 'Summary';
+
+  const lineHeightTitle = 8;
+  const lineHeightBody  = 6;
+  const titleGap = 2;
+  const bottomLimit = pageH - PAGE_MARGIN;
+
+  let x = startX;
+  let y = startY;
+  let cursorY = y + PANEL_PAD_Y;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  const titleLines = doc.splitTextToSize(title, innerW);
+  const titleH = titleLines.length * lineHeightTitle;
+
+  const needsBody = paragraphs && paragraphs.length ? (lineHeightBody + BODY_LINE_GAP) : 0;
+  if (cursorY + titleH + needsBody + PANEL_PAD_Y > bottomLimit) {
+    doc.addPage();
+    drawBg(doc);
+    return drawSummaryPanel(doc, startX, PAGE_MARGIN, maxWidth, paragraphs, continued);
+  }
+
+  const leftTextX = x + PANEL_PAD_X;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+
+  const measuredSegments = [];
+  let measuredBodyHeight = 0;
+  let consumedParagraphs = 0;
+  let remainderParagraph = null;
+
+  for (let i = 0; i < (paragraphs?.length || 0); i++) {
+    const para = paragraphs[i] || '';
+    const split = doc.splitTextToSize(para, innerW);
+    const paraHeight = split.length * lineHeightBody;
+    const prospectiveHeight = titleH + titleGap + measuredBodyHeight + paraHeight + BODY_LINE_GAP;
+
+    if (cursorY + prospectiveHeight + PANEL_PAD_Y > bottomLimit) {
+      const availableHeight = bottomLimit - (cursorY + titleH + titleGap + measuredBodyHeight + PANEL_PAD_Y);
+      if (availableHeight > 0) {
+        const maxLines = Math.floor(availableHeight / lineHeightBody);
+        if (maxLines > 0) {
+          const truncated = split.slice(0, maxLines);
+          if (truncated.length) {
+            measuredSegments.push({ lines: truncated, paragraphEnd: false });
+            measuredBodyHeight += truncated.length * lineHeightBody;
+            const remainderLines = split.slice(truncated.length);
+            if (remainderLines.length) {
+              const remainderText = remainderLines.join(' ').trim();
+              if (remainderText) {
+                remainderParagraph = remainderText;
+              }
+            }
+          }
+        }
+      }
+      break;
+    }
+
+    measuredSegments.push({ lines: split, paragraphEnd: true });
+    measuredBodyHeight += paraHeight + BODY_LINE_GAP;
+    consumedParagraphs = i + 1;
+  }
+
+  if (!measuredSegments.length && paragraphs?.length) {
+    doc.addPage();
+    drawBg(doc);
+    return drawSummaryPanel(doc, startX, PAGE_MARGIN, maxWidth, paragraphs, continued);
+  }
+
+  const panelH = PANEL_PAD_Y + titleH + titleGap + measuredBodyHeight + PANEL_PAD_Y;
+
+  const borderRGB = hexToRgb(THEME.border);
+  const bgRGB = hexToRgb(THEME.bgPanel);
+  doc.setDrawColor(borderRGB.r, borderRGB.g, borderRGB.b);
+  doc.setFillColor(bgRGB.r, bgRGB.g, bgRGB.b);
+  doc.roundedRect(x, y, maxWidth, panelH, PANEL_RADIUS, PANEL_RADIUS, 'FD');
+
+  const headingRGB = hexToRgb(THEME.heading);
+  doc.setTextColor(headingRGB.r, headingRGB.g, headingRGB.b);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+
+  let textY = y + PANEL_PAD_Y + lineHeightTitle;
+  titleLines.forEach((ln) => {
+    doc.text(ln, leftTextX, textY, { maxWidth: innerW, baseline: 'alphabetic' });
+    textY += lineHeightTitle;
+  });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  const bodyRGB = hexToRgb(THEME.text);
+  doc.setTextColor(bodyRGB.r, bodyRGB.g, bodyRGB.b);
+  textY += titleGap;
+
+  measuredSegments.forEach((segment) => {
+    segment.lines.forEach((ln) => {
+      doc.text(ln, leftTextX, textY, { maxWidth: innerW, baseline: 'alphabetic' });
+      textY += lineHeightBody;
+    });
+    if (segment.paragraphEnd) {
+      textY += BODY_LINE_GAP;
+    }
+  });
+
+  const nextY = y + panelH + 10;
+
+  let remainingParagraphs = [];
+  if (remainderParagraph != null) {
+    remainingParagraphs = [remainderParagraph, ...paragraphs.slice(consumedParagraphs + 1)];
+  } else if (consumedParagraphs < (paragraphs?.length || 0)) {
+    remainingParagraphs = paragraphs.slice(consumedParagraphs);
+  }
+
+  if (remainingParagraphs.length) {
+    doc.addPage();
+    drawBg(doc);
+    return drawSummaryPanel(
+      doc,
+      startX,
+      PAGE_MARGIN,
+      maxWidth,
+      remainingParagraphs,
+      true
+    );
+  }
+
+  return nextY;
+}
+
 export async function buildFullMontyPDF(run){
   try {
     await _buildFullMontyPDF(run);
@@ -509,24 +689,19 @@ async function _buildFullMontyPDF(run){
 
   // Explainer under both cards
   const expl = `Max contributions are the age-related Revenue limits applied to your pensionable salary (capped at €115,000). See Page 6 for the full reference table.`;
-  writeParagraph(doc, expl, M, cardTop + cardH + 24, W - 2*M, { size:11, color:'#D2D2D2', after:0 });
+  const noteBottomY = writeParagraph(doc, expl, M, cardTop + cardH + 24, W - 2*M, { size:11, color:'#D2D2D2', after:0 });
 
-  // === Narrative Summary ===
-  const narrative = buildNarrativeSummary(run || {});
-  if (narrative.length) {
-    const startNarrativePage = (title = 'Narrative Summary') => {
-      doc.addPage();
-      drawBg(doc);
-      return writeTitle(doc, title, M, M, W - 2*M, { size:14 });
-    };
+  // ===== PAGE 2: Summary panel under the snapshots and the note =====
+  const summaryParas = getSummaryParagraphs(run || {});
+  if (summaryParas.length) {
+    const pageW = doc.internal.pageSize.getWidth();
+    let startY = (noteBottomY || 0) + 14;
+    if (!startY || startY < PAGE_MARGIN + 20) startY = PAGE_MARGIN + 20;
 
-    let yNarr = startNarrativePage();
-    narrative.forEach((para, idx) => {
-      if (yNarr + 80 > H - M) {
-        yNarr = startNarrativePage('Narrative Summary (cont.)');
-      }
-      yNarr = writeParagraph(doc, para, M, yNarr, W - 2*M, { size:11, lineHeight:16, after:12 });
-    });
+    const panelX = M;
+    const panelW = pageW - 2 * M;
+
+    drawSummaryPanel(doc, panelX, startY, panelW, summaryParas);
   }
 
   // ---------- Page 3: BEFORE RET — STORY (Current) ----------
