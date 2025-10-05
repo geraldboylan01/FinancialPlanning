@@ -198,6 +198,11 @@ function buildNarrativeSummary(p) {
   const retAge          = num(p.retAge);
   const riskProfile     = p.riskProfile || null;
 
+  // Is max scenario sufficient to reach FFN?
+  const maxReachesFFN = (potAtRetMax != null && ffnCombined != null && potAtRetMax >= ffnCombined);
+  // Treat 7% as “most aggressive” (your top risk rate)
+  const isAtTopRisk = (growthRatePct != null && growthRatePct >= 7.0) || (/very\s*high/i.test(String(riskProfile || '')));
+
   const hasFFN = (ffnCombined != null && ffnCombined > 0);
   const curPct = (hasFFN && potAtRetCurrent != null) ? potAtRetCurrent / ffnCombined : null;
   const maxPct = (hasFFN && potAtRetMax     != null) ? potAtRetMax     / ffnCombined : null;
@@ -244,12 +249,21 @@ function buildNarrativeSummary(p) {
     P.push(`Because your FFN is substantially above the SFT, a purely pension-based route may not be the most efficient path. A coordinated strategy across pension and non-pension assets is likely required to reach the target efficiently.`);
   }
 
-  // 4) Salary/contribution assumption
-  P.push(`Remember, these projections assume your salary and contribution rates remain fixed from today. In practice, pay growth or staged increases to contributions can materially improve outcomes.`);
+  // 4) Salary & contribution assumptions (clear for both paths)
+  P.push(
+    `Assumptions on salary and contributions: we hold your salary constant. ` +
+    `In the current-contribution path, your contribution rate is held constant. ` +
+    `In the maximised path, we assume you contribute the Revenue age-band maximum on today’s salary, ` +
+    `with the percentage stepping up only when you enter a higher age band.`
+  );
 
-  // 5) Risk-profile nudge (only if we have a risk label and it’s not the highest)
-  if (riskProfile && !/very\s*high/i.test(String(riskProfile))) {
-    P.push(`You may wish to review your investment risk profile. A higher-risk allocation can raise long-term return potential, but it must align with your risk appetite and time horizon, and investment values can go down as well as up.`);
+  // 5) Risk-profile nudge (only if max contributions still don't reach FFN and you’re not already at the top risk rate)
+  if (!maxReachesFFN && riskProfile && !isAtTopRisk) {
+    P.push(
+      `You may wish to review your investment risk profile. ` +
+      `A higher-risk allocation can raise long-term return potential, but it must align with your risk appetite and time horizon, ` +
+      `and investment values can go down as well as up.`
+    );
   }
 
   // 6) Partner micro-phrase
