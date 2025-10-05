@@ -197,6 +197,57 @@ function buildNarrativeSummary(p) {
   const ageUser         = num(p.ageUser);
   const retAge          = num(p.retAge);
   const riskProfile     = p.riskProfile || null;
+  const retirementYear  = num(p.retirementYear);
+  const projValueSelfBase     = p?.projValueSelfBase;
+  const projValuePartnerBase  = p?.projValuePartnerBase;
+  const projValueSelfMax      = p?.projValueSelfMax;
+  const projValuePartnerMax   = p?.projValuePartnerMax;
+
+  // --- SFT helpers (per-person) ---
+  // Expect: a function sftForYear(year) available in scope; otherwise pass it in.
+  const yearForSft = (typeof retirementYear === 'number' && isFinite(retirementYear))
+    ? retirementYear
+    : (typeof p?.retirementYear === 'number' ? p.retirementYear : null);
+  const sftPerPerson = (yearForSft != null && typeof sftForYear === 'function')
+    ? sftForYear(yearForSft)
+    : null;
+
+  // Read scenario pots (fallbacks for robustness)
+  const selfBase = Number.isFinite(+projValueSelfBase) ? +projValueSelfBase : null;
+  const partBase = Number.isFinite(+projValuePartnerBase) ? +projValuePartnerBase : null;
+  const selfMax  = Number.isFinite(+projValueSelfMax)  ? +projValueSelfMax  : selfBase;
+  const partMax  = Number.isFinite(+projValuePartnerMax) ? +projValuePartnerMax : partBase;
+
+  const withPartner = !!hasPartner;
+
+  // Per-person breach checks (current vs max)
+  const curSelfOver  = !!(sftPerPerson && selfBase  != null && selfBase  > sftPerPerson);
+  const curPartOver  = !!(withPartner && sftPerPerson && partBase != null && partBase > sftPerPerson);
+
+  const maxSelfOver  = !!(sftPerPerson && selfMax   != null && selfMax   > sftPerPerson);
+  const maxPartOver  = !!(withPartner && sftPerPerson && partMax  != null && partMax  > sftPerPerson);
+
+  // Combined breach checks (only meaningful if a partner exists).
+  // There isn't an official "combined SFT", but for household planning we compare to 2 × SFT.
+  const curCombinedOver = !!(withPartner && sftPerPerson && selfBase != null && partBase != null && (selfBase + partBase) > (2 * sftPerPerson));
+  const maxCombinedOver = !!(withPartner && sftPerPerson && selfMax  != null && partMax  != null && (selfMax  + partMax ) > (2 * sftPerPerson));
+
+  // Pretty €
+  const fmtEUR = (n) => {
+    try { return new Intl.NumberFormat('en-IE', { style:'currency', currency:'EUR', maximumFractionDigits:0 }).format(Number(n)||0); }
+    catch { return '€' + Math.round(Number(n)||0).toLocaleString('en-IE'); }
+  };
+
+  function describeWhoOver(selfOver, partOver) {
+    if (withPartner) {
+      if (selfOver && partOver) return 'both your pension and your partner’s pension';
+      if (selfOver)             return 'your pension';
+      if (partOver)             return 'your partner’s pension';
+      return null;
+    } else {
+      return selfOver ? 'your pension' : null;
+    }
+  }
 
   // Is max scenario sufficient to reach FFN?
   const maxReachesFFN = (potAtRetMax != null && ffnCombined != null && potAtRetMax >= ffnCombined);
@@ -209,8 +260,8 @@ function buildNarrativeSummary(p) {
 
   const below    = (v,t)=> (v!=null && t!=null ? v <  t : false);
   const atLeast  = (v,t)=> (v!=null && t!=null ? v >= t : false);
-  const nearSFT  = (v)=> (sftLimit!=null && v!=null && v >= 0.9 * sftLimit);
-  const overSFT  = (v)=> (sftLimit!=null && v!=null && v >= sftLimit);
+  const sftThresholdForChecks = sftLimit ?? (typeof sftPerPerson === 'number' ? sftPerPerson : null);
+  const nearSFT  = (v)=> (sftThresholdForChecks!=null && v!=null && v >= 0.9 * sftThresholdForChecks);
 
   // 1) Opening facts
   if (growthRatePct != null && hasFFN) {
@@ -240,10 +291,66 @@ function buildNarrativeSummary(p) {
   }
 
   // 3) SFT awareness (always evaluate, independent of FFN outcome)
-  if (overSFT(potAtRetCurrent) || overSFT(potAtRetMax)) {
-    P.push(`Your projected fund is at or above the Standard Fund Threshold (SFT: ${fmtEuro(sftLimit)}). From here, additional savings may be more efficient in non-pension vehicles. Consider balancing future contributions between pension and diversified non-pension investments.`);
-  } else if (nearSFT(potAtRetCurrent) || nearSFT(potAtRetMax)) {
-    P.push(`Your pension is approaching the SFT (${fmtEuro(sftLimit)}). Keep an eye on total pension values and consider complementing pensions with non-pension investments to manage future tax exposure.`);
+  // SFT advisory — scenario-aware, partner-aware
+  if (sftPerPerson) {
+    const sftTxt = `Standard Fund Threshold (SFT: ${fmtEUR(sftPerPerson)} per person)`;
+
+    // CASE A: Current path is under SFT, but Max path breaches (per-person and/or combined)
+    if (!curSelfOver && !curPartOver && !curCombinedOver && (maxSelfOver || maxPartOver || maxCombinedOver)) {
+      const who = describeWhoOver(maxSelfOver, maxPartOver);
+      if (withPartner) {
+        if (who) {
+          P.push(
+            `On the maximised-contributions path, ${who} is projected to exceed the ${sftTxt}. ` +
+            `From that point, additional savings may be more efficient in non-pension vehicles. ` +
+            `Consider balancing future saving between pension and diversified non-pension investments.`
+          );
+        } else if (maxCombinedOver) {
+          P.push(
+            `On the maximised-contributions path, your combined projected pensions exceed the aggregate SFT available across two people. ` +
+            `From that point, additional savings may be more efficient in non-pension vehicles. ` +
+            `Consider balancing future saving between pension and diversified non-pension investments.`
+          );
+        }
+      } else {
+        // Single-person: only per-person SFT applies
+        P.push(
+          `On the maximised-contributions path, your projected fund is at or above the ${sftTxt}. ` +
+          `From that point, additional savings may be more efficient in non-pension vehicles. ` +
+          `Consider balancing future saving between pension and diversified non-pension investments.`
+        );
+      }
+    }
+
+    // CASE B: Current path already breaches (per-person and/or combined)
+    if (curSelfOver || curPartOver || curCombinedOver) {
+      const who = describeWhoOver(curSelfOver, curPartOver);
+      if (withPartner) {
+        if (who) {
+          P.push(
+            `Under your current contributions, ${who} is projected to exceed the ${sftTxt}. ` +
+            `Additional savings may be more efficiently allocated to non-pension vehicles. ` +
+            `Consider balancing future contributions between pension and diversified non-pension investments.`
+          );
+        } else if (curCombinedOver) {
+          P.push(
+            `Under your current contributions, your combined projected pensions exceed the aggregate SFT available across two people. ` +
+            `Additional savings may be more efficiently allocated to non-pension vehicles. ` +
+            `Consider balancing future contributions between pension and diversified non-pension investments.`
+          );
+        }
+      } else {
+        P.push(
+          `Under your current contributions, your projected fund is at or above the ${sftTxt}. ` +
+          `Additional savings may be more efficiently allocated to non-pension vehicles. ` +
+          `Consider balancing future contributions between pension and diversified non-pension investments.`
+        );
+      }
+    }
+  }
+
+  if (nearSFT(potAtRetCurrent) || nearSFT(potAtRetMax)) {
+    P.push(`Your pension is approaching the SFT (${fmtEuro(sftThresholdForChecks)}). Keep an eye on total pension values and consider complementing pensions with non-pension investments to manage future tax exposure.`);
   }
   if (hasFFN && sftLimit != null && ffnCombined >= 1.2 * sftLimit) {
     P.push(`Because your FFN is substantially above the SFT, a purely pension-based route may not be the most efficient path. A coordinated strategy across pension and non-pension assets is likely required to reach the target efficiently.`);
