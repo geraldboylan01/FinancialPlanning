@@ -92,6 +92,7 @@ async function buildPdfRunSnapshotSafely() {
     );
 
     return {
+      // Existing
       desiredRetAge,
       ffnCombined,
       potAtRetCurrent,
@@ -100,6 +101,29 @@ async function buildPdfRunSnapshotSafely() {
       hasPartner,
       ageUser,
       agePartner,
+
+      // NEW — for narrative logic
+      // Growth: prefer wizard’s selected pensionGrowthRate, then lastWizard.growthRate, then projector’s growth, else 5%
+      growthRatePct:
+        (Number.isFinite(+lastWizard?.pensionGrowthRate) ? +lastWizard.pensionGrowthRate
+        : Number.isFinite(+lastWizard?.growthRate) ? +lastWizard.growthRate
+        : Number.isFinite(+lastPensionOutput?.growth) ? +lastPensionOutput.growth
+        : 0.05) * 100,
+
+      // SFT at retirement year if provided by projector, else compute
+      sftLimit:
+        (typeof lastPensionOutput?.sftLimit === 'number')
+          ? lastPensionOutput.sftLimit
+          : (Number.isFinite(+lastPensionOutput?.retirementYear) ? sftForYear(lastPensionOutput.retirementYear) : null),
+
+      // Risk profile (string label), if present
+      riskProfile:
+        lastFYOutput?._inputs?.pensionRisk
+        ?? lastWizard?.pensionRisk
+        ?? null,
+
+      // Echo retirement age (alias)
+      retAge: desiredRetAge
     };
   } catch (e) {
     console.warn('[PDF] Snapshot fallback failed:', e);
