@@ -261,7 +261,6 @@ function buildNarrativeSummary(p) {
   const below    = (v,t)=> (v!=null && t!=null ? v <  t : false);
   const atLeast  = (v,t)=> (v!=null && t!=null ? v >= t : false);
   const sftThresholdForChecks = sftLimit ?? (typeof sftPerPerson === 'number' ? sftPerPerson : null);
-  const nearSFT  = (v)=> (sftThresholdForChecks!=null && v!=null && v >= 0.9 * sftThresholdForChecks);
 
   // 1) Opening facts
   if (growthRatePct != null && hasFFN) {
@@ -349,14 +348,30 @@ function buildNarrativeSummary(p) {
     }
   }
 
-  if (nearSFT(potAtRetCurrent) || nearSFT(potAtRetMax)) {
-    P.push(`Your pension is approaching the SFT (${fmtEuro(sftThresholdForChecks)}). Keep an eye on total pension values and consider complementing pensions with non-pension investments to manage future tax exposure.`);
+  // 4) Approaching SFT — projected, not current
+  if (sftPerPerson) {
+    const threshold = sftPerPerson;
+    const nearLimitCurrent = typeof potAtRetCurrent === 'number' && isFinite(potAtRetCurrent)
+      ? (potAtRetCurrent >= 0.9 * threshold && potAtRetCurrent < threshold)
+      : false;
+    const nearLimitMax     = typeof potAtRetMax === 'number' && isFinite(potAtRetMax)
+      ? (potAtRetMax >= 0.9 * threshold && potAtRetMax < threshold)
+      : false;
+
+    if ((nearLimitCurrent || nearLimitMax) && !(curSelfOver || curPartOver || maxSelfOver || maxPartOver)) {
+      const label = withPartner ? 'your combined pensions' : 'your pension';
+      P.push(
+        `${label.charAt(0).toUpperCase() + label.slice(1)} is projected to approach the Standard Fund Threshold ` +
+        `(SFT: ${fmtEUR(threshold)}) by retirement. Keep an eye on total projected pension values and consider ` +
+        `complementing pensions with non-pension investments to manage future tax exposure.`
+      );
+    }
   }
   if (hasFFN && sftLimit != null && ffnCombined >= 1.2 * sftLimit) {
     P.push(`Because your FFN is substantially above the SFT, a purely pension-based route may not be the most efficient path. A coordinated strategy across pension and non-pension assets is likely required to reach the target efficiently.`);
   }
 
-  // 4) Salary & contribution assumptions (clear for both paths)
+  // 5) Salary & contribution assumptions (clear for both paths)
   P.push(
     `Assumptions on salary and contributions: we hold your salary constant. ` +
     `In the current-contribution path, your contribution rate is held constant. ` +
@@ -364,7 +379,7 @@ function buildNarrativeSummary(p) {
     `with the percentage stepping up only when you enter a higher age band.`
   );
 
-  // 5) Risk-profile nudge (only if max contributions still don't reach FFN and you’re not already at the top risk rate)
+  // 6) Risk-profile nudge (only if max contributions still don't reach FFN and you’re not already at the top risk rate)
   if (!maxReachesFFN && riskProfile && !isAtTopRisk) {
     P.push(
       `You may wish to review your investment risk profile. ` +
@@ -373,17 +388,17 @@ function buildNarrativeSummary(p) {
     );
   }
 
-  // 6) Partner micro-phrase
+  // 7) Partner micro-phrase
   if (hasPartner) {
     P.push(`Where a partner is included, coordinating contributions and drawdown across two pensions can reduce individual funding pressure and increase flexibility at retirement.`);
   }
 
-  // 7) Young saver micro-phrase
+  // 8) Young saver micro-phrase
   if (ageUser != null && ageUser < 35) {
     P.push(`Because you’re earlier in your career, compounding works strongly in your favour — even small contribution increases now can translate into significant gains over time.`);
   }
 
-  // 8) Irish retirement-age rules (final wording agreed)
+  // 9) Irish retirement-age rules (final wording agreed)
   if (retAge != null && retAge < 60) {
     P.push(`As your target retirement age is under 60, please note that in Ireland pensions can normally only be accessed earlier if you have left the employment linked to the scheme or meet specific early-retirement criteria. These projections assume you are eligible to do so, but individual circumstances may differ.`);
   }
@@ -394,7 +409,7 @@ function buildNarrativeSummary(p) {
     P.push(`All Irish pension funds are deemed vested by age 75, so projections beyond this point are illustrative only and not a realistic representation of benefit timing.`);
   }
 
-  // 9) Disclaimer
+  // 10) Disclaimer
   P.push(`These results are illustrative and do not constitute tax or financial advice. Please consider personalised guidance before making decisions.`);
 
   return P;
