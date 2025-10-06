@@ -450,6 +450,15 @@ function getSummaryParagraphs(run) {
   ];
 }
 
+// helper: compute line height (in doc units) for a given font size
+function _lh(doc, fontPt) {
+  const factor = (typeof doc.getLineHeightFactor === 'function')
+    ? doc.getLineHeightFactor()
+    : 1.15; // jsPDF default
+  // scaleFactor converts points to doc units (mm if you used 'mm')
+  return (fontPt * factor) / doc.internal.scaleFactor;
+}
+
 /**
  * Draw a styled "Summary" panel that auto-wraps text and continues to a new page if needed.
  * @param {jsPDF} doc
@@ -461,135 +470,88 @@ function getSummaryParagraphs(run) {
  * @returns {number} nextY after the panel (bottom Y you can continue from)
  */
 function drawSummaryPanel(doc, startX, startY, maxWidth, paragraphs, continued = false) {
+  const paras = Array.isArray(paragraphs) ? paragraphs : [];
   const pageH = doc.internal.pageSize.getHeight();
-  const innerW = Math.max(10, maxWidth - (PANEL_PAD_X * 2));
+  const pageW = doc.internal.pageSize.getWidth();
+
+  const innerW = maxWidth - (PANEL_PAD_X * 2);
   const title = continued ? 'Summary (continued)' : 'Summary';
 
-  const lineHeightTitle = 8;
-  const lineHeightBody  = 6;
-  const titleGap = 2;
-  const bottomLimit = pageH - PAGE_MARGIN;
+  // ensure a sane global line-height factor
+  if (typeof doc.setLineHeightFactor === 'function') doc.setLineHeightFactor(1.2);
 
-  let x = startX;
-  let y = startY;
+  // fonts & derived line heights
+  const titlePt = 13;
+  const bodyPt  = 11;
+  const lhTitle = _lh(doc, titlePt);
+  const lhBody  = _lh(doc, bodyPt);
+
+  let x = startX, y = startY;
   let cursorY = y + PANEL_PAD_Y;
-
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  const titleLines = doc.splitTextToSize(title, innerW);
-  const titleH = titleLines.length * lineHeightTitle;
-
-  const needsBody = paragraphs && paragraphs.length ? (lineHeightBody + BODY_LINE_GAP) : 0;
-  if (cursorY + titleH + needsBody + PANEL_PAD_Y > bottomLimit) {
-    doc.addPage();
-    drawBg(doc);
-    return drawSummaryPanel(doc, startX, PAGE_MARGIN, maxWidth, paragraphs, continued);
-  }
-
   const leftTextX = x + PANEL_PAD_X;
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
+  // measure title
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(titlePt);
+  const titleLines = doc.splitTextToSize(title, innerW);
+  const titleH = titleLines.length * lhTitle;
 
-  const measuredSegments = [];
-  let measuredBodyHeight = 0;
-  let consumedParagraphs = 0;
-  let remainderParagraph = null;
-
-  for (let i = 0; i < (paragraphs?.length || 0); i++) {
-    const para = paragraphs[i] || '';
-    const split = doc.splitTextToSize(para, innerW);
-    const paraHeight = split.length * lineHeightBody;
-    const prospectiveHeight = titleH + titleGap + measuredBodyHeight + paraHeight + BODY_LINE_GAP;
-
-    if (cursorY + prospectiveHeight + PANEL_PAD_Y > bottomLimit) {
-      const availableHeight = bottomLimit - (cursorY + titleH + titleGap + measuredBodyHeight + PANEL_PAD_Y);
-      if (availableHeight > 0) {
-        const maxLines = Math.floor(availableHeight / lineHeightBody);
-        if (maxLines > 0) {
-          const truncated = split.slice(0, maxLines);
-          if (truncated.length) {
-            measuredSegments.push({ lines: truncated, paragraphEnd: false });
-            measuredBodyHeight += truncated.length * lineHeightBody;
-            const remainderLines = split.slice(truncated.length);
-            if (remainderLines.length) {
-              const remainderText = remainderLines.join(' ').trim();
-              if (remainderText) {
-                remainderParagraph = remainderText;
-              }
-            }
-          }
-        }
-      }
-      break;
-    }
-
-    measuredSegments.push({ lines: split, paragraphEnd: true });
-    measuredBodyHeight += paraHeight + BODY_LINE_GAP;
-    consumedParagraphs = i + 1;
-  }
-
-  if (!measuredSegments.length && paragraphs?.length) {
+  // page break if needed (title + bottom padding)
+  if (cursorY + titleH + PANEL_PAD_Y > pageH - PAGE_MARGIN) {
     doc.addPage();
     drawBg(doc);
-    return drawSummaryPanel(doc, startX, PAGE_MARGIN, maxWidth, paragraphs, continued);
+    return drawSummaryPanel(doc, PAGE_MARGIN, PAGE_MARGIN, pageW - PAGE_MARGIN*2, paras, continued);
   }
 
-  const panelH = PANEL_PAD_Y + titleH + titleGap + measuredBodyHeight + PANEL_PAD_Y;
+  // measure how many paragraphs fit on this page segment
+  let measuredHeight = titleH;
+  const take = [];
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(bodyPt);
 
+  for (let i = 0; i < paras.length; i++) {
+    const para = paras[i] || '';
+    const lines = doc.splitTextToSize(para, innerW);
+    const h = (lines.length * lhBody) + BODY_LINE_GAP;
+
+    if (cursorY + titleH + h + PANEL_PAD_Y > pageH - PAGE_MARGIN) break;
+
+    take.push(lines);               // store the split lines we’ll actually render
+    measuredHeight += h;
+    cursorY += h;
+  }
+
+  // draw the panel background
+  const panelH = PANEL_PAD_Y + measuredHeight + PANEL_PAD_Y;
   const borderRGB = hexToRgb(THEME.border);
   const bgRGB = hexToRgb(THEME.bgPanel);
   doc.setDrawColor(borderRGB.r, borderRGB.g, borderRGB.b);
   doc.setFillColor(bgRGB.r, bgRGB.g, bgRGB.b);
   doc.roundedRect(x, y, maxWidth, panelH, PANEL_RADIUS, PANEL_RADIUS, 'FD');
 
+  // title
   const headingRGB = hexToRgb(THEME.heading);
-  doc.setTextColor(headingRGB.r, headingRGB.g, headingRGB.b);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(titlePt); doc.setTextColor(headingRGB.r, headingRGB.g, headingRGB.b);
+  let textY = y + PANEL_PAD_Y + lhTitle;
+  titleLines.forEach(ln => { doc.text(ln, leftTextX, textY); textY += lhTitle; });
 
-  let textY = y + PANEL_PAD_Y + lineHeightTitle;
-  titleLines.forEach((ln) => {
-    doc.text(ln, leftTextX, textY, { maxWidth: innerW, baseline: 'alphabetic' });
-    textY += lineHeightTitle;
-  });
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(11);
+  // body
+  textY += 2;
   const bodyRGB = hexToRgb(THEME.text);
-  doc.setTextColor(bodyRGB.r, bodyRGB.g, bodyRGB.b);
-  textY += titleGap;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(bodyPt); doc.setTextColor(bodyRGB.r, bodyRGB.g, bodyRGB.b);
 
-  measuredSegments.forEach((segment) => {
-    segment.lines.forEach((ln) => {
-      doc.text(ln, leftTextX, textY, { maxWidth: innerW, baseline: 'alphabetic' });
-      textY += lineHeightBody;
-    });
-    if (segment.paragraphEnd) {
-      textY += BODY_LINE_GAP;
-    }
-  });
-
-  const nextY = y + panelH + 10;
-
-  let remainingParagraphs = [];
-  if (remainderParagraph != null) {
-    remainingParagraphs = [remainderParagraph, ...paragraphs.slice(consumedParagraphs + 1)];
-  } else if (consumedParagraphs < (paragraphs?.length || 0)) {
-    remainingParagraphs = paragraphs.slice(consumedParagraphs);
+  for (let i = 0; i < take.length; i++) {
+    const lines = take[i];
+    lines.forEach(ln => { doc.text(ln, leftTextX, textY); textY += lhBody; });
+    textY += BODY_LINE_GAP; // paragraph spacing
   }
 
-  if (remainingParagraphs.length) {
+  const consumed = take.length;
+  const nextY = y + panelH + 10;
+
+  if (consumed < paras.length) {
+    // continue on next page
     doc.addPage();
     drawBg(doc);
-    return drawSummaryPanel(
-      doc,
-      startX,
-      PAGE_MARGIN,
-      maxWidth,
-      remainingParagraphs,
-      true
-    );
+    return drawSummaryPanel(doc, PAGE_MARGIN, PAGE_MARGIN, pageW - PAGE_MARGIN*2, paras.slice(consumed), true);
   }
 
   return nextY;
