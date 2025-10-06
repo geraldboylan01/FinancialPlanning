@@ -118,6 +118,257 @@ function safeCanvasToDataURL(id){
   const el = document.getElementById(id);
   try { return el ? el.toDataURL('image/png', 1.0) : null; } catch { return null; }
 }
+
+const SUMMARY_CARD_STYLE_ID = 'pdf-summary-card-style';
+const SUMMARY_CARD_CSS = `
+.summary-card {
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  padding: 12pt 14pt;
+  margin-top: 12pt;
+  background: rgba(255,255,255,0.04);
+  line-height: 1.45;
+  white-space: normal;
+  display: block;
+  position: static;
+}
+.summary-card h3 {
+  margin: 0 0 6pt 0;
+  font-size: 12pt;
+  color: #ffd27f;
+}
+.summary-card p { margin: 4pt 0 0 0; }
+`;
+
+function ensurePdfSummaryCardStyles(){
+  if (typeof document === 'undefined') return;
+  if (document.getElementById(SUMMARY_CARD_STYLE_ID)) return;
+  try {
+    const style = document.createElement('style');
+    style.id = SUMMARY_CARD_STYLE_ID;
+    style.textContent = SUMMARY_CARD_CSS;
+    document.head.appendChild(style);
+  } catch (err) {
+    console.warn('[PDF] Unable to inject summary-card styles:', err);
+  }
+}
+
+function fmtPct(x){ return (Math.round((x||0)*10)/10).toFixed(1) + '%'; }
+
+function drawdownShared({ incomePercent, CPI, retireAge, gRate }){
+  return [
+    `Income requirement: We take ${Math.round(incomePercent)}% of today’s household gross income, index it by ${fmtPct(CPI)} p.a. to age ${retireAge}, and then increase it by ${fmtPct(CPI)} each year in retirement.`,
+    `Growth continues: While withdrawals fund your lifestyle, the remaining pension is assumed to compound at ${fmtPct(gRate)} p.a. (long-term projection, not a guarantee).`
+  ];
+}
+
+function drawdownLead({ depleteAgeCurrent, depleteAgeMax, incomePercent, CPI, retireAge, gRate, hasPartner }){
+  const lasts = a => a == null || a >= 100;
+  const who = hasPartner ? 'household' : 'personal';
+
+  if (lasts(depleteAgeCurrent) && lasts(depleteAgeMax)) {
+    return [
+      `On both your current and maximised contribution paths, your pension is projected to fund your inflation-linked income need every year through age 100.`,
+      `Withdrawals meet your target (${Math.round(incomePercent)}% of today’s ${who} salary), indexed by ${fmtPct(CPI)} p.a., while the remaining balance compounds at ${fmtPct(gRate)} p.a.`
+    ];
+  }
+  if (!lasts(depleteAgeCurrent) && lasts(depleteAgeMax)) {
+    return [
+      `On current contributions, your pension is projected to deplete at age ${depleteAgeCurrent}. Maximising contributions is projected to remain funded through age 100 under the same assumptions.`,
+      `This highlights how higher, consistent saving plus time in the market can materially extend sustainability.`
+    ];
+  }
+  if (!lasts(depleteAgeCurrent) && !lasts(depleteAgeMax)) {
+    return [
+      `On current contributions, your pension is projected to deplete at age ${depleteAgeCurrent}; even at maximised contributions it is projected to deplete at age ${depleteAgeMax}.`,
+      `Reaching age 100 typically requires combining levers (e.g., contribution increases, retiring later, a lower income target, or—if suitable—higher investment risk).`
+    ];
+  }
+  // current lasts; max lasts (extra cushion)
+  return [
+    `Your current contribution path is projected to fund your inflation-linked income need through age 100. Maximising contributions adds further cushion and reduces model sensitivity to returns.`
+  ];
+}
+
+const yrDiff = (d, ref = new Date()) => (ref - d) / (1000*60*60*24*365.25);
+
+function incomeAtAgeBuilderPdf({
+  includeSP,
+  includePartnerSP,
+  rentAtRet,
+  hasDbSelf,
+  dbAnnualSelf,
+  dbStartAgeSelf,
+  hasDbPartner,
+  dbAnnualPartner,
+  dbStartAgePartner,
+  CPI,
+  STATE_PENSION,
+  SP_START
+}) {
+  return (age, partnerAge, tFromRet) => {
+    const infl = Math.pow(1 + CPI, tFromRet);
+    const rent = rentAtRet * infl;
+    const dbSelf = (hasDbSelf && age >= (dbStartAgeSelf ?? Infinity)) ? (dbAnnualSelf * infl) : 0;
+    const dbPartner = (hasDbPartner && partnerAge >= (dbStartAgePartner ?? Infinity)) ? (dbAnnualPartner * infl) : 0;
+
+    let sp = 0;
+    if (includeSP && age >= (SP_START ?? 66)) sp += STATE_PENSION;
+    if (includePartnerSP && partnerAge >= (SP_START ?? 66)) sp += STATE_PENSION;
+
+    return { rent, db: dbSelf + dbPartner, sp, otherTotal: rent + dbSelf + dbPartner + sp };
+  };
+}
+
+function simulateDrawdownPdf({
+  startPot,
+  retireAge,
+  endAge,
+  spendAtRet,
+  rentAtRet,
+  includeSP,
+  includePartnerSP,
+  partnerAgeAtRet,
+  hasDbSelf,
+  dbAnnualSelf,
+  dbStartAgeSelf,
+  hasDbPartner,
+  dbAnnualPartner,
+  dbStartAgePartner,
+  growthRate,
+  CPI,
+  STATE_PENSION,
+  SP_START
+}) {
+  const years = Math.max(0, Math.round(endAge - retireAge));
+  const ages = Array.from({length: years + 1}, (_, i) => retireAge + i);
+
+  const balances = [];
+  let bal = startPot;
+  const pensionDraw = [];
+  const otherInc = [];
+  const reqLine = [];
+
+  const incomeAtAge = incomeAtAgeBuilderPdf({
+    includeSP,
+    includePartnerSP,
+    rentAtRet,
+    hasDbSelf,
+    dbAnnualSelf,
+    dbStartAgeSelf,
+    hasDbPartner,
+    dbAnnualPartner,
+    dbStartAgePartner,
+    CPI,
+    STATE_PENSION,
+    SP_START
+  });
+
+  for (let i = 0; i <= years; i++) {
+    const age = retireAge + i;
+    const partnerAge = partnerAgeAtRet != null ? (partnerAgeAtRet + i) : -Infinity;
+    const infl = Math.pow(1 + CPI, i);
+    const spend = spendAtRet * infl;
+    const { otherTotal } = incomeAtAge(age, partnerAge, i);
+    const draw = Math.max(0, spend - Math.min(otherTotal, spend));
+
+    balances.push(Math.max(0, Math.round(bal)));
+    reqLine.push(Math.round(spend));
+    pensionDraw.push(Math.round(draw));
+    otherInc.push(Math.round(Math.min(otherTotal, spend)));
+
+    bal = bal * (1 + growthRate) - draw;
+    if (bal < 0) bal = 0;
+  }
+
+  let depleteAge = null;
+  for (let i = 1; i < balances.length; i++) {
+    if (balances[i] === 0) { depleteAge = ages[i]; break; }
+  }
+
+  return { ages, balances, pensionDraw, otherInc, reqLine, depleteAge };
+}
+
+function computeDepleteAgesFallback({
+  retAge,
+  gRate,
+  CPI,
+  incomePercent,
+  potAtRetCurrent,
+  potAtRetMax,
+  run,
+  assumptions
+}) {
+  try {
+    const inputs = window.lastFYOutput?._inputs || {};
+    const num = (v, fb = null) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : fb;
+    };
+
+    const now = new Date();
+    const userAge = num(run?.ageUser, inputs?.dob ? Math.floor(yrDiff(new Date(inputs.dob), now)) : null);
+    const partnerAgeInput = inputs?.partnerDob ? Math.floor(yrDiff(new Date(inputs.partnerDob), now)) : null;
+    const partnerAge = num(run?.agePartner, partnerAgeInput);
+    const yrsToRet = Math.max(0, (retAge ?? 0) - (userAge ?? retAge ?? 0));
+    const partnerAgeAtRet = partnerAge != null ? (partnerAge + yrsToRet) : (partnerAgeInput != null ? partnerAgeInput + yrsToRet : null);
+
+    const grossIncome = num(inputs?.grossIncome, 0);
+    const spendBase = grossIncome * ((incomePercent ?? 0) / 100);
+    const spendAtRet = spendBase * Math.pow(1 + CPI, yrsToRet);
+
+    const rentNow = num(inputs?.rentalIncomeNow, num(inputs?.rentalIncome, 0));
+    const rentAtRet = rentNow * Math.pow(1 + CPI, yrsToRet);
+
+    const includeSP = !!(inputs?.statePensionSelf || inputs?.statePension);
+    const includePartnerSP = !!(inputs?.statePensionPartner || inputs?.partnerStatePension);
+    const hasDbSelf = !!(inputs?.hasDbSelf || inputs?.hasDb);
+    const dbAnnualSelf = num(inputs?.dbPensionSelf, num(inputs?.dbPension, 0));
+    const dbStartAgeSelf = num(inputs?.dbStartAgeSelf, num(inputs?.dbStartAge, Infinity));
+    const hasDbPartner = !!inputs?.hasDbPartner;
+    const dbAnnualPartner = num(inputs?.dbPensionPartner, 0);
+    const dbStartAgePartner = num(inputs?.dbStartAgePartner, Infinity);
+
+    const statePension = num(assumptions?.STATE_PENSION, num(window.STATE_PENSION, 0));
+    const spStart = num(assumptions?.SP_START, num(window.SP_START, 66));
+
+    const base = {
+      retireAge: retAge,
+      endAge: 100,
+      spendAtRet,
+      rentAtRet,
+      includeSP,
+      includePartnerSP,
+      partnerAgeAtRet,
+      hasDbSelf,
+      dbAnnualSelf,
+      dbStartAgeSelf,
+      hasDbPartner,
+      dbAnnualPartner,
+      dbStartAgePartner,
+      growthRate: gRate,
+      CPI,
+      STATE_PENSION: statePension,
+      SP_START: spStart
+    };
+
+    const result = { current: null, max: null };
+
+    if (Number.isFinite(potAtRetCurrent)) {
+      const simCur = simulateDrawdownPdf({ ...base, startPot: Math.max(0, potAtRetCurrent) });
+      result.current = simCur?.depleteAge ?? null;
+    }
+    if (Number.isFinite(potAtRetMax)) {
+      const simMax = simulateDrawdownPdf({ ...base, startPot: Math.max(0, potAtRetMax) });
+      result.max = simMax?.depleteAge ?? null;
+    }
+
+    return result;
+  } catch (err) {
+    console.warn('[PDF] Drawdown simulation fallback failed:', err);
+    return { current: null, max: null };
+  }
+}
 async function imageToDataURL(url){
   return new Promise((resolve,reject)=>{
     const img = new Image(); img.crossOrigin='anonymous';
@@ -164,6 +415,8 @@ async function exportChartsForMode(mode /* 'current' | 'max' */){
     cashflow: safeCanvasToDataURL('ddCashflowChart'),
   };
 
+  const depleteAge = extractDepleteAgeFromBalanceChart(window.fmCharts?.balance);
+
   // restore previous mode
   if (prevUseMax !== targetUseMax) {
     window.__USE_MAX__ = prevUseMax;
@@ -171,7 +424,7 @@ async function exportChartsForMode(mode /* 'current' | 'max' */){
     await rebuildCharts();
     await nextFrame();
   }
-  return imgs;
+  return { ...imgs, depleteAge };
 }
 
 function extractPotAtRetAgeFromChart(){
@@ -184,15 +437,21 @@ function extractPotAtRetAgeFromChart(){
   const val = Array.isArray(ds?.data) ? ds.data[lastIdx] : null;
   return (typeof val === 'number') ? val : null;
 }
-function extractDepleteAgeFromBalanceChart(){
-  const ch = window.fmCharts?.balance;
+function extractDepleteAgeFromBalanceChart(chart){
+  const ch = chart || window.fmCharts?.balance;
   if (!ch) return null;
   const ds = ch.data?.datasets?.[0];
   const labels = ch.data?.labels || [];
   if (!Array.isArray(ds?.data)) return null;
   for (let i=0;i<ds.data.length;i++){
     if (typeof ds.data[i] === 'number' && ds.data[i] <= 0) {
-      return labels?.[i] ?? null;
+      const label = labels?.[i];
+      if (typeof label === 'number' && Number.isFinite(label)) return label;
+      if (typeof label === 'string') {
+        const match = label.match(/(\d{2,3}|\d+)/);
+        if (match) return Number(match[1]);
+      }
+      return null;
     }
   }
   return null;
@@ -572,6 +831,57 @@ function drawSummaryPanel(doc, startX, startY, maxWidth, paragraphs, continued =
   return nextY;
 }
 
+function drawSummaryCardBlock(doc, x, y, width, heading, paragraphs){
+  ensurePdfSummaryCardStyles();
+  const padX = 14;
+  const padY = 12;
+  const headingPt = 12;
+  const bodyPt = 11;
+  const headingLH = headingPt * 1.45;
+  const bodyLH = bodyPt * 1.45;
+  const innerW = width - (padX * 2);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(headingPt);
+  const headingLines = doc.splitTextToSize(String(heading ?? ''), innerW);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(bodyPt);
+  const bodyArrays = (Array.isArray(paragraphs) ? paragraphs : []).map(p => doc.splitTextToSize(String(p ?? ''), innerW));
+
+  let cardH = padY * 2;
+  if (headingLines.length) cardH += headingLines.length * headingLH + 6;
+  bodyArrays.forEach((lines, idx) => {
+    if (lines.length) {
+      if (idx > 0 || headingLines.length) cardH += 4;
+      cardH += lines.length * bodyLH;
+    }
+  });
+
+  doc.setDrawColor(255,255,255);
+  doc.setLineWidth(0.75);
+  doc.setFillColor(38,38,38);
+  doc.roundedRect(x, y, width, cardH, 8, 8, 'FD');
+
+  let cursorY = y + padY;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(headingPt);
+  doc.setTextColor(255, 210, 127);
+  headingLines.forEach((line, idx) => doc.text(line, x + padX, cursorY + idx * headingLH));
+  cursorY += headingLines.length ? (headingLines.length * headingLH + 6) : 0;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(bodyPt);
+  doc.setTextColor(255, 255, 255);
+  bodyArrays.forEach((lines, idx) => {
+    if (!lines.length) return;
+    if (idx > 0 || headingLines.length) cursorY += 4;
+    lines.forEach((line, lineIdx) => doc.text(line, x + padX, cursorY + lineIdx * bodyLH));
+    cursorY += lines.length * bodyLH;
+  });
+
+  return y + cardH;
+}
+
 export async function buildFullMontyPDF(run){
   try {
     await _buildFullMontyPDF(run);
@@ -604,10 +914,51 @@ async function _buildFullMontyPDF(run){
 
   const potAtRetCurrent = (typeof run?.potAtRetCurrent === 'number') ? run.potAtRetCurrent
                            : extractPotAtRetAgeFromChart();
-  const potAtRetMax     = (typeof run?.potAtRetMax === 'number') ? run.potAtRetMax : null;
+  const maxBalancesArr = window?.lastPensionOutput?.maxBalances;
+  const potAtRetMax     = (typeof run?.potAtRetMax === 'number') ? run.potAtRetMax
+                           : (Array.isArray(maxBalancesArr) && maxBalancesArr.length
+                              ? Number(maxBalancesArr[maxBalancesArr.length - 1]?.value) || null
+                              : null);
 
-  const depleteAgeCurrent = extractDepleteAgeFromBalanceChart();
+  let depleteAgeCurrent = Number.isFinite(currentImgs?.depleteAge) ? currentImgs.depleteAge : null;
+  let depleteAgeMax = Number.isFinite(maxImgs?.depleteAge) ? maxImgs.depleteAge : null;
   const coveragePctYear1  = extractYear1IncomeCoverage();
+
+  const assumptions = run?.assumptions || window?.ASSUMPTIONS_TABLE_CONSTANT || window?.ASSUMPTIONS || window?.assumptions || {};
+  const CPI = Number.isFinite(+assumptions?.CPI)
+    ? +assumptions.CPI
+    : (typeof window?.CPI === 'number' ? window.CPI : 0.02);
+
+  const wizardState = window.lastWizard || {};
+  const resolvedGrowthRate =
+    (Number.isFinite(+run?.growthRate) ? +run.growthRate
+    : Number.isFinite(+run?.growthRatePct) ? (+run.growthRatePct / 100)
+    : Number.isFinite(+wizardState?.growthRate) ? +wizardState.growthRate
+    : 0.05);
+  const gRate = resolvedGrowthRate;
+
+  const lastFYOutputGlobal = window.lastFYOutput || null;
+  const incomePercent = Number.isFinite(+(lastFYOutputGlobal?._inputs?.incomePercent))
+    ? +(lastFYOutputGlobal._inputs.incomePercent)
+    : 70;
+
+  if (!Number.isFinite(depleteAgeCurrent)) depleteAgeCurrent = null;
+  if (!Number.isFinite(depleteAgeMax)) depleteAgeMax = null;
+
+  if (depleteAgeCurrent == null || depleteAgeMax == null) {
+    const fallback = computeDepleteAgesFallback({
+      retAge,
+      gRate,
+      CPI,
+      incomePercent,
+      potAtRetCurrent,
+      potAtRetMax,
+      run,
+      assumptions
+    });
+    if (depleteAgeCurrent == null && fallback.current != null) depleteAgeCurrent = fallback.current;
+    if (depleteAgeMax == null && fallback.max != null) depleteAgeMax = fallback.max;
+  }
 
   // ---------- Page 1: Cover (no footer) ----------
   drawBg(doc);
@@ -737,6 +1088,26 @@ async function _buildFullMontyPDF(run){
   placeChartImage(doc, maxImgs.balance, rightX4 + 16, yMax, colW - 32, 188);
   yMax += 188 + 12;
   writeParagraph(doc, 'With max contributions, projected balance under the same post-retirement assumptions.', rightX4 + 16, yMax, colW - 32, { size:11 });
+
+  const hasPartnerFlag = !!(run?.hasPartner ?? wizardState?.hasPartner);
+  const lead = drawdownLead({
+    depleteAgeCurrent,
+    depleteAgeMax,
+    incomePercent,
+    CPI: CPI * 100,
+    retireAge: retAge,
+    gRate: gRate * 100,
+    hasPartner: hasPartnerFlag
+  });
+  const shared = drawdownShared({
+    incomePercent,
+    CPI: CPI * 100,
+    retireAge: retAge,
+    gRate: gRate * 100
+  });
+  const summaryBody = [...lead, ...shared, 'These results are illustrative and do not constitute tax or financial advice. Please consider personalised guidance before making decisions.'];
+  const summaryStartY = cardTop4 + cardH4 + 24;
+  drawSummaryCardBlock(doc, M, summaryStartY, W - 2*M, 'Summary', summaryBody);
 
   // ---------- Page 5: DURING RET — STORY (Current) ----------
   doc.addPage(); drawBg(doc);
