@@ -1213,24 +1213,23 @@ async function _buildFullMontyPDF(run){
 
   // ---------- Save ----------
   const filename = 'Planeir_Full-Monty_Report.pdf';
+
+  // Try normal download first
+  let saveFailed = false;
   try {
-    // Primary path for desktop + most Android
     doc.save(filename);
   } catch (_) {
-    // fall through
+    saveFailed = true;
   }
 
-  // iOS/Safari often ignores programmatic downloads after async work.
-  // Open a blob URL in a (new) tab so the user gets a viewer/download.
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-  if (isIOS) {
-    const url = doc.output('bloburl');
-    const win = window.open(url, '_blank');
-    if (!win) {
-      // if popups are blocked, at least navigate current tab
-      window.location.href = url;
+  // Only if the save threw an error, provide a SAME-TAB fallback.
+  // (No new window; this navigates current tab to the PDF blob viewer.)
+  if (saveFailed) {
+    try {
+      const url = doc.output('bloburl');
+      window.location.href = url; // same-tab open of the PDF viewer
+    } catch (e) {
+      console.error('[PDF] Fallback blob navigation failed:', e);
     }
   }
 }
