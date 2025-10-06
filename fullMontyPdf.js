@@ -30,6 +30,13 @@ const ACCENT_GREEN = '#00ff88';
 const ACCENT_CYAN  = '#0099ff';
 const COVER_GOLD   = '#BBA26F';
 
+function isIOSLike() {
+  const ua = navigator.userAgent || '';
+  const plt = navigator.platform || '';
+  const touchMac = plt === 'MacIntel' && navigator.maxTouchPoints > 1;
+  return /iPad|iPhone|iPod/.test(ua) || touchMac;
+}
+
 // ===== Summary panel constants =====
 const THEME = {
   bgPanel:  '#121417',
@@ -1213,24 +1220,35 @@ async function _buildFullMontyPDF(run){
 
   // ---------- Save ----------
   const filename = 'Planeir_Full-Monty_Report.pdf';
-  try {
-    // Primary path for desktop + most Android
-    doc.save(filename);
-  } catch (_) {
-    // fall through
-  }
 
-  // iOS/Safari often ignores programmatic downloads after async work.
-  // Open a blob URL in a (new) tab so the user gets a viewer/download.
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-  if (isIOS) {
-    const url = doc.output('bloburl');
-    const win = window.open(url, '_blank');
-    if (!win) {
-      // if popups are blocked, at least navigate current tab
-      window.location.href = url;
+  if (isIOSLike()) {
+    // iOS/iPadOS Safari: reliably show PDF by navigating SAME TAB to a blob URL.
+    // No new window; users can "Share" or "Save to Files" from the viewer.
+    try {
+      const url = doc.output('bloburl');
+      // Use assign to keep back-button behaviour consistent
+      window.location.assign(url);
+    } catch (e) {
+      console.error('[PDF] iOS same-tab blob fallback failed:', e);
+      // Last-resort: try a normal save (might work on rare builds)
+      try { doc.save(filename); } catch {}
+    }
+  } else {
+    // Non-iOS: try normal download first
+    let savedOk = true;
+    try {
+      doc.save(filename);
+    } catch (e) {
+      savedOk = false;
+    }
+    // If save threw, fallback to SAME-TAB blob viewer (still no new tab)
+    if (!savedOk) {
+      try {
+        const url = doc.output('bloburl');
+        window.location.assign(url);
+      } catch (e2) {
+        console.error('[PDF] Non-iOS blob fallback failed:', e2);
+      }
     }
   }
 }
