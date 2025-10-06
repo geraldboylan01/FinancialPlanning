@@ -1593,7 +1593,13 @@ document.addEventListener('DOMContentLoaded', () => {
   try { window.renderMaxContributionTable?.(_currentFMStore()); } catch(e){}
 });
 
-// --- Robust rebind: supports multiple layouts/IDs, iOS taps, and late renders
+// Choose a single activation event to avoid pointerup→click double fires
+const ACTIVATE_EVT = ('onpointerup' in window) ? 'pointerup' : 'click';
+
+// Global in-flight guard to prevent duplicate PDF builds from the same tap
+let _pdfBuildInFlight = false;
+
+// --- Robust rebind: supports multiple layouts/IDs and late renders, single event only
 function rebindGeneratePdfButton() {
   const selectors = '#btnGeneratePDF, [data-action="generate-pdf"], .js-generate-pdf';
   const candidates = Array.from(document.querySelectorAll(selectors));
@@ -1602,8 +1608,7 @@ function rebindGeneratePdfButton() {
   if (!candidates.length) {
     if (!rebindGeneratePdfButton._delegated) {
       rebindGeneratePdfButton._delegated = true;
-      document.addEventListener('click', onGeneratePdfDelegated, true);
-      document.addEventListener('pointerup', onGeneratePdfDelegated, true); // iOS friendly
+      document.addEventListener(ACTIVATE_EVT, onGeneratePdfDelegated, true);
     }
     return;
   }
@@ -1614,9 +1619,8 @@ function rebindGeneratePdfButton() {
     const fresh = btn.cloneNode(true);
     btn.parentNode.replaceChild(fresh, btn);
 
-    // Prefer pointerup for iOS; also keep click as a fallback
-    fresh.addEventListener('pointerup', handleGeneratePdfTap, { passive: true });
-    fresh.addEventListener('click', handleGeneratePdfTap);
+    // Bind only ONE event (pointerup OR click)
+    fresh.addEventListener(ACTIVATE_EVT, handleGeneratePdfTap);
   });
 }
 
@@ -1629,7 +1633,12 @@ function onGeneratePdfDelegated(ev) {
 
 async function handleGeneratePdfTap(e) {
   // prevent accidental navigation/submit
-  if (e) { e.preventDefault?.(); e.stopPropagation?.(); }
+  e?.preventDefault?.();
+  e?.stopPropagation?.();
+
+  // De-dupe: if a previous tap is still building, ignore
+  if (_pdfBuildInFlight) return;
+  _pdfBuildInFlight = true;
 
   // Optional: open a holder tab immediately on iOS to preserve activation
   let holderWin = null;
@@ -1642,13 +1651,14 @@ async function handleGeneratePdfTap(e) {
   document.body.classList.add('pdf-exporting');
   try {
     const run = window.latestRun || (await buildPdfRunSnapshotSafely());
-    await buildFullMontyPDF(run); // iOS blob-url fallback lives inside fullMontyPdf.js
+    await buildFullMontyPDF(run); // iOS blob-url fallback lives in fullMontyPdf.js
   } catch (err) {
     console.error('[PDF] Failed to generate:', err);
     alert('Sorry — something interrupted PDF generation. Please try again.\n(Details in console)');
     try { holderWin?.close(); } catch {}
   } finally {
     document.body.classList.remove('pdf-exporting');
+    _pdfBuildInFlight = false; // allow another tap after completion
   }
 }
 
