@@ -1640,25 +1640,18 @@ async function handleGeneratePdfTap(e) {
   if (_pdfBuildInFlight) return;
   _pdfBuildInFlight = true;
 
-  // Optional: open a holder tab immediately on iOS to preserve activation
-  let holderWin = null;
-  try {
-    const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    if (isiOS) holderWin = window.open('about:blank', '_blank');
-  } catch {}
+  // 🚫 Removed: no more about:blank holder tab
 
   document.body.classList.add('pdf-exporting');
   try {
     const run = window.latestRun || (await buildPdfRunSnapshotSafely());
-    await buildFullMontyPDF(run); // iOS blob-url fallback lives in fullMontyPdf.js
+    await buildFullMontyPDF(run); // save logic lives in fullMontyPdf.js
   } catch (err) {
     console.error('[PDF] Failed to generate:', err);
     alert('Sorry — something interrupted PDF generation. Please try again.\n(Details in console)');
-    try { holderWin?.close(); } catch {}
   } finally {
     document.body.classList.remove('pdf-exporting');
-    _pdfBuildInFlight = false; // allow another tap after completion
+    _pdfBuildInFlight = false;
   }
 }
 
