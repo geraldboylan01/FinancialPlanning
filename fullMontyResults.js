@@ -1593,30 +1593,63 @@ document.addEventListener('DOMContentLoaded', () => {
   try { window.renderMaxContributionTable?.(_currentFMStore()); } catch(e){}
 });
 
-// --- Rebind helper: removes all old listeners by cloning the node
+// --- Robust rebind: supports multiple layouts/IDs, iOS taps, and late renders
 function rebindGeneratePdfButton() {
-  const btn = document.getElementById('btnGeneratePDF');
-  if (!btn) return;
+  const selectors = '#btnGeneratePDF, [data-action="generate-pdf"], .js-generate-pdf';
+  const candidates = Array.from(document.querySelectorAll(selectors));
 
-  // Replace node to drop any existing listeners (including the legacy aborting one)
-  const fresh = btn.cloneNode(true);
-  btn.parentNode.replaceChild(fresh, btn);
-
-  fresh.addEventListener('click', async () => {
-    // Use latest snapshot or build one on the fly
-    const run = window.latestRun || (await buildPdfRunSnapshotSafely());
-
-    // Non-destructive overlay (we no longer hide the DOM)
-    document.body.classList.add('pdf-exporting');
-    try {
-      await buildFullMontyPDF(run);
-    } catch (err) {
-      console.error('[PDF] Failed to generate:', err);
-      alert('Sorry — something interrupted PDF generation. Please try again.\n(Details in console)');
-    } finally {
-      document.body.classList.remove('pdf-exporting');
+  // If nothing yet, install a delegated listener once (handles late mounts)
+  if (!candidates.length) {
+    if (!rebindGeneratePdfButton._delegated) {
+      rebindGeneratePdfButton._delegated = true;
+      document.addEventListener('click', onGeneratePdfDelegated, true);
+      document.addEventListener('pointerup', onGeneratePdfDelegated, true); // iOS friendly
     }
+    return;
+  }
+
+  // Bind all candidates directly; replace node to drop stale handlers
+  candidates.forEach((btn) => {
+    if (btn.tagName === 'BUTTON' && btn.type !== 'button') btn.type = 'button'; // avoid form submits
+    const fresh = btn.cloneNode(true);
+    btn.parentNode.replaceChild(fresh, btn);
+
+    // Prefer pointerup for iOS; also keep click as a fallback
+    fresh.addEventListener('pointerup', handleGeneratePdfTap, { passive: true });
+    fresh.addEventListener('click', handleGeneratePdfTap);
   });
+}
+
+function onGeneratePdfDelegated(ev) {
+  const btn = ev.target && ev.target.closest
+    ? ev.target.closest('#btnGeneratePDF, [data-action="generate-pdf"], .js-generate-pdf')
+    : null;
+  if (btn) handleGeneratePdfTap(ev);
+}
+
+async function handleGeneratePdfTap(e) {
+  // prevent accidental navigation/submit
+  if (e) { e.preventDefault?.(); e.stopPropagation?.(); }
+
+  // Optional: open a holder tab immediately on iOS to preserve activation
+  let holderWin = null;
+  try {
+    const isiOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isiOS) holderWin = window.open('about:blank', '_blank');
+  } catch {}
+
+  document.body.classList.add('pdf-exporting');
+  try {
+    const run = window.latestRun || (await buildPdfRunSnapshotSafely());
+    await buildFullMontyPDF(run); // iOS blob-url fallback lives inside fullMontyPdf.js
+  } catch (err) {
+    console.error('[PDF] Failed to generate:', err);
+    alert('Sorry — something interrupted PDF generation. Please try again.\n(Details in console)');
+    try { holderWin?.close(); } catch {}
+  } finally {
+    document.body.classList.remove('pdf-exporting');
+  }
 }
 
 // Bind on DOM ready and after your renderer fires (so re-renders keep the right listener)

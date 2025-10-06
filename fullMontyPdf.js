@@ -1,14 +1,29 @@
 // fullMontyPdf.js
 // Requires jsPDF (global window.jspdf.jsPDF or dynamic import) and (optionally) jspdf-autotable
 
-let jsPDFCtor = null;
-try {
-  const m = await import('jspdf');
-  jsPDFCtor = m.jsPDF || m.default || window.jspdf?.jsPDF;
-} catch(_) {
-  jsPDFCtor = window.jspdf?.jsPDF;
+let __jsPDFCtorPromise;
+
+function ensureJsPDF() {
+  if (!__jsPDFCtorPromise) {
+    __jsPDFCtorPromise = (async () => {
+      // Prefer global (if jspdf was loaded by <script src="...">)
+      if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
+
+      // Try dynamic import (works when this file is type="module" on modern Safari/Chrome)
+      try {
+        const m = await import('jspdf');
+        const ctor = m.jsPDF || m.default;
+        if (ctor) return ctor;
+      } catch (_) { /* ignore and fall back */ }
+
+      // Fallback to global again (in case it was injected later)
+      if (window.jspdf?.jsPDF) return window.jspdf.jsPDF;
+
+      throw new Error('jsPDF not found — include it via <script> or make this file a module.');
+    })();
+  }
+  return __jsPDFCtorPromise;
 }
-if (!jsPDFCtor) throw new Error('jsPDF not found — ensure jspdf is loaded.');
 
 const BG_DARK      = '#1a1a1a';
 const ACCENT_GREEN = '#00ff88';
@@ -567,7 +582,8 @@ export async function buildFullMontyPDF(run){
 }
 
 async function _buildFullMontyPDF(run){
-  const doc = new jsPDFCtor({ unit:'pt', format:'a4' });
+  const JsPDF = await ensureJsPDF();
+  const doc = new JsPDF({ unit:'pt', format:'a4' });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
   const M = 56;
@@ -825,6 +841,26 @@ async function _buildFullMontyPDF(run){
   writeParagraph(doc, 'Note: Table shows personal age-related limits. Employer contributions are not subject to this €115,000 cap.', M + colW6 + colGap, yB, colW6, { size:10, color:'#CCCCCC' });
 
   // ---------- Save ----------
-  doc.save('Planeir_Full-Monty_Report.pdf');
+  const filename = 'Planeir_Full-Monty_Report.pdf';
+  try {
+    // Primary path for desktop + most Android
+    doc.save(filename);
+  } catch (_) {
+    // fall through
+  }
+
+  // iOS/Safari often ignores programmatic downloads after async work.
+  // Open a blob URL in a (new) tab so the user gets a viewer/download.
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  if (isIOS) {
+    const url = doc.output('bloburl');
+    const win = window.open(url, '_blank');
+    if (!win) {
+      // if popups are blocked, at least navigate current tab
+      window.location.href = url;
+    }
+  }
 }
 
