@@ -891,7 +891,7 @@ function drawSummaryCardBlock(doc, x, y, width, heading, paragraphs){
 
 export async function buildFullMontyPDF(run){
   try {
-    await _buildFullMontyPDF(run);
+    return await _buildFullMontyPDF(run);
   } catch (err) {
     console.error('[PDF] Failed to generate:', err);
     throw err; // caller shows alert
@@ -1218,38 +1218,35 @@ async function _buildFullMontyPDF(run){
   })();
   writeParagraph(doc, 'Note: Table shows personal age-related limits. Employer contributions are not subject to this €115,000 cap.', M + colW6 + colGap, yB, colW6, { size:10, color:'#CCCCCC' });
 
-  // ---------- Save ----------
+  // ---------- Save & Return ----------
   const filename = 'Planeir_Full-Monty_Report.pdf';
+  const pdfBlob = doc.output('blob');
+
+  let result = { blob: pdfBlob, filename, url: null, mode: 'unknown' };
 
   if (isIOSLike()) {
-    // iOS/iPadOS Safari: reliably show PDF by navigating SAME TAB to a blob URL.
-    // No new window; users can "Share" or "Save to Files" from the viewer.
-    try {
-      const url = doc.output('bloburl');
-      // Use assign to keep back-button behaviour consistent
-      window.location.assign(url);
-    } catch (e) {
-      console.error('[PDF] iOS same-tab blob fallback failed:', e);
-      // Last-resort: try a normal save (might work on rare builds)
-      try { doc.save(filename); } catch {}
-    }
+    // iOS/iPadOS: open viewer in SAME TAB so user can Share/Save
+    const url = URL.createObjectURL(pdfBlob);
+    result.url = url;
+    result.mode = 'ios-view';
+    window.location.assign(url);
   } else {
-    // Non-iOS: try normal download first
+    // Desktop/Android: try normal download first
     let savedOk = true;
     try {
       doc.save(filename);
+      result.mode = 'download';
     } catch (e) {
       savedOk = false;
     }
-    // If save threw, fallback to SAME-TAB blob viewer (still no new tab)
     if (!savedOk) {
-      try {
-        const url = doc.output('bloburl');
-        window.location.assign(url);
-      } catch (e2) {
-        console.error('[PDF] Non-iOS blob fallback failed:', e2);
-      }
+      const url = URL.createObjectURL(pdfBlob);
+      result.url = url;
+      result.mode = 'blob-view';
+      window.location.assign(url);
     }
   }
+
+  return result;
 }
 

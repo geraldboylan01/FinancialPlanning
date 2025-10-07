@@ -7,6 +7,134 @@ import { buildFullMontyPDF } from './fullMontyPdf.js';
 // ===== PDF SNAPSHOT UTILITIES =====
 window.latestRun = window.latestRun || null;
 
+async function sharePdfFile(blob, filename) {
+  try {
+    const file = new File([blob], filename, { type: 'application/pdf' });
+
+    // Prefer canShare(files) (iOS/Android modern)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'Planéir Report',
+        text: 'My Full-Monty report.'
+      });
+      return true;
+    }
+
+    // Fallback: if only URL sharing is supported and we have a viewer URL
+    if (navigator.share) {
+      // Caller may pass a url; we’ll accept it as a param in the wrapper below
+      return false; // let caller try url share if they want
+    }
+  } catch (err) {
+    // User cancelled or share failed — treat as unsupported so we show other options
+    console.warn('Share failed/cancelled:', err);
+  }
+  return false;
+}
+
+function showSharePanel({ blob, filename, url }) {
+  let panel = document.getElementById('pdf-share-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'pdf-share-panel';
+    panel.style.position = 'fixed';
+    panel.style.left = '50%';
+    panel.style.bottom = '16px';
+    panel.style.transform = 'translateX(-50%)';
+    panel.style.zIndex = '9999';
+    panel.style.background = 'rgba(20,20,20,0.96)';
+    panel.style.color = '#fff';
+    panel.style.border = '1px solid rgba(255,255,255,0.12)';
+    panel.style.borderRadius = '10px';
+    panel.style.padding = '10px 12px';
+    panel.style.display = 'flex';
+    panel.style.gap = '8px';
+    panel.style.flexWrap = 'wrap';
+    panel.style.fontSize = '14px';
+
+    const mkBtn = (label) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.style.background = '#2b2f36';
+      b.style.border = '1px solid #3a3f47';
+      b.style.color = '#ffffff';
+      b.style.borderRadius = '8px';
+      b.style.padding = '8px 10px';
+      b.style.cursor = 'pointer';
+      b.style.fontSize = '13px';
+      b.style.lineHeight = '1';
+      return b;
+    };
+
+    const shareBtn = mkBtn('Share…');
+    shareBtn.id = 'pdfShareBtn';
+    const dlBtn = mkBtn('Download again');
+    dlBtn.id = 'pdfDownloadBtn';
+    const closeBtn = mkBtn('Close');
+
+    panel.append('Your PDF is ready:', shareBtn, dlBtn, closeBtn);
+    document.body.appendChild(panel);
+
+    closeBtn.addEventListener('click', () => panel.remove());
+
+    dlBtn.addEventListener('click', () => {
+      try {
+        const a = document.createElement('a');
+        const urlAgain = URL.createObjectURL(blob);
+        a.href = urlAgain;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(urlAgain), 4000);
+      } catch (e) {
+        console.error('Download again failed:', e);
+      }
+    });
+
+    shareBtn.addEventListener('click', async () => {
+      const ok = await sharePdfFile(blob, filename);
+      if (!ok && navigator.share && url) {
+        try { await navigator.share({ title: 'Planéir Report', url }); } catch {}
+      } else if (!ok) {
+        alert('Sharing this file is not supported on this device/browser.');
+      }
+    });
+  } else {
+    // Rewire share button with the newest blob/url
+    const shareBtn = panel.querySelector('#pdfShareBtn');
+    if (shareBtn) {
+      shareBtn.onclick = async () => {
+        const ok = await sharePdfFile(blob, filename);
+        if (!ok && navigator.share && url) {
+          try { await navigator.share({ title: 'Planéir Report', url }); } catch {}
+        } else if (!ok) {
+          alert('Sharing this file is not supported on this device/browser.');
+        }
+      };
+    }
+    const dlBtn = panel.querySelector('#pdfDownloadBtn');
+    if (dlBtn) {
+      dlBtn.onclick = () => {
+        try {
+          const a = document.createElement('a');
+          const urlAgain = URL.createObjectURL(blob);
+          a.href = urlAgain;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(urlAgain), 4000);
+        } catch (e) {
+          console.error('Download again failed:', e);
+        }
+      };
+    }
+  }
+}
+
 /**
  * Try to read a number from a DOM node's text (e.g. "65" or "Age 65")
  */
@@ -1641,7 +1769,11 @@ async function handleGeneratePdfTap(e) {
   document.body.classList.add('pdf-exporting');
   try {
     const run = window.latestRun || (await buildPdfRunSnapshotSafely());
-    await buildFullMontyPDF(run); // save/open handled entirely in fullMontyPdf.js
+    const pdfResult = await buildFullMontyPDF(run); // { blob, filename, url, mode }
+    if (pdfResult?.blob && pdfResult?.filename) {
+      // Offer Share (attachments via Web Share API on phones), + Download again
+      showSharePanel(pdfResult);
+    }
   } catch (err) {
     console.error('[PDF] Failed to generate:', err);
     alert('Sorry — something interrupted PDF generation. Please try again.\n(Details in console)');
