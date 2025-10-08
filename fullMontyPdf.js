@@ -1217,25 +1217,29 @@ async function _buildFullMontyPDF(run){
   function isIOSLike() {
     const ua = navigator.userAgent || '';
     const plt = navigator.platform || '';
-    const touchMac = plt === 'MacIntel' && navigator.maxTouchPoints > 1;
+    const touchMac = plt === 'MacIntel' && navigator.maxTouchPoints > 1; // iPadOS masquerading
     return /iPad|iPhone|iPod/.test(ua) || touchMac;
   }
 
+  // Build a Blob once; we fully control what happens next.
+  const blob = doc.output('blob');
+
   if (isIOSLike()) {
-    // iOS/iPadOS: open inline in the SAME TAB (no extra/blank tab).
-    // Use an object URL and DO NOT revoke immediately, let Safari keep it.
-    try {
-      const blob = doc.output('blob');
-      const url  = URL.createObjectURL(blob);
-      window.location.href = url;                     // open viewer in current tab
-      setTimeout(() => URL.revokeObjectURL(url), 120000); // revoke later (2 min)
-    } catch (e) {
-      // If anything fails, fall back to save (won’t hurt on iOS if it’s ignored)
-      try { doc.save(filename); } catch {}
-    }
+    // iOS/iPadOS: open the PDF inline in the SAME TAB so Safari’s viewer handles it.
+    const url = URL.createObjectURL(blob);
+    window.location.href = url;
+    // Keep the URL alive long enough for Safari to finish reading it.
+    setTimeout(() => URL.revokeObjectURL(url), 120000);
   } else {
-    // Desktop/Android: simple download, no navigation, no viewer.
-    doc.save(filename);
+    // Desktop/Android: trigger a download via an invisible <a download>, no navigation.
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    (document.body || document.documentElement).appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
   return { blob: null, filename, url: null, mode: 'dispatched' };
