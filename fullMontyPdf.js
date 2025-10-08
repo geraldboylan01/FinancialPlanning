@@ -25,6 +25,14 @@ function ensureJsPDF() {
   return __jsPDFCtorPromise;
 }
 
+function isIOSLike() {
+  const ua = navigator.userAgent || '';
+  const plt = navigator.platform || '';
+  const isiOS = /iPad|iPhone|iPod/.test(ua);
+  const touchMac = plt === 'MacIntel' && navigator.maxTouchPoints > 1; // iPadOS on Mac UA
+  return isiOS || touchMac;
+}
+
 const BG_DARK      = '#1a1a1a';
 const ACCENT_GREEN = '#00ff88';
 const ACCENT_CYAN  = '#0099ff';
@@ -1211,9 +1219,61 @@ async function _buildFullMontyPDF(run){
   })();
   writeParagraph(doc, 'Note: Table shows personal age-related limits. Employer contributions are not subject to this €115,000 cap.', M + colW6 + colGap, yB, colW6, { size:10, color:'#CCCCCC' });
 
-  // ---------- Build blob & return (no navigation here) ----------
+  // ---------- Export with platform-aware delivery ----------
   const filename = 'Planeir_Full-Monty_Report.pdf';
-  const pdfBlob = doc.output('blob');
-  return { blob: pdfBlob, filename, url: null, mode: 'ready' };
+  let lastBlob = null;
+
+  if (isIOSLike()) {
+    // iOS/iPadOS: open the PDF in a NEW TAB so Safari shows a native Close/Done button
+    // and the user can share from the viewer. No holder tab; open exactly once.
+    try {
+      lastBlob = doc.output('blob');                 // create the PDF blob
+      const url  = URL.createObjectURL(lastBlob);    // make a stable blob URL
+      const win  = window.open(url, '_blank');       // open in new tab (user can close)
+      if (!win) window.location.assign(url);         // popup blocked: same-tab as last resort
+      // Revoke after a minute to keep the viewer happy (don’t revoke immediately)
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e) {
+      console.error('[PDF] iOS open failed, trying direct save:', e);
+      try { doc.save(filename); } catch {}
+    }
+  } else {
+    // Desktop/Android: classic file download first
+    let saved = true;
+    try {
+      doc.save(filename);
+    } catch (e) {
+      saved = false;
+      console.warn('[PDF] doc.save threw; falling back to download link.', e);
+    }
+
+    if (!saved) {
+      // Non-navigating fallback: programmatic <a download> click
+      try {
+        lastBlob = doc.output('blob');
+        const url  = URL.createObjectURL(lastBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        (document.body || document.documentElement).appendChild(a);
+        a.click();
+        a.remove();
+        // Revoke shortly after click (download already started)
+        setTimeout(() => URL.revokeObjectURL(url), 0);
+      } catch (e2) {
+        console.error('[PDF] Fallback download failed:', e2);
+      }
+    }
+  }
+
+  if (!lastBlob) {
+    try {
+      lastBlob = doc.output('blob');
+    } catch (_) {
+      lastBlob = null;
+    }
+  }
+
+  return { blob: lastBlob, filename, url: null, mode: 'dispatched' };
 }
 
