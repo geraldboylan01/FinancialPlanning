@@ -1606,7 +1606,7 @@ async function handleGeneratePdfTap(e) {
   document.body.classList.add('pdf-exporting');
   try {
     const run = window.latestRun || (await buildPdfRunSnapshotSafely());
-    await buildFullMontyPDF(run);
+    await buildFullMontyPDF(run); // desktop downloads, iOS opens inline
   } catch (err) {
     console.error('[PDF] Failed to generate:', err);
     alert('Sorry — PDF generation failed. Please try again.\n(See console for details.)');
@@ -1620,25 +1620,14 @@ function rebindGeneratePdfButton() {
   const selectors = '#btnGeneratePDF, [data-action="generate-pdf"], .js-generate-pdf';
   const candidates = Array.from(document.querySelectorAll(selectors));
 
-  if (!candidates.length) {
-    if (!rebindGeneratePdfButton._delegated) {
-      rebindGeneratePdfButton._delegated = true;
-      document.addEventListener(ACTIVATE_EVT, (ev) => {
-        const btn = ev.target?.closest?.('#btnGeneratePDF, [data-action="generate-pdf"], .js-generate-pdf');
-        if (btn) handleGeneratePdfTap(ev);
-      }, true);
-    }
-    return;
-  }
-
   candidates.forEach((btn) => {
     // if it’s a <button>, make sure it is NOT a submit; if it’s an <a>, kill href
-    if (btn.tagName === 'BUTTON' && btn.type !== 'button') btn.type = 'button';
+    if (btn.tagName === 'BUTTON') btn.type = 'button';
     if (btn.tagName === 'A') btn.removeAttribute('href');
 
     const fresh = btn.cloneNode(true);
     btn.parentNode.replaceChild(fresh, btn);
-    fresh.addEventListener(ACTIVATE_EVT, handleGeneratePdfTap);
+    fresh.addEventListener(ACTIVATE_EVT, handleGeneratePdfTap, { passive: false });
   });
 }
 
