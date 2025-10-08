@@ -30,13 +30,6 @@ const ACCENT_GREEN = '#00ff88';
 const ACCENT_CYAN  = '#0099ff';
 const COVER_GOLD   = '#BBA26F';
 
-function isIOSLike() {
-  const ua = navigator.userAgent || '';
-  const plt = navigator.platform || '';
-  const touchMac = plt === 'MacIntel' && navigator.maxTouchPoints > 1;
-  return /iPad|iPhone|iPod/.test(ua) || touchMac;
-}
-
 // ===== Summary panel constants =====
 const THEME = {
   bgPanel:  '#121417',
@@ -1218,35 +1211,9 @@ async function _buildFullMontyPDF(run){
   })();
   writeParagraph(doc, 'Note: Table shows personal age-related limits. Employer contributions are not subject to this €115,000 cap.', M + colW6 + colGap, yB, colW6, { size:10, color:'#CCCCCC' });
 
-  // ---------- Save & Return ----------
+  // ---------- Build blob & return (no navigation here) ----------
   const filename = 'Planeir_Full-Monty_Report.pdf';
   const pdfBlob = doc.output('blob');
-
-  let result = { blob: pdfBlob, filename, url: null, mode: 'unknown' };
-
-  if (isIOSLike()) {
-    // iOS/iPadOS: open viewer in SAME TAB so user can Share/Save
-    const url = URL.createObjectURL(pdfBlob);
-    result.url = url;
-    result.mode = 'ios-view';
-    window.location.assign(url);
-  } else {
-    // Desktop/Android: try normal download first
-    let savedOk = true;
-    try {
-      doc.save(filename);
-      result.mode = 'download';
-    } catch (e) {
-      savedOk = false;
-    }
-    if (!savedOk) {
-      const url = URL.createObjectURL(pdfBlob);
-      result.url = url;
-      result.mode = 'blob-view';
-      window.location.assign(url);
-    }
-  }
-
-  return result;
+  return { blob: pdfBlob, filename, url: null, mode: 'ready' };
 }
 
