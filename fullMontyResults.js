@@ -1593,43 +1593,8 @@ document.addEventListener('DOMContentLoaded', () => {
   try { window.renderMaxContributionTable?.(_currentFMStore()); } catch(e){}
 });
 
-// Choose a single activation event to avoid pointerup→click double fires
 const ACTIVATE_EVT = ('onpointerup' in window) ? 'pointerup' : 'click';
-
-// Global in-flight guard to prevent duplicate PDF builds from the same tap
 let _pdfBuildInFlight = false;
-
-// --- Robust rebind: supports multiple layouts/IDs and late renders, single event only
-function rebindGeneratePdfButton() {
-  const selectors = '#btnGeneratePDF, [data-action="generate-pdf"], .js-generate-pdf';
-  const candidates = Array.from(document.querySelectorAll(selectors));
-
-  // If nothing yet, install a delegated listener once (handles late mounts)
-  if (!candidates.length) {
-    if (!rebindGeneratePdfButton._delegated) {
-      rebindGeneratePdfButton._delegated = true;
-      document.addEventListener(ACTIVATE_EVT, onGeneratePdfDelegated, true);
-    }
-    return;
-  }
-
-  // Bind all candidates directly; replace node to drop stale handlers
-  candidates.forEach((btn) => {
-    if (btn.tagName === 'BUTTON' && btn.type !== 'button') btn.type = 'button'; // avoid form submits
-    const fresh = btn.cloneNode(true);
-    btn.parentNode.replaceChild(fresh, btn);
-
-    // Bind only ONE event (pointerup OR click)
-    fresh.addEventListener(ACTIVATE_EVT, handleGeneratePdfTap);
-  });
-}
-
-function onGeneratePdfDelegated(ev) {
-  const btn = ev.target && ev.target.closest
-    ? ev.target.closest('#btnGeneratePDF, [data-action="generate-pdf"], .js-generate-pdf')
-    : null;
-  if (btn) handleGeneratePdfTap(ev);
-}
 
 async function handleGeneratePdfTap(e) {
   e?.preventDefault?.();
@@ -1641,128 +1606,42 @@ async function handleGeneratePdfTap(e) {
   document.body.classList.add('pdf-exporting');
   try {
     const run = window.latestRun || (await buildPdfRunSnapshotSafely());
-    const pdfResult = await buildFullMontyPDF(run); // { blob, filename, mode:'ready' }
-    if (!pdfResult?.blob) throw new Error('No PDF blob');
-
-    const pdfUrl = URL.createObjectURL(pdfResult.blob);
-    const safeName = (pdfResult.filename || 'report.pdf').replace(/[^\w.\- ]+/g, '_');
-
-    // Build a tiny HTML page that shows the PDF full-screen and overlays a Share/Download toolbar.
-    // It re-fetches the blob URL to create a File for Web Share (so the button can attach the PDF).
-    const wrapperHtml = `
-<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>${safeName}</title>
-<style>
-  html,body {margin:0;height:100%;background:#000;}
-  .wrap {position:fixed;inset:0;display:flex;flex-direction:column;background:#000;}
-  .bar {
-    position:fixed;left:0;right:0;top:0;display:flex;gap:8px;align-items:center;
-    padding:10px env(safe-area-inset-right) 10px env(safe-area-inset-left);
-    background:rgba(18,20,23,0.92);color:#fff;border-bottom:1px solid rgba(255,255,255,0.08);z-index:2;
-    -webkit-backdrop-filter:saturate(120%) blur(6px);backdrop-filter:saturate(120%) blur(6px);
-  }
-  .title {font-weight:600;font-size:14px;margin-inline-end:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:50vw}
-  .btn {
-    background:#2b2f36;border:1px solid #3a3f47;color:#fff;border-radius:10px;padding:9px 12px;
-    font-size:13px;line-height:1;cursor:pointer;touch-action:manipulation;
-  }
-  .view {position:absolute;inset:0;top:48px;} /* below bar */
-  iframe,embed,object {width:100%;height:100%;border:0;background:#000;}
-  @media (max-width: 420px){ .title {max-width:40vw;} }
-</style>
-</head>
-<body>
-<div class="wrap">
-  <div class="bar">
-    <div class="title">${safeName}</div>
-    <button class="btn" id="shareBtn">Share…</button>
-    <button class="btn" id="dlBtn">Download</button>
-    <button class="btn" id="closeBtn">Close</button>
-  </div>
-  <div class="view">
-    <iframe id="pdfFrame" src="${pdfUrl}" allow="autoplay"></iframe>
-  </div>
-</div>
-<script>
-(function(){
-  const pdfSrc = '${pdfUrl}';
-  const filename = ${JSON.stringify(safeName)};
-
-  async function shareFile() {
-    try {
-      const resp = await fetch(pdfSrc, {cache:'no-store'});
-      const blob = await resp.blob();
-      const file = new File([blob], filename, { type: 'application/pdf' });
-
-      if (navigator.canShare && navigator.canShare({ files:[file] })) {
-        await navigator.share({ files:[file], title: 'Planéir Report', text: 'My Full-Monty report.' });
-      } else if (navigator.share) {
-        // Fallback: share just the URL (no attachment)
-        await navigator.share({ title: 'Planéir Report', url: pdfSrc });
-      } else {
-        alert('Sharing is not supported on this device/browser.');
-      }
-    } catch (e) {
-      console.warn('Share failed/cancelled:', e);
-    }
-  }
-
-  function downloadAgain() {
-    try {
-      const a = document.createElement('a');
-      a.href = pdfSrc;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    } catch (e) {
-      console.error('Download failed', e);
-    }
-  }
-
-  function closeOverlay() {
-    history.back();
-  }
-
-  document.getElementById('shareBtn').addEventListener('click', shareFile);
-  document.getElementById('dlBtn').addEventListener('click', downloadAgain);
-  document.getElementById('closeBtn').addEventListener('click', closeOverlay);
-
-  // Clean up blob URL when leaving this page
-  const cleanup = () => { try { URL.revokeObjectURL(pdfSrc); } catch {} };
-  window.addEventListener('pagehide', cleanup, { once:true });
-  window.addEventListener('unload', cleanup, { once:true });
-
-  // Improve back button: if user presses back, we're good (we'll revoke on pagehide)
-})();
-</script>
-</body>
-</html>
-`;
-
-    // Create wrapper HTML blob and navigate the SAME tab to it
-    const wrapperBlob = new Blob([wrapperHtml], { type: 'text/html' });
-    const wrapperUrl = URL.createObjectURL(wrapperBlob);
-    try {
-      // Push a history state so "Close" can call history.back()
-      history.pushState({ pdfWrap:true }, '', location.href);
-    } catch {}
-    window.location.replace(wrapperUrl);
-    // No need to revoke wrapperUrl here; it lives for this page's lifetime
+    await buildFullMontyPDF(run);
   } catch (err) {
     console.error('[PDF] Failed to generate:', err);
-    alert('Sorry — something interrupted PDF generation. Please try again.\n(Details in console)');
+    alert('Sorry — PDF generation failed. Please try again.\n(See console for details.)');
   } finally {
     document.body.classList.remove('pdf-exporting');
     _pdfBuildInFlight = false;
   }
 }
 
-// Bind on DOM ready and after your renderer fires (so re-renders keep the right listener)
+function rebindGeneratePdfButton() {
+  const selectors = '#btnGeneratePDF, [data-action="generate-pdf"], .js-generate-pdf';
+  const candidates = Array.from(document.querySelectorAll(selectors));
+
+  if (!candidates.length) {
+    if (!rebindGeneratePdfButton._delegated) {
+      rebindGeneratePdfButton._delegated = true;
+      document.addEventListener(ACTIVATE_EVT, (ev) => {
+        const btn = ev.target?.closest?.('#btnGeneratePDF, [data-action="generate-pdf"], .js-generate-pdf');
+        if (btn) handleGeneratePdfTap(ev);
+      }, true);
+    }
+    return;
+  }
+
+  candidates.forEach((btn) => {
+    // if it’s a <button>, make sure it is NOT a submit; if it’s an <a>, kill href
+    if (btn.tagName === 'BUTTON' && btn.type !== 'button') btn.type = 'button';
+    if (btn.tagName === 'A') btn.removeAttribute('href');
+
+    const fresh = btn.cloneNode(true);
+    btn.parentNode.replaceChild(fresh, btn);
+    fresh.addEventListener(ACTIVATE_EVT, handleGeneratePdfTap);
+  });
+}
+
 document.addEventListener('DOMContentLoaded', rebindGeneratePdfButton);
 window.addEventListener('fm-renderer-ready', rebindGeneratePdfButton);
 
