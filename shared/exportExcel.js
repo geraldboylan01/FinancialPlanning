@@ -1,10 +1,12 @@
 // shared/exportExcel.js
-// Builds an .xlsx with: 
+// Builds an .xlsx with:
 //   (1) "Assumptions & Inputs" (2-column table)
 //   (2) "Results" (year-by-year, both scenarios) with formulas referencing sheet 1.
 //
 // This file only **reads** from window.getFullMontyData() and the last
 // payload sent on 'fm:wizard:final-submit' to avoid tight coupling.
+
+import { STATE_PENSION, SP_START } from './assumptions.js';
 
 let __xlsxReady;
 export function ensureXLSX() {
@@ -118,6 +120,8 @@ function collectAssumptions() {
 
     statePensionSelf,
     statePensionPartner,
+    statePensionAnnual: STATE_PENSION,
+    statePensionStartAge: SP_START,
     hasDbSelf, dbPensionSelf, dbStartAgeSelf,
     hasDbPartner, dbPensionPartner, dbStartAgePartner,
 
@@ -135,7 +139,7 @@ function collectAssumptions() {
 function buildWorkbook(XLSX) {
   const A = collectAssumptions();
 
-  // ===== Sheet 1: Assumptions & Inputs (UNCHANGED)
+  // ===== Sheet 1: Assumptions & Inputs
   const rowsA = [
     ['Generated At (ISO)', A.generatedAtISO],
     ['Base Year (first projection year)', A.baseYear],
@@ -159,6 +163,8 @@ function buildWorkbook(XLSX) {
     ['CPI Inflation (decimal)', A.cpi],
     ['State Pension – You (on/off)', A.statePensionSelf ? 'On' : 'Off'],
     ['State Pension – Partner (on/off)', A.statePensionPartner ? 'On' : 'Off'],
+    ['State Pension Annual (€/yr)', A.statePensionAnnual],
+    ['State Pension Start Age', A.statePensionStartAge],
     ['Has DB – You (on/off)', A.hasDbSelf ? 'On' : 'Off'],
     ['DB Annual – You (€/yr)', A.dbPensionSelf],
     ['DB Start Age – You', A.dbStartAgeSelf],
@@ -196,14 +202,16 @@ function buildWorkbook(XLSX) {
     cpi:                    `'Assumptions & Inputs'!${refB(19)}`,
     spSelfOn:               `'Assumptions & Inputs'!${refB(20)}`,
     spPartnerOn:            `'Assumptions & Inputs'!${refB(21)}`,
-    hasDbSelf:              `'Assumptions & Inputs'!${refB(22)}`,
-    dbSelfYr:               `'Assumptions & Inputs'!${refB(23)}`,
-    dbSelfAge:              `'Assumptions & Inputs'!${refB(24)}`,
-    hasDbPartner:           `'Assumptions & Inputs'!${refB(25)}`,
-    dbPartnerYr:            `'Assumptions & Inputs'!${refB(26)}`,
-    dbPartnerAge:           `'Assumptions & Inputs'!${refB(27)}`,
-    rentYr:                 `'Assumptions & Inputs'!${refB(28)}`,
-    drawdownYears:          `'Assumptions & Inputs'!${refB(29)}`
+    spAnnual:               `'Assumptions & Inputs'!${refB(22)}`,
+    spStartAge:             `'Assumptions & Inputs'!${refB(23)}`,
+    hasDbSelf:              `'Assumptions & Inputs'!${refB(24)}`,
+    dbSelfYr:               `'Assumptions & Inputs'!${refB(25)}`,
+    dbSelfAge:              `'Assumptions & Inputs'!${refB(26)}`,
+    hasDbPartner:           `'Assumptions & Inputs'!${refB(27)}`,
+    dbPartnerYr:            `'Assumptions & Inputs'!${refB(28)}`,
+    dbPartnerAge:           `'Assumptions & Inputs'!${refB(29)}`,
+    rentYr:                 `'Assumptions & Inputs'!${refB(30)}`,
+    drawdownYears:          `'Assumptions & Inputs'!${refB(31)}`
   };
 
   // Helpers reused across sheets
@@ -301,21 +309,103 @@ function buildWorkbook(XLSX) {
   wsR['!cols'] = HEAD.map(h => ({ wch: Math.max(18, h.length + 2) }));
   XLSX.utils.book_append_sheet(wb, wsR, 'Results');
 
-  // ===== New Sheet 3: FF Target (How)
-  (function addFFTarget(){
-    const rows = [
-      ['Step','Formula','Result'],
-      ['Target income today', 'Household salary × Target %', { f: `(${REF.householdSalary}*${REF.targetPct})` }],
-      ['Years to retirement', 'Retire age − Current age', { f: yrsToRet }],
-      ['Inflation factor to retirement', '(1 + CPI) ^ Years', { f: `POWER(1+${REF.cpi}, ${yrsToRet})` }],
-      ['Target income @ retirement', 'Target today × Inflation factor', { f: `(${REF.householdSalary}*${REF.targetPct})*POWER(1+${REF.cpi}, ${yrsToRet})` }],
-      ['Implied annuity factor (real)', 'See Results calc (RealReturn)', { f: `IF(${RealReturn}=0, ${REF.drawdownYears}, (1-POWER(1/(1+${RealReturn}), ${REF.drawdownYears}))/(${RealReturn}))` }],
-      ['Required pot (illustrative)', 'Target@ret × annuity factor (real)', { f: `(${REF.householdSalary}*${REF.targetPct})*POWER(1+${REF.cpi}, ${yrsToRet})*IF(${RealReturn}=0, ${REF.drawdownYears}, (1-POWER(1/(1+${RealReturn}), ${REF.drawdownYears}))/(${RealReturn}))` }],
-      ['Implied pot factor', 'Required pot ÷ Target@ret', { f: `IFERROR( RC[-1] / (${REF.householdSalary}*${REF.targetPct})/POWER(1+${REF.cpi}, ${yrsToRet}), "" )`, t:'s' }],
+  // ===== New Sheet 3: FF Target — Required Pot (from Assumptions)
+  (function addFFTargetRequired(){
+    // Horizon
+    const yrsToRet = `MAX(0, ${REF.retirementAge}-${REF.currentAge})`;
+    const yrsRet   = `MAX(0, 100-${REF.retirementAge})`;
+
+    // Income need and other income at retirement
+    const SpendAtRet = `(${REF.householdSalary}*${REF.targetPct})*POWER(1+${REF.cpi}, ${yrsToRet})`;
+    const RentAtRet  = `(${REF.rentYr})*POWER(1+${REF.cpi}, ${yrsToRet})`;
+    const PartnerAgeAtRet = `IFERROR(N(${REF.partnerAge})+${yrsToRet}, 0)`;
+
+    // Friendly header explaining linkage
+    const title = [
+      ['Financial Freedom Target — Required Pot at Retirement'],
+      ['(All inputs reference "Assumptions & Inputs" sheet. Each row is one retirement year t, discounted back to retirement.)'],
+      []
     ];
+
+    const header = [
+      't (years from retire)',
+      'Age',
+      'Inflation factor (t)',
+      'Gross need (€/yr)',
+      'Rent (€/yr)',
+      'DB — You (€/yr)',
+      'DB — Partner (€/yr)',
+      'SP — You (€/yr)',
+      'SP — Partner (€/yr)',
+      'Net need (€/yr)',
+      'Discount factor',
+      'PV(net need)'
+    ];
+
+    const tRef = `(ROW()-3-3)`; // data table starts at row 4 after 3-title rows → row 4 gives t=0
+
+    const AGE         = `(${REF.retirementAge}+${tRef})`;
+    const INFL_T      = `POWER(1+${REF.cpi}, ${tRef})`;
+    const NEED_GROSS  = `(${SpendAtRet}*${INFL_T})`;
+    const RENT_T      = `(${RentAtRet}*${INFL_T})`;
+    const DB_SELF_T   = `IF(${AGE}>=${REF.dbSelfAge}, IF(${REF.hasDbSelf}="On", ${REF.dbSelfYr}*${INFL_T}, 0), 0)`;
+    const DB_PART_T   = `IF(${AGE}>=${REF.dbPartnerAge}, IF(${REF.hasDbPartner}="On", ${REF.dbPartnerYr}*${INFL_T}, 0), 0)`;
+    const SP_SELF_T   = `IF(${REF.spSelfOn}="On", IF(${AGE}>=${REF.spStartAge}, ${REF.spAnnual}, 0), 0)`;
+    const SP_PART_T   = `IF(${REF.spPartnerOn}="On", IF((${PartnerAgeAtRet}+${tRef})>=${REF.spStartAge}, ${REF.spAnnual}, 0), 0)`;
+    const NET_NEED    = `MAX(0, ${NEED_GROSS} - (${RENT_T}+${DB_SELF_T}+${DB_PART_T}+${SP_SELF_T}+${SP_PART_T}))`;
+    const DF_T        = `1/POWER(1+${REF.growth}, ${tRef}+1)`;
+    const PV_T        = `(${NET_NEED}*${DF_T})`;
+
+    // Build rows
+    const rows = [...title, header];
+    const MAX_ROWS = 60; // covers most retire ages to 100
+    for (let i = 0; i < MAX_ROWS; i++) {
+      rows.push([
+        { f: tRef },         // t
+        { f: AGE },          // Age
+        { f: INFL_T },       // inflation factor
+        { f: NEED_GROSS },   // gross need
+        { f: RENT_T },       // rent
+        { f: DB_SELF_T },    // DB self (inflated)
+        { f: DB_PART_T },    // DB partner (inflated)
+        { f: SP_SELF_T },    // SP self
+        { f: SP_PART_T },    // SP partner
+        { f: NET_NEED },     // net need
+        { f: DF_T },         // discount factor
+        { f: `IF(${tRef}<${yrsRet}, ${PV_T}, "")` } // PV within horizon only
+      ]);
+    }
+
+    // Footer with link-back formulas
+    rows.push([]);
+    rows.push(['Inputs (linked)', '', '', '', '', '', '', '', '', '', '', '']);
+    rows.push(['Base year', { f: REF.baseYear }]);
+    rows.push(['Retirement age', { f: REF.retirementAge }]);
+    rows.push(['Current age', { f: REF.currentAge }]);
+    rows.push(['Target % of salary (decimal)', { f: REF.targetPct }]);
+    rows.push(['Salary today — household (€)', { f: REF.householdSalary }]);
+    rows.push(['CPI (decimal)', { f: REF.cpi }]);
+    rows.push(['Growth (decimal)', { f: REF.growth }]);
+    rows.push(['SP toggles: You / Partner', { f: REF.spSelfOn }, { f: REF.spPartnerOn }]);
+    rows.push(['SP annual (€/yr)', { f: REF.spAnnual }]);
+    rows.push(['SP start age', { f: REF.spStartAge }]);
+    rows.push(['DB — You: on?, €/yr, start age', { f: REF.hasDbSelf }, { f: REF.dbSelfYr }, { f: REF.dbSelfAge }]);
+    rows.push(['DB — Partner: on?, €/yr, start age', { f: REF.hasDbPartner }, { f: REF.dbPartnerYr }, { f: REF.dbPartnerAge }]);
+    rows.push(['Rent today (€/yr)', { f: REF.rentYr }]);
+
+    // Final required pot (rounded like JS)
+    rows.push([]);
+    rows.push([
+      'Required pot @ retirement (sum PV of net need)',
+      { f: `ROUND(SUM(L4:INDEX(L:L, 3+1+${MAX_ROWS})), -3)` } // Sum PV column within table; round to nearest €1k
+    ]);
+
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{wch:30},{wch:40},{wch:22}];
-    XLSX.utils.book_append_sheet(wb, ws, 'FF Target (How)');
+    ws['!cols'] = [
+      {wch:10},{wch:8},{wch:16},{wch:20},{wch:14},{wch:16},
+      {wch:18},{wch:14},{wch:18},{wch:18},{wch:16},{wch:16}
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, 'FF Target — Required Pot');
   })();
 
   // Common snippets for projections
