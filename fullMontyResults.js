@@ -5,58 +5,55 @@ import { buildWarningsHTML } from './shared/warnings.js';
 import { buildFullMontyPDF } from './fullMontyPdf.js';
 import { downloadFullMontyExcel } from './shared/exportExcel.js';
 
+// Minimal export-icon mount: one button per section, next to the pills
 function mountPillExportIcons() {
-  if (mountPillExportIcons._scheduled) return;
-  mountPillExportIcons._scheduled = true;
+  const targets = [
+    { sectionId: 'beforeRetirement', slotId: 'export-slot-before' },
+    { sectionId: 'duringRetirement', slotId: 'export-slot-during' },
+  ];
 
-  const afterPaint = () => {
-    mountPillExportIcons._scheduled = false;
+  const svg = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
+      <path d="M8 4v16M16 4v16M3 9h18M3 14h18" stroke="currentColor" stroke-width="1.5"/>
+    </svg>
+  `;
 
-    const listA = Array.from(document.querySelectorAll(
-      '#beforeRetirement .pills, #beforeRetirement .pill-row, #beforeRetirement [data-pills],' +
-      '#duringRetirement .pills, #duringRetirement .pill-row, #duringRetirement [data-pills]'
-    ));
+  targets.forEach(({ sectionId, slotId }) => {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
 
-    const listB = Array.from(document.querySelectorAll(
-      '#phase-pre .pills, #phase-pre .pill-row, #phase-pre [data-pills],' +
-      '#phase-post .pills, #phase-post .pill-row, #phase-post [data-pills]'
-    ));
+    // Prefer an existing pill row; otherwise use first child
+    const hostRow = section.querySelector('.pill-row, .pills') || section.firstElementChild || section;
 
-    const listC = Array.from(document.querySelectorAll(
-      '#resultsView .pills, #resultsView .pill-row, #resultsView [data-pills]'
-    ));
+    // Create a slot if needed
+    let slot = document.getElementById(slotId);
+    if (!slot) {
+      slot = document.createElement('span');
+      slot.id = slotId;
+      slot.className = 'pill-export-slot';
+      hostRow.appendChild(slot);
+    }
 
-    const candidates = [...listA, ...listB, ...listC];
+    // Avoid duplicates
+    if (slot.dataset.mounted === '1') return;
 
-    document.querySelectorAll('.chart-export-btn').forEach(el => el.remove());
-
-    candidates.forEach(container => {
-      if (!container || container.dataset.exportMounted === '1') return;
-
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'pill-export-btn';
-      btn.title = 'Download data (Excel)';
-      btn.setAttribute('aria-label', 'Download data (Excel)');
-      btn.innerHTML = `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M8 4v16M16 4v16M3 9h18M3 14h18" stroke="currentColor" stroke-width="1.5"/>
-        </svg>
-      `;
-      btn.addEventListener('click', () => {
-        downloadFullMontyExcel().catch(err => {
-          console.error('[Excel] Download failed', err);
-          alert('Sorry — Excel export failed. Please try again.');
-        });
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'pill-export-btn';
+    btn.title = 'Download data (Excel)';
+    btn.setAttribute('aria-label', 'Download data (Excel)');
+    btn.innerHTML = svg;
+    btn.addEventListener('click', () => {
+      downloadFullMontyExcel().catch(err => {
+        console.error('[Excel] Download failed', err);
+        alert('Sorry — Excel export failed. Please try again.');
       });
-
-      container.appendChild(btn);
-      container.dataset.exportMounted = '1';
     });
-  };
 
-  requestAnimationFrame(() => requestAnimationFrame(afterPaint));
+    slot.appendChild(btn);
+    slot.dataset.mounted = '1';
+  });
 }
 
 // ===== PDF SNAPSHOT UTILITIES =====
