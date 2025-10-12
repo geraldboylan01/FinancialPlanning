@@ -196,27 +196,30 @@ tr.is-highlight-row td { background: transparent; }
 
 .chart-card { position: relative; }
 
-/* Inline pill export icon (sits beside pills row, not overlapping info icon) */
-.pill-export-slot {
+/* Download icon slots mounted into phase headers */
+.fm-export-slot {
   display: inline-flex;
   align-items: center;
-  margin-left: 8px;
+  margin-left: .5rem;
 }
 
-.pill-export-btn {
-  inline-size: 28px;
-  block-size: 28px;
-  display: inline-grid;
-  place-items: center;
-  background: transparent;
-  border: 1px solid currentColor;
-  border-radius: 999px;
+.fm-export-btn {
+  all: unset;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--text-weak, #cfcfcf);
 }
 
-.pill-export-btn svg {
-  pointer-events: none;
+.fm-export-btn:hover {
+  color: var(--text, #fff);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.fm-export-btn svg {
   display: block;
 }
-
-/* tiny tooltip via title attr is enough; avoid custom popover to keep it light */
