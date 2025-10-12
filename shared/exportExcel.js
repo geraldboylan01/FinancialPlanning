@@ -266,7 +266,8 @@ function buildWorkbook(XLSX) {
     const YEARS_TO_RETIRE = `MAX(0, ${REF.retirementAge}-${AGE})`;
     const REM_YEARS = `IF(${PHASE}="Drawdown", MAX(0, ${REF.drawdownYears} - (${AGE}-${REF.retirementAge})), ${REF.drawdownYears})`;
     const TARGET_REAL = `IF(${PHASE}="Drawdown", (${TARGET_NET}/POWER(1+${REF.cpi}, ${YEARS_FROM_TODAY})), (${TargetIncomeToday}/POWER(1+${REF.cpi}, ${YEARS_TO_RETIRE})))`;
-    const REQUIRED = `IF(${PHASE}="Drawdown`,    IF(${RealReturn}=0, ${TARGET_REAL}*${REM_YEARS}, ${TARGET_REAL}*(1-POWER(1/(1+${RealReturn}), ${REM_YEARS}))/(${RealReturn})),
+    const REQUIRED = `IF(${PHASE}="Drawdown",
+      IF(${RealReturn}=0, ${TARGET_REAL}*${REM_YEARS}, ${TARGET_REAL}*(1-POWER(1/(1+${RealReturn}), ${REM_YEARS}))/(${RealReturn})),
       IF(${RealReturn}=0, ${TARGET_REAL}*${REF.drawdownYears}, ${TARGET_REAL}*(1-POWER(1/(1+${RealReturn}), ${REF.drawdownYears}))/(${RealReturn}))
     )`;
     const GAP = `(${CLOSE} - ${REQUIRED})`;
