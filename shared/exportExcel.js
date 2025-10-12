@@ -173,7 +173,8 @@ function buildWorkbook(XLSX) {
   XLSX.utils.book_append_sheet(wb, wsA, 'Assumptions & Inputs');
 
   // Map to cell refs (B-column) — keep in sync with the rows above
-  const refB = (idx) => XLSX.utils.encode_cell({ r: 1 + 1 + idx, c: 1 }); // header row + 1
+  // NOTE: rowsA[0] sits on Excel row 2 (row 1 is the header), so the offset is +1, not +2.
+  const refB = (idx) => XLSX.utils.encode_cell({ r: 1 + idx, c: 1 });
   const REF = {
     baseYear:               `'Assumptions & Inputs'!${refB(1)}`,
     currentAge:             `'Assumptions & Inputs'!${refB(3)}`,
