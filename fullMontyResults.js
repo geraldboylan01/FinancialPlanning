@@ -132,6 +132,52 @@ async function buildPdfRunSnapshotSafely() {
 }
 
 /**
+ * Snapshot the on-screen "Maximum personal pension contributions by age band" table
+ * (id: #taxReliefLimits) including which cells are highlighted for self/partner.
+ * Saves to window.latestRun.maxContribTable for the PDF builder.
+ */
+function snapshotMaxContribTableIntoLatestRun() {
+  try {
+    const table = document.getElementById('taxReliefLimits');
+    const legend = document.getElementById('maxLegend');
+    const note = document.getElementById('maxNote');
+    if (!table) return;
+
+    const hasPartner = !table.querySelector('th.partner-col[hidden], td.partner-col[hidden]');
+    const rows = [];
+    const trs = table.querySelectorAll('tbody tr');
+    trs.forEach(tr => {
+      const tds = tr.querySelectorAll('td');
+      if (tds.length < 3) return;
+      const band   = (tds[0].textContent || '').trim();
+      const maxPct = (tds[1].textContent || '').trim();
+      const youTd  = tds[2];
+      const youAmt = (youTd.textContent || '').trim();
+      const partnerTd = hasPartner ? tds[3] : null;
+      const partnerAmt = hasPartner ? (partnerTd?.textContent || '').trim() : '';
+      rows.push({
+        band,
+        maxPct,
+        youAmt,
+        partnerAmt: hasPartner ? partnerAmt : null,
+        highlightSelf:  youTd.classList.contains('is-highlight-self'),
+        highlightPartner: hasPartner && partnerTd?.classList.contains('is-highlight-partner')
+      });
+    });
+
+    window.latestRun = window.latestRun || {};
+    window.latestRun.maxContribTable = {
+      hasPartner,
+      rows,
+      legendHTML: legend ? legend.innerHTML : '',
+      noteHTML: note ? note.innerHTML : ''
+    };
+  } catch (e) {
+    console.warn('[PDF] snapshotMaxContribTableIntoLatestRun failed:', e);
+  }
+}
+
+/**
  * Update the global latestRun whenever results are (re)computed.
  * Call this at the end of your main compute/render pipeline.
  */
@@ -1441,6 +1487,10 @@ document.addEventListener('fm-pension-output', async (e) => {
   deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); if (typeof refreshContribUX === 'function') refreshContribUX();
   mountBelowHeroToggle();
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
+  try {
+    window.renderMaxContributionTable?.(_currentFMStore());
+    snapshotMaxContribTableIntoLatestRun();
+  } catch (e) {}
 
   // DO NOT call renderHeroNowOrQueue here directly
   scheduleHeroRender();
@@ -1513,6 +1563,10 @@ document.addEventListener('fm-run-fy', async (e) => {
   deriveHeroBaseMonthly(); computeMonthlyCap(); updateTapBadges(); if (typeof refreshContribUX === 'function') refreshContribUX();
   mountBelowHeroToggle();
   try { renderComplianceNotices(document.getElementById('compliance-notices')); } catch (e) { console.error('[FM Results] notices error:', e); }
+  try {
+    window.renderMaxContributionTable?.(_currentFMStore());
+    snapshotMaxContribTableIntoLatestRun();
+  } catch (e) {}
 
   // Only render hero when both datasets present
   scheduleHeroRender();
@@ -1582,15 +1636,24 @@ function _currentFMStore(){
 }
 
 window.addEventListener('fm:results:ready', () => {
-  try { window.renderMaxContributionTable?.(_currentFMStore()); } catch(e){}
+  try {
+    window.renderMaxContributionTable?.(_currentFMStore());
+    snapshotMaxContribTableIntoLatestRun();
+  } catch(e){}
 });
 
 document.addEventListener('fm-salary-updated', () => {
-  try { window.renderMaxContributionTable?.(_currentFMStore()); } catch(e){}
+  try {
+    window.renderMaxContributionTable?.(_currentFMStore());
+    snapshotMaxContribTableIntoLatestRun();
+  } catch(e){}
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  try { window.renderMaxContributionTable?.(_currentFMStore()); } catch(e){}
+  try {
+    window.renderMaxContributionTable?.(_currentFMStore());
+    snapshotMaxContribTableIntoLatestRun();
+  } catch(e){}
 });
 
 const ACTIVATE_EVT = ('onpointerup' in window) ? 'pointerup' : 'click';
@@ -1605,6 +1668,8 @@ async function handleGeneratePdfTap(e) {
 
   document.body.classList.add('pdf-exporting');
   try {
+    // Make sure the live table snapshot is up to date before building the PDF
+    snapshotMaxContribTableIntoLatestRun();
     const run = window.latestRun || (await buildPdfRunSnapshotSafely());
     await buildFullMontyPDF(run); // desktop downloads, iOS opens inline
   } catch (err) {

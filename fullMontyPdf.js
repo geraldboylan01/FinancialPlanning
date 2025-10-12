@@ -882,6 +882,90 @@ function drawSummaryCardBlock(doc, x, y, width, heading, paragraphs){
   return y + cardH;
 }
 
+// ---- PDF: draw "Maximum personal pension contributions by age band" from run.maxContribTable ----
+function pdfDrawMaxContribTable(doc, run, {
+  x,                // left edge (pt)
+  y,                // top (pt)
+  width,            // total table width (pt) — pass the right column width
+  rowH = 16,        // row height (pt)
+  headH = 18,       // header height (pt)
+  fontSize = 10     // body font size
+} = {}) {
+  const data = run?.maxContribTable;
+  if (!data || !Array.isArray(data.rows) || data.rows.length === 0) return y;
+
+  const pageH = doc.internal.pageSize.getHeight();
+
+  // Column widths as proportions of provided width
+  const hasPartner = !!data.hasPartner;
+  const colGap = 8; // inter-column gap (pt)
+  const bandW = Math.round(width * 0.42);
+  const pctW  = Math.round(width * 0.16);
+  const youW  = hasPartner ? Math.round(width * 0.20) : Math.round(width * 0.30);
+  const partW = hasPartner ? Math.round(width * 0.20) : 0;
+  const tableW = bandW + pctW + youW + (hasPartner ? partW : 0) + (hasPartner ? colGap * 3 : colGap * 2);
+
+  // Header
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(fontSize);
+  doc.setFillColor(30, 30, 30);
+  doc.setTextColor(255, 255, 255);
+  doc.rect(x, y, tableW, headH, 'F');
+
+  let cx = x + 2;
+  const cy = y + headH - 6;
+  doc.text('Age band', cx, cy);           cx += bandW + colGap;
+  doc.text('Max %',     cx, cy);          cx += pctW  + colGap;
+  doc.text('You (€/yr)', cx, cy);
+  if (hasPartner) { cx += youW + colGap; doc.text('Partner (€/yr)', cx, cy); }
+  y += headH;
+
+  // Rows
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(fontSize);
+  data.rows.forEach(r => {
+    if (y + rowH + 40 > pageH) { doc.addPage(); y = 40; }
+
+    const highlight = !!(r.highlightSelf || r.highlightPartner);
+    if (highlight) {
+      doc.setFillColor(0, 60, 45); // echo UI highlight
+      doc.rect(x, y, tableW, rowH, 'F');
+      doc.setTextColor(255, 255, 255);
+    } else {
+      doc.setTextColor(0, 0, 0);
+    }
+
+    let tx = x + 2;
+    const ty = y + rowH - 5;
+    doc.text(String(r.band ?? ''),   tx, ty);                tx += bandW + colGap;
+    doc.text(String(r.maxPct ?? ''), tx, ty);                tx += pctW  + colGap;
+    doc.text(String(r.youAmt ?? ''), tx, ty);                tx += youW  + (hasPartner ? colGap : 0);
+    if (hasPartner) doc.text(String(r.partnerAmt ?? ''), tx, ty);
+
+    // row separator
+    doc.setDrawColor(220);
+    doc.line(x, y + rowH, x + tableW, y + rowH);
+    if (highlight) doc.setTextColor(0, 0, 0);
+    y += rowH;
+  });
+
+  // Legend + note (strip tags)
+  const strip = (html) => (html || '').replace(/<[^>]*>/g, '').trim();
+  const legend = strip(data.legendHTML);
+  const note   = strip(data.noteHTML);
+
+  if (legend) { y += 8; doc.setFont('helvetica','bold');   doc.setTextColor(0,0,0); doc.text(legend, x, y); }
+  if (note)   {
+    y += legend ? 8 : 10;
+    doc.setFont('helvetica','normal');
+    const wrapped = doc.splitTextToSize(note, width);
+    doc.text(wrapped, x, y);
+    y += wrapped.length * (fontSize + 2);
+  }
+
+  return y;
+}
+
 export async function buildFullMontyPDF(run){
   try {
     return await _buildFullMontyPDF(run);
@@ -1174,42 +1258,17 @@ async function _buildFullMontyPDF(run){
     `Max pensionable salary used in limits: €115,000.`
   ], M + colW6 + colGap, yB, colW6, { size:11 });
 
-  // Max-contribution reference table
+  // Max-contribution reference table (live, from results DOM snapshot)
   yB = writeTitle(doc, 'Age-related personal max contributions', M + colW6 + colGap, yB, colW6, { size:12 });
-
-  const BANDS = [
-    { label:'Up to 29', min:0, max:29, pct:15 },
-    { label:'30–39',    min:30, max:39, pct:20 },
-    { label:'40–49',    min:40, max:49, pct:25 },
-    { label:'50–54',    min:50, max:54, pct:30 },
-    { label:'55–59',    min:55, max:59, pct:35 },
-    { label:'60+',      min:60, max:200, pct:40 },
-  ];
-
-  const cap = 115000;
-  const salary = Math.min(Number(window?.lastWizard?.salary || window?.inputs?.grossIncome || 0) || 0, cap);
-  const rowLH = 14;
-
-  writeParagraph(doc, `Example at pensionable salary €${salary.toLocaleString()} (capped):`, M + colW6 + colGap, yB, colW6, { size:10, color:'#CCCCCC', after:6 }); yB += 0;
-
-  (function drawSimpleTable(){
-    const x = M + colW6 + colGap;
-    const wBand = 90, wPct = 40, wEuro = colW6 - (wBand + wPct + 14);
-    // header
-    yB = writeParagraph(doc, ['Age band', 'Max %', '€/yr (example)'], x, yB, colW6, { size:10, color:'#AAAAAA', lineHeight:rowLH, after:6 });
-    // rows
-    BANDS.forEach(b => {
-      const euroVal = Math.round(salary * (b.pct/100));
-      // three columns in one line using precise x’s
-      doc.setFont('helvetica','normal'); doc.setFontSize(11); doc.setTextColor(224);
-      doc.text(b.label, x, yB);
-      doc.text(`${b.pct}%`, x + wBand + 8, yB);
-      doc.text(`€${euroVal.toLocaleString()}`, x + wBand + 8 + wPct + 8, yB);
-      yB += rowLH;
-    });
-    yB += 8;
-  })();
-  writeParagraph(doc, 'Note: Table shows personal age-related limits. Employer contributions are not subject to this €115,000 cap.', M + colW6 + colGap, yB, colW6, { size:10, color:'#CCCCCC' });
+  yB += 6;
+  yB = pdfDrawMaxContribTable(doc, run, {
+    x: M + colW6 + colGap,
+    y: yB,
+    width: colW6,     // fits the right-hand column
+    rowH: 16,
+    headH: 18,
+    fontSize: 10
+  });
 
   // ---------- Export with platform-aware delivery ----------
   const filename = 'Planeir_Full-Monty_Report.pdf';
