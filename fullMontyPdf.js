@@ -891,6 +891,11 @@ function pdfDrawMaxContribTable(doc, run, {
   headH = 18,       // header height (pt)
   fontSize = 10     // body font size
 } = {}) {
+  // Light-on-dark palette
+  const TXT_LIGHT = { r:224, g:224, b:224 };  // default body text on dark bg
+  const TXT_WHITE = { r:255, g:255, b:255 };  // headers/highlight rows
+  const TXT_SOFT  = { r:207, g:214, b:223 };  // notes / secondary
+  const SEP_LIGHT = 220;                       // row separators
   const data = run?.maxContribTable;
   if (!data || !Array.isArray(data.rows) || data.rows.length === 0) return y;
 
@@ -930,9 +935,10 @@ function pdfDrawMaxContribTable(doc, run, {
     if (highlight) {
       doc.setFillColor(0, 60, 45); // echo UI highlight
       doc.rect(x, y, tableW, rowH, 'F');
-      doc.setTextColor(255, 255, 255);
+      doc.setTextColor(TXT_WHITE.r, TXT_WHITE.g, TXT_WHITE.b);
     } else {
-      doc.setTextColor(0, 0, 0);
+      // default readable text on dark page background
+      doc.setTextColor(TXT_LIGHT.r, TXT_LIGHT.g, TXT_LIGHT.b);
     }
 
     let tx = x + 2;
@@ -943,9 +949,10 @@ function pdfDrawMaxContribTable(doc, run, {
     if (hasPartner) doc.text(String(r.partnerAmt ?? ''), tx, ty);
 
     // row separator
-    doc.setDrawColor(220);
+    doc.setDrawColor(SEP_LIGHT);
     doc.line(x, y + rowH, x + tableW, y + rowH);
-    if (highlight) doc.setTextColor(0, 0, 0);
+    // restore default light text after a highlighted row
+    if (highlight) doc.setTextColor(TXT_LIGHT.r, TXT_LIGHT.g, TXT_LIGHT.b);
     y += rowH;
   });
 
@@ -954,10 +961,11 @@ function pdfDrawMaxContribTable(doc, run, {
   const legend = strip(data.legendHTML);
   const note   = strip(data.noteHTML);
 
-  if (legend) { y += 8; doc.setFont('helvetica','bold');   doc.setTextColor(0,0,0); doc.text(legend, x, y); }
+  if (legend) { y += 8; doc.setFont('helvetica','bold');   doc.setTextColor(TXT_WHITE.r, TXT_WHITE.g, TXT_WHITE.b); doc.text(legend, x, y); }
   if (note)   {
     y += legend ? 8 : 10;
     doc.setFont('helvetica','normal');
+    doc.setTextColor(TXT_SOFT.r, TXT_SOFT.g, TXT_SOFT.b);
     const wrapped = doc.splitTextToSize(note, width);
     doc.text(wrapped, x, y);
     y += wrapped.length * (fontSize + 2);
