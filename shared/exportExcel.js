@@ -127,7 +127,11 @@ function collectAssumptions() {
 
     rentalIncomeNow,
 
-    drawdownYears: 40
+    drawdownYears: 40,
+
+    // expose SP constants so the FF sheet can reference them from the assumptions page
+    spAnnual: STATE_PENSION,
+    spStartAge: SP_START
   };
 }
 
@@ -173,6 +177,8 @@ function buildWorkbook(XLSX) {
     ['DB Start Age – Partner', A.dbStartAgePartner],
     ['Other Rental Income Today (€/yr)', A.rentalIncomeNow],
     ['Drawdown Horizon (years)', A.drawdownYears],
+    ['State Pension – Annual (€/yr)', A.spAnnual],
+    ['State Pension – Start Age', A.spStartAge],
   ];
   const wb = XLSX.utils.book_new();
   const wsA = XLSX.utils.aoa_to_sheet([['Assumption / Input','Value'], ...rowsA]);
@@ -203,8 +209,6 @@ function buildWorkbook(XLSX) {
     cpi:                    `'Assumptions & Inputs'!${refB(19)}`,
     spSelfOn:               `'Assumptions & Inputs'!${refB(20)}`,
     spPartnerOn:            `'Assumptions & Inputs'!${refB(21)}`,
-    spAnnual:               `'Assumptions & Inputs'!${refB(22)}`,
-    spStartAge:             `'Assumptions & Inputs'!${refB(23)}`,
     hasDbSelf:              `'Assumptions & Inputs'!${refB(24)}`,
     dbSelfYr:               `'Assumptions & Inputs'!${refB(25)}`,
     dbSelfAge:              `'Assumptions & Inputs'!${refB(26)}`,
@@ -212,7 +216,9 @@ function buildWorkbook(XLSX) {
     dbPartnerYr:            `'Assumptions & Inputs'!${refB(28)}`,
     dbPartnerAge:           `'Assumptions & Inputs'!${refB(29)}`,
     rentYr:                 `'Assumptions & Inputs'!${refB(30)}`,
-    drawdownYears:          `'Assumptions & Inputs'!${refB(31)}`
+    drawdownYears:          `'Assumptions & Inputs'!${refB(31)}`,
+    spAnnual:               `'Assumptions & Inputs'!${refB(32)}`,
+    spStartAge:             `'Assumptions & Inputs'!${refB(33)}`
   };
 
   // Helpers reused across sheets
@@ -310,110 +316,147 @@ function buildWorkbook(XLSX) {
   wsR['!cols'] = HEAD.map(h => ({ wch: Math.max(18, h.length + 2) }));
   XLSX.utils.book_append_sheet(wb, wsR, 'Results');
 
-  // ===== New Sheet 3: FF Target — Required Pot (from Assumptions)
-  (function addFFTargetRequired(){
-    // Horizon
-    const yrsToRet = `MAX(0, ${REF.retirementAge}-${REF.currentAge})`;
-    const yrsRet   = `MAX(0, 100-${REF.retirementAge})`;
+  // ===== New Sheet 3: FF Target — Required Pot (nominal, user-readable)
+  (function addFFTargetRequiredPot(){
+    // Table columns:
+    // Year | Age | Total income requirement (€/yr) | Other income (SP/DB/Rent) (€/yr)
+    //      | Pensionable income requirement (€/yr) | Accumulated pensionable need (€/)
+    //
+    // Definitions (all linked to assumptions):
+    //   - Years from now to retirement: yrsToRet = MAX(0, RetAge - CurrentAge)
+    //   - Inflation uplift each year t from retirement: POWER(1 + CPI, yrsToRet + t)
+    //   - Total income requirement (t): HouseholdSalary * TargetPct * POWER(1+CPI, yrsToRet + t)
+    //   - Other income (t) = SP_self(t) + SP_partner(t) + DB_self(t) + DB_partner(t) + Rent(t)
+    //     * SP_self(t): IF(spSelfOn="On" AND Age>=SPstart, SPannual, 0)
+    //     * SP_partner(t): only if HasPartner="Yes" AND spPartnerOn="On" AND partner reaches SPstart
+    //     * DB terms are CPI-indexed: DB_* * POWER(1+CPI, yrsToRet + t)
+    //     * Rent is CPI-indexed from today: RentYr * POWER(1+CPI, yrsToRet + t)
+    //   - Pensionable income requirement (t) = MAX(0, TotalReq(t) - OtherIncome(t))
+    //   - Accumulated pensionable need (t) = Accumulated(t-1) + PensionableReq(t)
+    //   - Required Pot (summary) = Accumulated at final row (nominal sum)
 
-    // Income need and other income at retirement
-    const SpendAtRet = `(${REF.householdSalary}*${REF.targetPct})*POWER(1+${REF.cpi}, ${yrsToRet})`;
-    const RentAtRet  = `(${REF.rentYr})*POWER(1+${REF.cpi}, ${yrsToRet})`;
-    // Only meaningful if a partner exists; otherwise, leave as NA() and hard-gate with hasPartner.
-    const PartnerAgeAtRet = `IF(${REF.hasPartner}="Yes", N(${REF.partnerAge})+${yrsToRet}, NA())`;
-
-    // Friendly header explaining linkage
-    const title = [
-      ['Financial Freedom Target — Required Pot at Retirement'],
-      ['(All inputs reference "Assumptions & Inputs" sheet. Each row is one retirement year t, discounted back to retirement.)'],
-      []
-    ];
-
+    // Header
     const header = [
-      't (years from retire)',
+      'Year',
       'Age',
-      'Inflation factor (t)',
-      'Gross need (€/yr)',
-      'Rent (€/yr)',
-      'DB — You (€/yr)',
-      'DB — Partner (€/yr)',
-      'SP — You (€/yr)',
-      'SP — Partner (€/yr)',
-      'Net need (€/yr)',
-      'Discount factor',
-      'PV(net need)'
+      'Total income requirement (€/yr)',
+      'Other income (SP/DB/Rent) (€/yr)',
+      'Pensionable income requirement (€/yr)',
+      'Accumulated pensionable need (€/)'
     ];
 
-    const tRef = `(ROW()-3-3)`; // data table starts at row 4 after 3-title rows → row 4 gives t=0
+    // Years in retirement we show = from retirement age up to age 100 (exclusive of 100 as end)
+    const REM_YEARS = `MAX(0, 100 - ${REF.retirementAge})`;
+    // rows: header + data rows
+    const rows = [header];
 
-    const AGE         = `(${REF.retirementAge}+${tRef})`;
-    const INFL_T      = `POWER(1+${REF.cpi}, ${tRef})`;
-    const NEED_GROSS  = `(${SpendAtRet}*${INFL_T})`;
-    const RENT_T      = `(${RentAtRet}*${INFL_T})`;
-    const DB_SELF_T   = `IF(${AGE}>=${REF.dbSelfAge}, IF(${REF.hasDbSelf}="On", ${REF.dbSelfYr}*${INFL_T}, 0), 0)`;
-    const DB_PART_T   = `IF(${REF.hasPartner}="Yes",
-      IF(${AGE}>=${REF.dbPartnerAge}, IF(${REF.hasDbPartner}="On", ${REF.dbPartnerYr}*${INFL_T}, 0), 0),
-      0)`;
-    const SP_SELF_T   = `IF(${REF.spSelfOn}="On", IF(${AGE}>=${REF.spStartAge}, ${REF.spAnnual}, 0), 0)`;
-    const SP_PART_T   = `IF(${REF.hasPartner}="Yes",
-      IF(${REF.spPartnerOn}="On",
-        IF((${PartnerAgeAtRet}+${tRef})>=${REF.spStartAge}, ${REF.spAnnual}, 0),
-        0),
-      0)`;
-    const NET_NEED    = `MAX(0, ${NEED_GROSS} - (${RENT_T}+${DB_SELF_T}+${DB_PART_T}+${SP_SELF_T}+${SP_PART_T}))`;
-    const DF_T        = `1/POWER(1+${REF.growth}, ${tRef}+1)`;
-    const PV_T        = `(${NET_NEED}*${DF_T})`;
+    // Helpers used in per-row formulas
+    const AGE_T   = (tRef) => `(${REF.retirementAge}+${tRef})`;
+    const YEAR_T  = (tRef) => `(${REF.baseYear}+(${yrsToRet})+${tRef})`;
+    const INFL_T  = (tRef) => `POWER(1+${REF.cpi}, (${yrsToRet}+${tRef}))`;
 
-    // Build rows
-    const rows = [...title, header];
-    const MAX_ROWS = 60; // covers most retire ages to 100
-    for (let i = 0; i < MAX_ROWS; i++) {
-      rows.push([
-        { f: tRef },         // t
-        { f: AGE },          // Age
-        { f: INFL_T },       // inflation factor
-        { f: NEED_GROSS },   // gross need
-        { f: RENT_T },       // rent
-        { f: DB_SELF_T },    // DB self (inflated)
-        { f: DB_PART_T },    // DB partner (inflated)
-        { f: SP_SELF_T },    // SP self
-        { f: SP_PART_T },    // SP partner
-        { f: NET_NEED },     // net need
-        { f: DF_T },         // discount factor
-        { f: `IF(${tRef}<${yrsRet}, ${PV_T}, "")` } // PV within horizon only
-      ]);
+    // Other income pieces per t
+    const SP_SELF_T = (tRef) =>
+      `IF(${REF.spSelfOn}="On", IF(${AGE_T(tRef)}>=${REF.spStartAge}, ${REF.spAnnual}, 0), 0)`;
+
+    // Partner SP must be hard-gated by Has Partner
+    const PARTNER_AGE_AT_RET = `IF(${REF.hasPartner}="Yes", N(${REF.partnerAge})+${yrsToRet}, NA())`;
+    const SP_PART_T = (tRef) =>
+      `IF(${REF.hasPartner}="Yes",
+          IF(${REF.spPartnerOn}="On",
+             IF((${PARTNER_AGE_AT_RET}+${tRef})>=${REF.spStartAge}, ${REF.spAnnual}, 0),
+             0),
+          0)`;
+
+    // DB components are CPI-indexed from their start ages
+    const DB_SELF_T = (tRef) =>
+      `IF(${AGE_T(tRef)}>=${REF.dbSelfAge},
+          IF(${REF.hasDbSelf}="On", ${REF.dbSelfYr}*${INFL_T(tRef)}, 0),
+          0)`;
+    const DB_PART_T = (tRef) =>
+      `IF(${REF.hasPartner}="Yes",
+         IF(${AGE_T(tRef)}>=${REF.dbPartnerAge},
+            IF(${REF.hasDbPartner}="On", ${REF.dbPartnerYr}*${INFL_T(tRef)}, 0),
+            0),
+         0)`;
+
+    // Rent is CPI-indexed from today
+    const RENT_T = (tRef) => `(${REF.rentYr}*${INFL_T(tRef)})`;
+
+    // Total need at t (nominal)
+    const TOTAL_NEED_T = (tRef) => `(${REF.householdSalary}*${REF.targetPct}*${INFL_T(tRef)})`;
+
+    // Other income total at t
+    const OTHER_T = (tRef) => `(${SP_SELF_T(tRef)}+${SP_PART_T(tRef)}+${DB_SELF_T(tRef)}+${DB_PART_T(tRef)}+${RENT_T(tRef)})`;
+
+    // Pensionable need at t
+    const PENS_NEED_T = (tRef) => `MAX(0, ${TOTAL_NEED_T(tRef)} - ${OTHER_T(tRef)})`;
+
+    // Build data rows t = 0..(REM_YEARS-1)
+    // Accumulated needs: set by formula referencing previous row in column F (6th col)
+    for (let t = 0; t < 200; t++) { // hard safety cap; we’ll stop by formula guard
+      const tRef = `${t}`;
+      const yearF = { f: `IF(${tRef}<${REM_YEARS}, ${YEAR_T(tRef)}, "")` };
+      const ageF  = { f: `IF(${tRef}<${REM_YEARS}, ${AGE_T(tRef)}, "")` };
+      const totalF= { f: `IF(${tRef}<${REM_YEARS}, ${TOTAL_NEED_T(tRef)}, "")` };
+      const otherF= { f: `IF(${tRef}<${REM_YEARS}, ${OTHER_T(tRef)}, "")` };
+      const pensF = { f: `IF(${tRef}<${REM_YEARS}, ${PENS_NEED_T(tRef)}, "")` };
+      // Accumulated = previous + this row’s pens need
+      const accF  = (t === 0)
+        ? { f: `IF(${tRef}<${REM_YEARS}, ${PENS_NEED_T(tRef)}, "")` }
+        : { f: `IF(${tRef}<${REM_YEARS}, ${PENS_NEED_T(tRef)} + INDIRECT(ADDRESS(ROW()-1, COLUMN())), "")` };
+
+      rows.push([yearF, ageF, totalF, otherF, pensF, accF]);
+      // Stop adding JS rows once we’ve likely covered to age 100
+      if (t > 120) break;
     }
 
-    // Footer with link-back formulas
-    rows.push([]);
-    rows.push(['Inputs (linked)', '', '', '', '', '', '', '', '', '', '', '']);
-    rows.push(['Base year', { f: REF.baseYear }]);
-    rows.push(['Has partner', { f: REF.hasPartner }]);
-    rows.push(['Retirement age', { f: REF.retirementAge }]);
-    rows.push(['Current age', { f: REF.currentAge }]);
-    rows.push(['Target % of salary (decimal)', { f: REF.targetPct }]);
-    rows.push(['Salary today — household (€)', { f: REF.householdSalary }]);
-    rows.push(['CPI (decimal)', { f: REF.cpi }]);
-    rows.push(['Growth (decimal)', { f: REF.growth }]);
-    rows.push(['SP toggles: You / Partner', { f: REF.spSelfOn }, { f: REF.spPartnerOn }]);
-    rows.push(['SP annual (€/yr)', { f: REF.spAnnual }]);
-    rows.push(['SP start age', { f: REF.spStartAge }]);
-    rows.push(['DB — You: on?, €/yr, start age', { f: REF.hasDbSelf }, { f: REF.dbSelfYr }, { f: REF.dbSelfAge }]);
-    rows.push(['DB — Partner: on?, €/yr, start age', { f: REF.hasDbPartner }, { f: REF.dbPartnerYr }, { f: REF.dbPartnerAge }]);
-    rows.push(['Rent today (€/yr)', { f: REF.rentYr }]);
-
-    // Final required pot (rounded like JS)
-    rows.push([]);
-    rows.push([
-      'Required pot @ retirement (sum PV of net need)',
-      { f: `ROUND(SUM(L4:INDEX(L:L, 3+1+${MAX_ROWS})), -3)` } // Sum PV column within table; round to nearest €1k
-    ]);
-
+    // Create sheet
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [
-      {wch:10},{wch:8},{wch:16},{wch:20},{wch:14},{wch:16},
-      {wch:18},{wch:14},{wch:18},{wch:18},{wch:16},{wch:16}
+      { wch: 10 }, // Year
+      { wch: 8 },  // Age
+      { wch: 24 }, // Total income requirement
+      { wch: 28 }, // Other income
+      { wch: 30 }, // Pensionable income requirement
+      { wch: 30 }  // Accumulated need
     ];
+
+    // Summary area on top (above the table): Required Pot = last non-empty Accumulated value
+    // We search down column F for the last non-empty number.
+    // Place at B1 for visibility.
+    ws['B1'] = { v: 'Required Pot (nominal):' };
+    ws['C1'] = { f: `IFERROR(LOOKUP(9e99, F:F), "")` };
+
+    // Small linked inputs helper (so users can trace back)
+    ws['A2'] = { v: 'Linked Inputs (from Assumptions & Inputs)' };
+    ws['A3'] = { v: 'Base year' };
+    ws['B3'] = { f: REF.baseYear };
+    ws['A4'] = { v: 'Has partner' };
+    ws['B4'] = { f: REF.hasPartner };
+    ws['A5'] = { v: 'Retirement age' };
+    ws['B5'] = { f: REF.retirementAge };
+    ws['A6'] = { v: 'Target % of salary today (decimal)' };
+    ws['B6'] = { f: REF.targetPct };
+    ws['A7'] = { v: 'Household salary today (€)' };
+    ws['B7'] = { f: REF.householdSalary };
+    ws['A8'] = { v: 'CPI (decimal)' };
+    ws['B8'] = { f: REF.cpi };
+    ws['A9'] = { v: 'SP annual (€)' };
+    ws['B9'] = { f: REF.spAnnual };
+    ws['A10'] = { v: 'SP start age' };
+    ws['B10'] = { f: REF.spStartAge };
+    ws['A11'] = { v: 'SP you (on/off)' };
+    ws['B11'] = { f: REF.spSelfOn };
+    ws['A12'] = { v: 'SP partner (on/off)' };
+    ws['B12'] = { f: REF.spPartnerOn };
+    ws['A13'] = { v: 'DB you (€/yr, start age)' };
+    ws['B13'] = { f: `${REF.dbSelfYr}&" @ "&${REF.dbSelfAge}` };
+    ws['A14'] = { v: 'DB partner (€/yr, start age)' };
+    ws['B14'] = { f: `${REF.dbPartnerYr}&" @ "&${REF.dbPartnerAge}` };
+    ws['A15'] = { v: 'Rent today (€/yr)' };
+    ws['B15'] = { f: REF.rentYr };
+
     XLSX.utils.book_append_sheet(wb, ws, 'FF Target — Required Pot');
   })();
 
