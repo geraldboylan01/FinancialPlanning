@@ -5,70 +5,40 @@ import { buildWarningsHTML } from './shared/warnings.js';
 import { buildFullMontyPDF } from './fullMontyPdf.js';
 import { downloadFullMontyExcel } from './shared/exportExcel.js';
 
-function mountDownloadDataButton() {
-  if (document.getElementById('btnDownloadData')) return;
+function mountPillExportIcons() {
+  const candidates = [
+    document.querySelector('#beforeRetirement .pills, #beforeRetirement .pill-row, #beforeRetirement [data-pills]'),
+    document.querySelector('#duringRetirement .pills, #duringRetirement .pill-row, #duringRetirement [data-pills]'),
+  ].filter(Boolean);
 
-  const pdfBtn = document.querySelector('[data-action="download-pdf"], #btnDownloadPDF, .js-download-pdf');
-  const container = pdfBtn?.parentElement || document.querySelector('.results-actions') || document.querySelector('#resultsHeader');
+  if (!candidates.length) {
+    document.querySelectorAll('.results-hero .pills, .results-hero .pill-row, .results-header .pills, .results-header .pill-row')
+      .forEach(el => candidates.push(el));
+  }
 
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.id = 'btnDownloadData';
-  btn.className = 'btn ghost small';
-  btn.innerHTML = `
-    <span class="icon" aria-hidden="true" style="display:inline-flex;margin-right:6px;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-        <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M8 4v16M16 4v16M3 9h18M3 14h18" stroke="currentColor" stroke-width="1.5"/>
-      </svg>
-    </span>
-    Download data
-  `;
-  btn.title = 'Download inputs and year-by-year results as Excel';
-  btn.style.cssText = `
-    all: unset; cursor: pointer;
-    display:inline-flex; align-items:center; gap:6px;
-    padding:8px 12px; border-radius:10px;
-    border:1px solid var(--surface-3, #2a2a2a);
-    background: var(--surface-2, #161616); color: var(--text-1, #e9e9e9);
-    box-shadow: 0 1px 0 rgba(0,0,0,.3);
-  `;
-  btn.onmouseenter = () => (btn.style.borderColor = 'var(--accent, #c000ff)');
-  btn.onmouseleave = () => (btn.style.borderColor = 'var(--surface-3, #2a2a2a)');
+  candidates.forEach(container => {
+    if (!container || container.dataset.exportMounted === '1') return;
+    container.dataset.exportMounted = '1';
 
-  (container || document.body).appendChild(btn);
-  btn.addEventListener('click', () => {
-    downloadFullMontyExcel().catch(err => {
-      console.error('[Excel] Download failed', err);
-      alert('Sorry — Excel export failed. Please try again.');
-    });
-  });
-}
-
-// Mount tiny export icon inside each chart card without changing layout
-function mountInlineExportIcons() {
-  // Be liberal in selecting chart wrappers:
-  const cards = document.querySelectorAll('.chart-card, .results-card, .graph-card');
-  cards.forEach(card => {
-    if (card.querySelector('.chart-export-btn')) return;
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'chart-export-btn';
-    btn.title = 'Download data';
-    btn.setAttribute('aria-label','Download data');
+    btn.className = 'pill-export-btn';
+    btn.title = 'Download data (Excel)';
+    btn.setAttribute('aria-label', 'Download data (Excel)');
     btn.innerHTML = `
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
         <path d="M8 4v16M16 4v16M3 9h18M3 14h18" stroke="currentColor" stroke-width="1.5"/>
       </svg>
     `;
+
+    container.appendChild(btn);
     btn.addEventListener('click', () => {
       downloadFullMontyExcel().catch(err => {
         console.error('[Excel] Download failed', err);
         alert('Sorry — Excel export failed. Please try again.');
       });
     });
-    card.appendChild(btn);
   });
 }
 
@@ -1763,15 +1733,16 @@ function rebindGeneratePdfButton() {
     fresh.addEventListener(ACTIVATE_EVT, handleGeneratePdfTap, { passive: false });
   });
 
-  mountDownloadDataButton();
 }
 
 document.addEventListener('DOMContentLoaded', rebindGeneratePdfButton);
 window.addEventListener('fm-renderer-ready', rebindGeneratePdfButton);
-document.addEventListener('DOMContentLoaded', mountDownloadDataButton);
-window.addEventListener('fm-renderer-ready', mountDownloadDataButton);
-window.addEventListener('fm:results:ready', mountDownloadDataButton);
-document.addEventListener('fm:results:ready', mountInlineExportIcons);
-document.addEventListener('DOMContentLoaded', mountInlineExportIcons);
+document.addEventListener('fm:results:ready', mountPillExportIcons);
+document.addEventListener('DOMContentLoaded', mountPillExportIcons);
+
+document.addEventListener('DOMContentLoaded', () => {
+  const legacy = document.getElementById('btnDownloadData');
+  if (legacy) legacy.remove();
+});
 
 // Keep restore hidden on any re-render of results

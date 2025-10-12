@@ -75,7 +75,6 @@ function collectAssumptions() {
 
   // Risk/returns & CPI (from wizard store)
   const growth = (typeof s.pensionGrowthRate === 'number') ? s.pensionGrowthRate : 0.05; // decimal
-  const fee = 0; // your wizard doesn’t expose fees; keep 0 for transparency
   const cpi = (typeof s.cpiRate === 'number') ? (s.cpiRate/100) : 0.023; // store holds 2.3
 
   // State pension / DB toggles (from wizard)
@@ -115,7 +114,6 @@ function collectAssumptions() {
     personalPartnerAnnual,
     employerPartnerAnnual,
     annualGrowth: growth,
-    annualFee: fee,
     cpi,
 
     statePensionSelf,
@@ -158,7 +156,6 @@ function buildWorkbook(XLSX) {
     ['Personal Contributions – Partner (€/yr)', A.personalPartnerAnnual],
     ['Employer Contributions – Partner (€/yr)', A.employerPartnerAnnual],
     ['Annual Investment Growth (decimal)', A.annualGrowth],
-    ['Annual Fee (decimal)', A.annualFee],
     ['CPI Inflation (decimal)', A.cpi],
     ['State Pension – You (on/off)', A.statePensionSelf ? 'On' : 'Off'],
     ['State Pension – Partner (on/off)', A.statePensionPartner ? 'On' : 'Off'],
@@ -195,23 +192,21 @@ function buildWorkbook(XLSX) {
     persPartYr:             `'Assumptions & Inputs'!${refB(16)}`,
     emplPartYr:             `'Assumptions & Inputs'!${refB(17)}`,
     growth:                 `'Assumptions & Inputs'!${refB(18)}`,
-    fee:                    `'Assumptions & Inputs'!${refB(19)}`,
-    cpi:                    `'Assumptions & Inputs'!${refB(20)}`,
-    spSelfOn:               `'Assumptions & Inputs'!${refB(21)}`,
-    spPartnerOn:            `'Assumptions & Inputs'!${refB(22)}`,
-    hasDbSelf:              `'Assumptions & Inputs'!${refB(23)}`,
-    dbSelfYr:               `'Assumptions & Inputs'!${refB(24)}`,
-    dbSelfAge:              `'Assumptions & Inputs'!${refB(25)}`,
-    hasDbPartner:           `'Assumptions & Inputs'!${refB(26)}`,
-    dbPartnerYr:            `'Assumptions & Inputs'!${refB(27)}`,
-    dbPartnerAge:           `'Assumptions & Inputs'!${refB(28)}`,
-    rentYr:                 `'Assumptions & Inputs'!${refB(29)}`,
-    drawdownYears:          `'Assumptions & Inputs'!${refB(30)}`
+    cpi:                    `'Assumptions & Inputs'!${refB(19)}`,
+    spSelfOn:               `'Assumptions & Inputs'!${refB(20)}`,
+    spPartnerOn:            `'Assumptions & Inputs'!${refB(21)}`,
+    hasDbSelf:              `'Assumptions & Inputs'!${refB(22)}`,
+    dbSelfYr:               `'Assumptions & Inputs'!${refB(23)}`,
+    dbSelfAge:              `'Assumptions & Inputs'!${refB(24)}`,
+    hasDbPartner:           `'Assumptions & Inputs'!${refB(25)}`,
+    dbPartnerYr:            `'Assumptions & Inputs'!${refB(26)}`,
+    dbPartnerAge:           `'Assumptions & Inputs'!${refB(27)}`,
+    rentYr:                 `'Assumptions & Inputs'!${refB(28)}`,
+    drawdownYears:          `'Assumptions & Inputs'!${refB(29)}`
   };
 
   // Derived helpers
-  const NetGrowth = `((1+${REF.growth})*(1-${REF.fee})-1)`;
-  const RealReturn = `(((1+${REF.growth})*(1-${REF.fee}))/(1+${REF.cpi})-1)`;
+  const RealReturn = `(((1+${REF.growth}))/(1+${REF.cpi})-1)`;
   const TargetIncomeToday = `(${REF.householdSalary}*${REF.targetPct})`;
 
   // ===== Sheet 2: Results (both scenarios). Full names; formulas reference sheet 1.
@@ -225,8 +220,7 @@ function buildWorkbook(XLSX) {
     'Employer Contributions – Household (€/yr)',
     'Total Contributions – Household (€/yr)',
     'Opening Balance – Household (€)',
-    'Investment Return – Net of Fees (€)',
-    'Fees (€)',
+    'Investment Return (€/yr)',
     'Other Income Applied (State Pension, DB, Rent) (€/yr)',
     'Target Net Income in Retirement (€/yr)',
     'Withdrawal Taken (€/yr)',
@@ -234,6 +228,7 @@ function buildWorkbook(XLSX) {
     'Financial Freedom Target – Required Pension Pot (€)',
     'Gap to Financial Freedom Target (€)'
   ];
+  const OPEN_TO_CLOSE_OFFSET = HEAD.indexOf('Closing Balance – Household (€)') - HEAD.indexOf('Opening Balance – Household (€)');
   const aoa = [HEAD];
 
   // Build N rows covering accumulation to retirement+drawdownYears
@@ -277,11 +272,9 @@ function buildWorkbook(XLSX) {
     const OPEN =
       (i === 0)
         ? `(${REF.curPotSelf}+${REF.curPotPartner})`
-        : `INDIRECT(ADDRESS(ROW()-1, COLUMN()+7))`; // previous row “Closing Balance” (col 15)
+        : `INDIRECT(ADDRESS(ROW()-1, COLUMN()+${OPEN_TO_CLOSE_OFFSET}))`;
 
-    // Net return and fees (fees shown as 0 because NetGrowth is net)
-    const INV_RET = `(${OPEN}+${TOTAL_CONTRIB})*${NetGrowth}`;
-    const FEES = `(0)`;
+    const INV_RET = `(${OPEN}+${TOTAL_CONTRIB})*${REF.growth}`;
 
     // Other income in model (SP/DB/Rent) – transparent placeholders:
     const YEARS_FROM_TODAY = `(${YEAR}-${REF.baseYear})`;
@@ -298,9 +291,9 @@ function buildWorkbook(XLSX) {
     const TARGET_NET = `${TargetIncomeToday}*POWER(1+${REF.cpi}, ${YEARS_FROM_TODAY}) - ${OTHER_INCOME}`;
 
     // Withdrawal only in drawdown (cannot exceed available)
-    const WITHDRAWAL = `IF(${PHASE}="Drawdown", MAX(0, MIN(${OPEN}+${TOTAL_CONTRIB}+${INV_RET}-${FEES}, ${TARGET_NET})), 0)`;
+    const WITHDRAWAL = `IF(${PHASE}="Drawdown", MAX(0, MIN(${OPEN}+${TOTAL_CONTRIB}+${INV_RET}, ${TARGET_NET})), 0)`;
 
-    const CLOSE = `(${OPEN}+${TOTAL_CONTRIB}+${INV_RET}-${FEES}-${WITHDRAWAL})`;
+    const CLOSE = `(${OPEN}+${TOTAL_CONTRIB}+${INV_RET}-${WITHDRAWAL})`;
 
     // Financial Freedom Target – Required Pot (real-return annuity PV)
     const YEARS_TO_RETIRE = `MAX(0, ${REF.retirementAge}-${AGE})`;
@@ -325,7 +318,6 @@ function buildWorkbook(XLSX) {
       { f: TOTAL_CONTRIB },
       { f: OPEN },
       { f: INV_RET },
-      { f: FEES },
       { f: OTHER_INCOME },
       { f: TARGET_NET },
       { f: WITHDRAWAL },
