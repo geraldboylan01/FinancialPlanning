@@ -3,169 +3,7 @@ import { fyRequiredPot } from './shared/fyRequiredPot.js';
 import { sftForYear, CPI, STATE_PENSION, SP_START, MAX_SALARY_CAP } from './shared/assumptions.js';
 import { buildWarningsHTML } from './shared/warnings.js';
 import { buildFullMontyPDF } from './fullMontyPdf.js';
-
-let __xlsxReady;
-function ensureXLSX() {
-  if (__xlsxReady) return __xlsxReady;
-  __xlsxReady = new Promise((resolve, reject) => {
-    if (window.XLSX) return resolve(window.XLSX);
-
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
-    s.async = true;
-    s.onload = () => (window.XLSX ? resolve(window.XLSX) : reject(new Error('XLSX failed to load')));
-    s.onerror = () => reject(new Error('Failed to load XLSX script'));
-    document.head.appendChild(s);
-  });
-  return __xlsxReady;
-}
-
-function getExportTrace() {
-  if (window.__FM_TRACE__?.current?.steps?.length) return window.__FM_TRACE__;
-
-  const now = new Date().toISOString();
-  const meta = {
-    now,
-    year0: window.latestRun?.year0 ?? new Date().getFullYear(),
-    dob: window.latestRun?.dob ?? null,
-    currentAge: window.latestRun?.age ?? null,
-    retireAge: window.latestRun?.retireAge ?? null,
-    salaryNow: window.latestRun?.salary ?? null,
-    salaryCapUsed: Math.min(
-      window.latestRun?.salary ?? 0,
-      typeof MAX_SALARY_CAP !== 'undefined' ? MAX_SALARY_CAP : window.latestRun?.salary ?? 0
-    ),
-    growthAssumption: window.latestRun?.growth ?? null,
-    feeAssumption: window.latestRun?.fee ?? null,
-    cpiAssumption: typeof CPI !== 'undefined' ? CPI : window.latestRun?.cpi ?? null,
-    statePension: {
-      START: typeof SP_START !== 'undefined' ? SP_START : window.latestRun?.spStart ?? null,
-      amount: typeof STATE_PENSION !== 'undefined' ? STATE_PENSION : window.latestRun?.spAmount ?? null
-    },
-    targetIncomePctOfSalary: window.latestRun?.targetIncomePctOfSalary ?? null,
-    personalPct: window.latestRun?.personalPct ?? null,
-    employerPct: window.latestRun?.employerPct ?? null
-  };
-
-  function buildStepsFrom(run, scenarioName = 'current') {
-    if (!run) return [];
-    const len = Math.max(run.labels?.length || 0, run.balances?.length || 0);
-    const rows = [];
-    for (let i = 0; i < len; i++) {
-      rows.push({
-        year: (meta.year0 ?? new Date().getFullYear()) + i,
-        age: meta.currentAge != null ? meta.currentAge + i : null,
-        scenario: scenarioName,
-        mode:
-          run.modes?.[i] ||
-          (meta.retireAge && meta.currentAge != null && meta.currentAge + i >= meta.retireAge
-            ? 'drawdown'
-            : 'accumulation'),
-        salary: run.salarySeries?.[i] ?? meta.salaryCapUsed ?? null,
-        personalContrib: run.personalContrib?.[i] ?? null,
-        employerContrib: run.employerContrib?.[i] ?? null,
-        grossContrib: run.grossContrib?.[i] ?? null,
-        preFeeGrowth: run.growthSeries?.[i] ?? null,
-        fee: run.feeSeries?.[i] ?? null,
-        statePension: run.statePension?.[i] ?? null,
-        targetNetIncome: run.targetNetIncome?.[i] ?? null,
-        withdrawal: run.withdrawals?.[i] ?? null,
-        endBalance: run.balances?.[i] ?? null,
-        requiredPot: run.requiredPot?.[i] ?? null,
-        gapVsFY:
-          run.balances?.[i] != null && run.requiredPot?.[i] != null
-            ? run.balances[i] - run.requiredPot[i]
-            : null,
-        sft: run.sftSeries?.[i] ?? null
-      });
-    }
-    return rows;
-  }
-
-  return {
-    current: {
-      meta,
-      steps: buildStepsFrom(window.latestRun?.current, 'current')
-    },
-    max: window.latestRun?.max
-      ? {
-          meta,
-          steps: buildStepsFrom(window.latestRun?.max, 'max')
-        }
-      : null
-  };
-}
-
-async function downloadFullMontyExcel() {
-  const XLSX = await ensureXLSX();
-  const trace = getExportTrace();
-
-  const assumptions = [];
-  const m = trace.current?.meta || {};
-  function pushKV(k, v) {
-    assumptions.push({ Key: k, Value: v ?? '' });
-  }
-
-  pushKV('Generated At', m.now);
-  pushKV('Current Age', m.currentAge);
-  pushKV('Retirement Age', m.retireAge);
-  pushKV('Base Year (year0)', m.year0);
-  pushKV('Salary (today)', m.salaryNow);
-  pushKV('Salary Cap Used', m.salaryCapUsed);
-  pushKV('Target Income % of Salary (today)', m.targetIncomePctOfSalary);
-  pushKV('Personal % (Current scenario)', m.personalPct);
-  pushKV('Employer % (Current scenario)', m.employerPct);
-  pushKV('Growth Assumption (per annum)', m.growthAssumption);
-  pushKV('Fee Assumption (per annum)', m.feeAssumption);
-  pushKV('CPI Assumption (per annum)', m.cpiAssumption);
-  pushKV('State Pension Start Age', m.statePension?.START);
-  pushKV('State Pension Annual (today €)', m.statePension?.amount);
-
-  const wsAss = XLSX.utils.json_to_sheet(assumptions);
-
-  const rows = [];
-  const cSteps = trace.current?.steps || [];
-  const mSteps = trace.max?.steps || [];
-  rows.push(...cSteps);
-  if (mSteps.length) rows.push(...mSteps);
-
-  const COLS = [
-    'scenario',
-    'year',
-    'age',
-    'mode',
-    'salary',
-    'personalContrib',
-    'employerContrib',
-    'grossContrib',
-    'preFeeGrowth',
-    'fee',
-    'statePension',
-    'targetNetIncome',
-    'withdrawal',
-    'endBalance',
-    'requiredPot',
-    'gapVsFY',
-    'sft'
-  ];
-
-  const wsRes = XLSX.utils.json_to_sheet(rows, { header: COLS });
-  wsRes['!cols'] = COLS.map(c => ({ wch: Math.max(12, String(c).length + 2) }));
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, wsAss, 'Assumptions & Inputs');
-  XLSX.utils.book_append_sheet(wb, wsRes, 'Results');
-
-  const dt = new Date();
-  const y = dt.getFullYear();
-  const mm = String(dt.getMonth() + 1).padStart(2, '0');
-  const dd = String(dt.getDate()).padStart(2, '0');
-  const hh = String(dt.getHours()).padStart(2, '0');
-  const min = String(dt.getMinutes()).padStart(2, '0');
-  const fname = `Planéir_FullMonty_Data_${y}-${mm}-${dd}_${hh}${min}.xlsx`;
-
-  XLSX.writeFile(wb, fname, { compression: true });
-}
+import { downloadFullMontyExcel } from './shared/exportExcel.js';
 
 function mountDownloadDataButton() {
   if (document.getElementById('btnDownloadData')) return;
@@ -204,6 +42,33 @@ function mountDownloadDataButton() {
       console.error('[Excel] Download failed', err);
       alert('Sorry — Excel export failed. Please try again.');
     });
+  });
+}
+
+// Mount tiny export icon inside each chart card without changing layout
+function mountInlineExportIcons() {
+  // Be liberal in selecting chart wrappers:
+  const cards = document.querySelectorAll('.chart-card, .results-card, .graph-card');
+  cards.forEach(card => {
+    if (card.querySelector('.chart-export-btn')) return;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chart-export-btn';
+    btn.title = 'Download data';
+    btn.setAttribute('aria-label','Download data');
+    btn.innerHTML = `
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8 4v16M16 4v16M3 9h18M3 14h18" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+    `;
+    btn.addEventListener('click', () => {
+      downloadFullMontyExcel().catch(err => {
+        console.error('[Excel] Download failed', err);
+        alert('Sorry — Excel export failed. Please try again.');
+      });
+    });
+    card.appendChild(btn);
   });
 }
 
@@ -1906,5 +1771,7 @@ window.addEventListener('fm-renderer-ready', rebindGeneratePdfButton);
 document.addEventListener('DOMContentLoaded', mountDownloadDataButton);
 window.addEventListener('fm-renderer-ready', mountDownloadDataButton);
 window.addEventListener('fm:results:ready', mountDownloadDataButton);
+document.addEventListener('fm:results:ready', mountInlineExportIcons);
+document.addEventListener('DOMContentLoaded', mountInlineExportIcons);
 
 // Keep restore hidden on any re-render of results
