@@ -5,45 +5,43 @@ import { buildWarningsHTML } from './shared/warnings.js';
 import { buildFullMontyPDF } from './fullMontyPdf.js';
 import { downloadFullMontyExcel } from './shared/exportExcel.js';
 
-// Minimal export-icon mount: one button per section, next to the pills
-function mountPillExportIcons() {
-  const targets = [
-    { sectionId: 'beforeRetirement', slotId: 'export-slot-before' },
-    { sectionId: 'duringRetirement', slotId: 'export-slot-during' },
+function mountSectionDownloadIcons() {
+  const TARGETS = [
+    { rootId: 'phase-pre',  slotId: 'export-slot-pre'  },
+    { rootId: 'phase-post', slotId: 'export-slot-post' },
   ];
 
-  const svg = `
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
-      <path d="M8 4v16M16 4v16M3 9h18M3 14h18" stroke="currentColor" stroke-width="1.5"/>
+  const iconSvg = `
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M12 3v10m0 0l4-4m-4 4l-4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M4 17a2 2 0 002 2h12a2 2 0 002-2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
     </svg>
   `;
 
-  targets.forEach(({ sectionId, slotId }) => {
-    const section = document.getElementById(sectionId);
-    if (!section) return;
+  TARGETS.forEach(({ rootId, slotId }) => {
+    const root = document.getElementById(rootId);
+    if (!root) return;
 
-    // Prefer an existing pill row; otherwise use first child
-    const hostRow = section.querySelector('.pill-row, .pills') || section.firstElementChild || section;
+    // prefer the section header row (pills/controls) if present; fall back to first element
+    const host = root.querySelector('.pill-row, .pills, .section-head, header, h2, h3') || root.firstElementChild || root;
+    if (!host) return;
 
-    // Create a slot if needed
     let slot = document.getElementById(slotId);
     if (!slot) {
       slot = document.createElement('span');
       slot.id = slotId;
-      slot.className = 'pill-export-slot';
-      hostRow.appendChild(slot);
+      slot.className = 'fm-export-slot';
+      host.appendChild(slot);
     }
 
-    // Avoid duplicates
     if (slot.dataset.mounted === '1') return;
 
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'pill-export-btn';
-    btn.title = 'Download data (Excel)';
-    btn.setAttribute('aria-label', 'Download data (Excel)');
-    btn.innerHTML = svg;
+    btn.className = 'fm-export-btn';
+    btn.title = 'Download data';
+    btn.setAttribute('aria-label', 'Download data');
+    btn.innerHTML = iconSvg;
     btn.addEventListener('click', () => {
       downloadFullMontyExcel().catch(err => {
         console.error('[Excel] Download failed', err);
@@ -1751,8 +1749,9 @@ function rebindGeneratePdfButton() {
 
 document.addEventListener('DOMContentLoaded', rebindGeneratePdfButton);
 window.addEventListener('fm-renderer-ready', rebindGeneratePdfButton);
-document.addEventListener('fm:results:ready', mountPillExportIcons);
-document.addEventListener('DOMContentLoaded', mountPillExportIcons);
+document.addEventListener('DOMContentLoaded', mountSectionDownloadIcons);
+window.addEventListener('fm-renderer-ready', mountSectionDownloadIcons);
+document.addEventListener('fm:results:ready', mountSectionDownloadIcons);
 
 document.addEventListener('DOMContentLoaded', () => {
   const legacy = document.getElementById('btnDownloadData');
