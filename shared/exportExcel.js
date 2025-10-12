@@ -183,6 +183,7 @@ function buildWorkbook(XLSX) {
   const refB = (idx) => XLSX.utils.encode_cell({ r: 1 + idx, c: 1 });
   const REF = {
     baseYear:               `'Assumptions & Inputs'!${refB(1)}`,
+    hasPartner:             `'Assumptions & Inputs'!${refB(2)}`,
     currentAge:             `'Assumptions & Inputs'!${refB(3)}`,
     partnerAge:             `'Assumptions & Inputs'!${refB(4)}`,
     retirementAge:          `'Assumptions & Inputs'!${refB(5)}`,
@@ -318,7 +319,8 @@ function buildWorkbook(XLSX) {
     // Income need and other income at retirement
     const SpendAtRet = `(${REF.householdSalary}*${REF.targetPct})*POWER(1+${REF.cpi}, ${yrsToRet})`;
     const RentAtRet  = `(${REF.rentYr})*POWER(1+${REF.cpi}, ${yrsToRet})`;
-    const PartnerAgeAtRet = `IFERROR(N(${REF.partnerAge})+${yrsToRet}, 0)`;
+    // Only meaningful if a partner exists; otherwise, leave as NA() and hard-gate with hasPartner.
+    const PartnerAgeAtRet = `IF(${REF.hasPartner}="Yes", N(${REF.partnerAge})+${yrsToRet}, NA())`;
 
     // Friendly header explaining linkage
     const title = [
@@ -349,9 +351,15 @@ function buildWorkbook(XLSX) {
     const NEED_GROSS  = `(${SpendAtRet}*${INFL_T})`;
     const RENT_T      = `(${RentAtRet}*${INFL_T})`;
     const DB_SELF_T   = `IF(${AGE}>=${REF.dbSelfAge}, IF(${REF.hasDbSelf}="On", ${REF.dbSelfYr}*${INFL_T}, 0), 0)`;
-    const DB_PART_T   = `IF(${AGE}>=${REF.dbPartnerAge}, IF(${REF.hasDbPartner}="On", ${REF.dbPartnerYr}*${INFL_T}, 0), 0)`;
+    const DB_PART_T   = `IF(${REF.hasPartner}="Yes",
+      IF(${AGE}>=${REF.dbPartnerAge}, IF(${REF.hasDbPartner}="On", ${REF.dbPartnerYr}*${INFL_T}, 0), 0),
+      0)`;
     const SP_SELF_T   = `IF(${REF.spSelfOn}="On", IF(${AGE}>=${REF.spStartAge}, ${REF.spAnnual}, 0), 0)`;
-    const SP_PART_T   = `IF(${REF.spPartnerOn}="On", IF((${PartnerAgeAtRet}+${tRef})>=${REF.spStartAge}, ${REF.spAnnual}, 0), 0)`;
+    const SP_PART_T   = `IF(${REF.hasPartner}="Yes",
+      IF(${REF.spPartnerOn}="On",
+        IF((${PartnerAgeAtRet}+${tRef})>=${REF.spStartAge}, ${REF.spAnnual}, 0),
+        0),
+      0)`;
     const NET_NEED    = `MAX(0, ${NEED_GROSS} - (${RENT_T}+${DB_SELF_T}+${DB_PART_T}+${SP_SELF_T}+${SP_PART_T}))`;
     const DF_T        = `1/POWER(1+${REF.growth}, ${tRef}+1)`;
     const PV_T        = `(${NET_NEED}*${DF_T})`;
@@ -380,6 +388,7 @@ function buildWorkbook(XLSX) {
     rows.push([]);
     rows.push(['Inputs (linked)', '', '', '', '', '', '', '', '', '', '', '']);
     rows.push(['Base year', { f: REF.baseYear }]);
+    rows.push(['Has partner', { f: REF.hasPartner }]);
     rows.push(['Retirement age', { f: REF.retirementAge }]);
     rows.push(['Current age', { f: REF.currentAge }]);
     rows.push(['Target % of salary (decimal)', { f: REF.targetPct }]);
