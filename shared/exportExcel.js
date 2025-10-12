@@ -135,7 +135,7 @@ function collectAssumptions() {
 function buildWorkbook(XLSX) {
   const A = collectAssumptions();
 
-  // ===== Sheet 1: Assumptions & Inputs
+  // ===== Sheet 1: Assumptions & Inputs (UNCHANGED)
   const rowsA = [
     ['Generated At (ISO)', A.generatedAtISO],
     ['Base Year (first projection year)', A.baseYear],
@@ -172,7 +172,7 @@ function buildWorkbook(XLSX) {
   const wsA = XLSX.utils.aoa_to_sheet([['Assumption / Input','Value'], ...rowsA]);
   XLSX.utils.book_append_sheet(wb, wsA, 'Assumptions & Inputs');
 
-  // Map to cell refs (B-column)
+  // Map to cell refs (B-column) — keep in sync with the rows above
   const refB = (idx) => XLSX.utils.encode_cell({ r: 1 + 1 + idx, c: 1 }); // header row + 1
   const REF = {
     baseYear:               `'Assumptions & Inputs'!${refB(1)}`,
@@ -205,25 +205,19 @@ function buildWorkbook(XLSX) {
     drawdownYears:          `'Assumptions & Inputs'!${refB(29)}`
   };
 
-  // Derived helpers
+  // Helpers reused across sheets
   const RealReturn = `(((1+${REF.growth}))/(1+${REF.cpi})-1)`;
   const TargetIncomeToday = `(${REF.householdSalary}*${REF.targetPct})`;
+  const yrsToRet = `MAX(0, ${REF.retirementAge}-${REF.currentAge})`;
 
-  // ===== Sheet 2: Results (both scenarios). Full names; formulas reference sheet 1.
+  // ===== Sheet 2: Results (UNCHANGED logic, just your existing table)
   const HEAD = [
-    'Scenario',
-    'Year',
-    'Age (You)',
-    'Phase (Accumulation / Drawdown)',
-    'Salary Used – Household (€)',
-    'Personal Contributions – Household (€/yr)',
-    'Employer Contributions – Household (€/yr)',
-    'Total Contributions – Household (€/yr)',
-    'Opening Balance – Household (€)',
-    'Investment Return (€/yr)',
+    'Scenario','Year','Age (You)','Phase (Accumulation / Drawdown)',
+    'Salary Used – Household (€)','Personal Contributions – Household (€/yr)',
+    'Employer Contributions – Household (€/yr)','Total Contributions – Household (€/yr)',
+    'Opening Balance – Household (€)','Investment Return (€/yr)',
     'Other Income Applied (State Pension, DB, Rent) (€/yr)',
-    'Target Net Income in Retirement (€/yr)',
-    'Withdrawal Taken (€/yr)',
+    'Target Net Income in Retirement (€/yr)','Withdrawal Taken (€/yr)',
     'Closing Balance – Household (€)',
     'Financial Freedom Target – Required Pension Pot (€)',
     'Gap to Financial Freedom Target (€)'
@@ -231,44 +225,25 @@ function buildWorkbook(XLSX) {
   const OPEN_TO_CLOSE_OFFSET = HEAD.indexOf('Closing Balance – Household (€)') - HEAD.indexOf('Opening Balance – Household (€)');
   const aoa = [HEAD];
 
-  // Build N rows covering accumulation to retirement+drawdownYears
-  const N = 60; // safe default; Excel formulas are transparent
-  for (let i = 0; i < N; i++) {
-    const year = `{= ${REF.baseYear} + ${i} }`; // string placeholders (we’ll turn to formula objects below)
-  }
-
   function makeRow(i, scenario /* 'Current' | 'Max' */) {
-    const rowIndexExcel = aoa.length + 1;
-
-    // Age and phase
     const YEAR = `(${REF.baseYear}+${i})`;
     const AGE  = `(${REF.currentAge}+${i})`;
     const PHASE = `IF(${AGE}<${REF.retirementAge},"Accumulation","Drawdown")`;
-
-    // Household contributions:
-    // Current uses wizard annuals; Max uses age-band rule + cap at 115k
     const AGE_BAND_PCT = `IF(${AGE}<=29,0.15,IF(${AGE}<=39,0.20,IF(${AGE}<=49,0.25,IF(${AGE}<=54,0.30,IF(${AGE}<=59,0.35,0.40)))))`;
-    const SALARY_USED_SELF = REF.salaryCapSelf;
-    const SALARY_USED_PARTNER = REF.salaryCapPartner;
-    const HOUSEHOLD_SALARY_USED = `(${SALARY_USED_SELF}+${SALARY_USED_PARTNER})`;
-
+    const HOUSEHOLD_SALARY_USED = `(${REF.salaryCapSelf}+${REF.salaryCapPartner})`;
     const PERS_YR_CUR = `(${REF.persSelfYr}+${REF.persPartYr})`;
     const EMPL_YR_CUR = `(${REF.emplSelfYr}+${REF.emplPartYr})`;
-
-    const PERS_YR_MAX = `(${HOUSEHOLD_SALARY_USED}*${AGE_BAND_PCT})`; // personal only; employer left as-is (0) without inputs
-    const EMPL_YR_MAX = `(0)`; // no employer max logic in wizard store; keep transparent
+    const PERS_YR_MAX = `(${HOUSEHOLD_SALARY_USED}*${AGE_BAND_PCT})`;
+    const EMPL_YR_MAX = `(0)`;
 
     const PERS_YR = (scenario === 'Current')
       ? `IF(${PHASE}="Accumulation",${PERS_YR_CUR},0)`
       : `IF(${PHASE}="Accumulation",${PERS_YR_MAX},0)`;
-
     const EMPL_YR = (scenario === 'Current')
       ? `IF(${PHASE}="Accumulation",${EMPL_YR_CUR},0)`
       : `IF(${PHASE}="Accumulation",${EMPL_YR_MAX},0)`;
-
     const TOTAL_CONTRIB = `(${PERS_YR}+${EMPL_YR})`;
 
-    // Opening balance (first row uses current pots)
     const OPEN =
       (i === 0)
         ? `(${REF.curPotSelf}+${REF.curPotPartner})`
@@ -276,35 +251,24 @@ function buildWorkbook(XLSX) {
 
     const INV_RET = `(${OPEN}+${TOTAL_CONTRIB})*${REF.growth}`;
 
-    // Other income in model (SP/DB/Rent) – transparent placeholders:
-    const YEARS_FROM_TODAY = `(${YEAR}-${REF.baseYear})`;
-
-    // For simplicity we show "other income applied" as DB starting at configured ages plus rental; 
-    // State pension is flagged on/off but you don’t keep € in store; keep it 0 but visible.
-    const SP = `(0)`; // not in store as €; keep visible and editable by user later
+    const YEAR_OFF = `(${REF.baseYear}+${i})`;
+    const YEARS_FROM_TODAY = `(${YEAR_OFF}-${REF.baseYear})`;
+    const SP = `(0)`; // amounts not in store — left editable for the user
     const DB_SELF = `IF(${AGE}>=${REF.dbSelfAge}, IF(${REF.hasDbSelf}="On", ${REF.dbSelfYr}, 0), 0)`;
     const DB_PART = `IF(${AGE}>=${REF.dbPartnerAge}, IF(${REF.hasDbPartner}="On", ${REF.dbPartnerYr}, 0), 0)`;
     const RENT = `IF(${PHASE}="Drawdown", ${REF.rentYr}, 0)`;
     const OTHER_INCOME = `(${SP}+${DB_SELF}+${DB_PART}+${RENT})`;
 
-    // Target net income: % of household salary (today) inflated by CPI, minus other income
     const TARGET_NET = `${TargetIncomeToday}*POWER(1+${REF.cpi}, ${YEARS_FROM_TODAY}) - ${OTHER_INCOME}`;
-
-    // Withdrawal only in drawdown (cannot exceed available)
     const WITHDRAWAL = `IF(${PHASE}="Drawdown", MAX(0, MIN(${OPEN}+${TOTAL_CONTRIB}+${INV_RET}, ${TARGET_NET})), 0)`;
-
     const CLOSE = `(${OPEN}+${TOTAL_CONTRIB}+${INV_RET}-${WITHDRAWAL})`;
 
-    // Financial Freedom Target – Required Pot (real-return annuity PV)
     const YEARS_TO_RETIRE = `MAX(0, ${REF.retirementAge}-${AGE})`;
     const REM_YEARS = `IF(${PHASE}="Drawdown", MAX(0, ${REF.drawdownYears} - (${AGE}-${REF.retirementAge})), ${REF.drawdownYears})`;
-    // deflate TARGET_NET to real terms of retirement year:
     const TARGET_REAL = `IF(${PHASE}="Drawdown", (${TARGET_NET}/POWER(1+${REF.cpi}, ${YEARS_FROM_TODAY})), (${TargetIncomeToday}/POWER(1+${REF.cpi}, ${YEARS_TO_RETIRE})))`;
-    const REQUIRED = `IF(${PHASE}="Drawdown",
-      IF(${RealReturn}=0, ${TARGET_REAL}*${REM_YEARS}, ${TARGET_REAL}*(1-POWER(1/(1+${RealReturn}), ${REM_YEARS}))/(${RealReturn})),
+    const REQUIRED = `IF(${PHASE}="Drawdown`,    IF(${RealReturn}=0, ${TARGET_REAL}*${REM_YEARS}, ${TARGET_REAL}*(1-POWER(1/(1+${RealReturn}), ${REM_YEARS}))/(${RealReturn})),
       IF(${RealReturn}=0, ${TARGET_REAL}*${REF.drawdownYears}, ${TARGET_REAL}*(1-POWER(1/(1+${RealReturn}), ${REF.drawdownYears}))/(${RealReturn}))
     )`;
-
     const GAP = `(${CLOSE} - ${REQUIRED})`;
 
     aoa.push([
@@ -327,17 +291,160 @@ function buildWorkbook(XLSX) {
     ]);
   }
 
-  // Current block
+  // Current + Max 60 rows (unchanged)
   for (let i=0; i<60; i++) makeRow(i, 'Current');
-  // Max block
   for (let i=0; i<60; i++) makeRow(i, 'Max');
 
   const wsR = XLSX.utils.aoa_to_sheet(aoa);
   wsR['!cols'] = HEAD.map(h => ({ wch: Math.max(18, h.length + 2) }));
   XLSX.utils.book_append_sheet(wb, wsR, 'Results');
 
+  // ===== New Sheet 3: FF Target (How)
+  (function addFFTarget(){
+    const rows = [
+      ['Step','Formula','Result'],
+      ['Target income today', 'Household salary × Target %', { f: `(${REF.householdSalary}*${REF.targetPct})` }],
+      ['Years to retirement', 'Retire age − Current age', { f: yrsToRet }],
+      ['Inflation factor to retirement', '(1 + CPI) ^ Years', { f: `POWER(1+${REF.cpi}, ${yrsToRet})` }],
+      ['Target income @ retirement', 'Target today × Inflation factor', { f: `(${REF.householdSalary}*${REF.targetPct})*POWER(1+${REF.cpi}, ${yrsToRet})` }],
+      ['Implied annuity factor (real)', 'See Results calc (RealReturn)', { f: `IF(${RealReturn}=0, ${REF.drawdownYears}, (1-POWER(1/(1+${RealReturn}), ${REF.drawdownYears}))/(${RealReturn}))` }],
+      ['Required pot (illustrative)', 'Target@ret × annuity factor (real)', { f: `(${REF.householdSalary}*${REF.targetPct})*POWER(1+${REF.cpi}, ${yrsToRet})*IF(${RealReturn}=0, ${REF.drawdownYears}, (1-POWER(1/(1+${RealReturn}), ${REF.drawdownYears}))/(${RealReturn}))` }],
+      ['Implied pot factor', 'Required pot ÷ Target@ret', { f: `IFERROR( RC[-1] / (${REF.householdSalary}*${REF.targetPct})/POWER(1+${REF.cpi}, ${yrsToRet}), "" )`, t:'s' }],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:30},{wch:40},{wch:22}];
+    XLSX.utils.book_append_sheet(wb, ws, 'FF Target (How)');
+  })();
+
+  // Common snippets for projections
+  const AGE_BAND_PCT_FN = (ageRef) =>
+    `IF(${ageRef}<=29,0.15,IF(${ageRef}<=39,0.20,IF(${ageRef}<=49,0.25,IF(${ageRef}<=54,0.30,IF(${ageRef}<=59,0.35,0.40)))))`;
+
+  // ===== New Sheet 4: Projection — Current
+  const projCurrent = (function(){
+    const header = ['Year','Age','Phase','Opening','Personal (€/yr)','Employer (€/yr)','Total Contrib (€/yr)','Investment (€/yr)','End'];
+    const rows = [header];
+    const totalRows = (typeof A.currentAge === 'number' && typeof A.retirementAge === 'number')
+      ? (Math.max(0, A.retirementAge - A.currentAge) + 1) : 1;
+
+    for (let i=0; i<totalRows; i++) {
+      const row = [];
+      const YEAR = `(${REF.baseYear}+${i})`;
+      const AGE  = `(${REF.currentAge}+${i})`;
+      const PHASE = `IF(${AGE}<${REF.retirementAge},"Accumulation","Drawdown")`;
+      const PERS = `IF(${PHASE}="Accumulation", (${REF.persSelfYr}+${REF.persPartYr}), 0)`;
+      const EMPL = `IF(${PHASE}="Accumulation", (${REF.emplSelfYr}+${REF.emplPartYr}), 0)`;
+      const TOTC = `(${PERS}+${EMPL})`;
+
+      const OPEN = (i===0)
+        ? `(${REF.curPotSelf}+${REF.curPotPartner})`
+        : `INDIRECT(ADDRESS(ROW()-1, 9))`; // previous row col 9 (End)
+
+      const INV  = `(${OPEN}+${TOTC})*${REF.growth}`;
+      const END  = `(${OPEN}+${TOTC}+${INV})`;
+
+      rows.push([
+        { f: YEAR }, { f: AGE }, { f: PHASE },
+        { f: OPEN }, { f: PERS }, { f: EMPL }, { f: TOTC },
+        { f: INV },  { f: END }
+      ]);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:10},{wch:8},{wch:14},{wch:18},{wch:18},{wch:18},{wch:20},{wch:18},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Projection — Current');
+    return { rows: rows.length }; // includes header
+  })();
+
+  // ===== New Sheet 5: Projection — Max
+  const projMax = (function(){
+    const header = ['Year','Age','Phase','Opening','Personal (€/yr)','Employer (€/yr)','Total Contrib (€/yr)','Investment (€/yr)','End'];
+    const rows = [header];
+    const totalRows = (typeof A.currentAge === 'number' && typeof A.retirementAge === 'number')
+      ? (Math.max(0, A.retirementAge - A.currentAge) + 1) : 1;
+
+    for (let i=0; i<totalRows; i++) {
+      const YEAR = `(${REF.baseYear}+${i})`;
+      const AGE  = `(${REF.currentAge}+${i})`;
+      const PHASE = `IF(${AGE}<${REF.retirementAge},"Accumulation","Drawdown")`;
+      const PERC = AGE_BAND_PCT_FN(AGE);
+      const SALCAP = `(${REF.salaryCapSelf}+${REF.salaryCapPartner})`;
+      const PERS = `IF(${PHASE}="Accumulation", ${SALCAP}*${PERC}, 0)`;
+      const EMPL = `(0)`;
+      const TOTC = `(${PERS}+${EMPL})`;
+
+      const OPEN = (i===0)
+        ? `(${REF.curPotSelf}+${REF.curPotPartner})`
+        : `INDIRECT(ADDRESS(ROW()-1, 9))`;
+
+      const INV  = `(${OPEN}+${TOTC})*${REF.growth}`;
+      const END  = `(${OPEN}+${TOTC}+${INV})`;
+
+      rows.push([
+        { f: YEAR }, { f: AGE }, { f: PHASE },
+        { f: OPEN }, { f: PERS }, { f: EMPL }, { f: TOTC },
+        { f: INV },  { f: END }
+      ]);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:10},{wch:8},{wch:14},{wch:18},{wch:18},{wch:18},{wch:20},{wch:18},{wch:18}];
+    XLSX.utils.book_append_sheet(wb, ws, 'Projection — Max');
+    return { rows: rows.length }; // includes header
+  })();
+
+  // Helper: cell refs to the retirement pot from the two projection sheets
+  const projCurEndCell = `'Projection — Current'!${XLSX.utils.encode_cell({ r: projCurrent.rows - 1, c: 8 })}`; // col 8 = End (0-based)
+  const projMaxEndCell = `'Projection — Max'!${XLSX.utils.encode_cell({ r: projMax.rows - 1, c: 8 })}`;
+
+  // ===== New Sheet 6: Drawdown — Current
+  (function addDrawdown(title, startPotRef){
+    const header = ['Year','Age','Opening','Income need (€/yr)','Other income (€/yr)','Withdrawal (€/yr)','Investment (€/yr)','End'];
+    const rows = [header];
+    const total = (typeof A.drawdownYears === 'number') ? A.drawdownYears + 1 : 41;
+
+    for (let t=0; t<total; t++) {
+      const YEAR = `(${REF.baseYear}+(${yrsToRet})+${t})`;
+      const AGE  = `(${REF.retirementAge}+${t})`;
+
+      const OPEN = (t===0)
+        ? `${startPotRef}`
+        : `INDIRECT(ADDRESS(ROW()-1, 8))`; // previous row End (col 8)
+
+      // Need = TargetIncomeToday * CPI^(yrsToRet + t) - OtherIncome
+      const YEARS_FROM_TODAY = `(${yrsToRet}+${t})`;
+      const DB_SELF = `IF(${AGE}>=${REF.dbSelfAge}, IF(${REF.hasDbSelf}="On", ${REF.dbSelfYr}, 0), 0)`;
+      const DB_PART = `IF(${AGE}>=${REF.dbPartnerAge}, IF(${REF.hasDbPartner}="On", ${REF.dbPartnerYr}, 0), 0)`;
+      const RENT    = `${REF.rentYr}`; // keep simple (same as Results)
+      const OTHER   = `(${DB_SELF}+${DB_PART}+${RENT})`;
+      const NEED    = `${TargetIncomeToday}*POWER(1+${REF.cpi}, ${YEARS_FROM_TODAY}) - ${OTHER}`;
+
+      const INV  = `(${OPEN})*${REF.growth}`;
+      const WTH  = `MAX(0, MIN(${OPEN}+${INV}, ${NEED}))`;
+      const END  = `(${OPEN}+${INV}-${WTH})`;
+
+      rows.push([{ f: YEAR }, { f: AGE }, { f: OPEN }, { f: NEED }, { f: OTHER }, { f: WTH }, { f: INV }, { f: END }]);
+    }
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:10},{wch:8},{wch:18},{wch:22},{wch:20},{wch:18},{wch:18},{wch:18}];
+
+    // Depletion age summary (find first exact zero; left simple)
+    ws['A1'] = { v: 'Depletion age:' };
+    ws['B1'] = { f: `IFERROR(INDEX(B:B, MATCH(0, H:H, 0)), "")` }; // Match first 0 in "End" col H
+
+    XLSX.utils.book_append_sheet(wb, ws, title);
+  })('Drawdown — Current', projCurEndCell);
+
+  // ===== New Sheet 7: Drawdown — Max
+  (function(){
+    addDrawdown('Drawdown — Max', projMaxEndCell);
+  })();
+
   return wb;
 }
+
+
 
 export async function downloadFullMontyExcel() {
   const XLSX = await ensureXLSX();
