@@ -397,10 +397,16 @@ function buildWorkbook(XLSX) {
   const projCurEndCell = `'Projection — Current'!${XLSX.utils.encode_cell({ r: projCurrent.rows - 1, c: 8 })}`; // col 8 = End (0-based)
   const projMaxEndCell = `'Projection — Max'!${XLSX.utils.encode_cell({ r: projMax.rows - 1, c: 8 })}`;
 
-  // ===== New Sheet 6: Drawdown — Current
-  (function addDrawdown(title, startPotRef){
+  /**
+   * Add a drawdown sheet reusing your assumptions and formulas.
+   * title: "Drawdown — Current" | "Drawdown — Max"
+   * startPotRef: Excel ref to opening pot at retirement (End of projection).
+   */
+  function addDrawdownSheet(title, startPotRef) {
+    // Put the depletion summary on row 1, then table from row 3 for neatness
     const header = ['Year','Age','Opening','Income need (€/yr)','Other income (€/yr)','Withdrawal (€/yr)','Investment (€/yr)','End'];
-    const rows = [header];
+    const rows   = [[], ['Depletion age:','','','','','','',''], header];
+
     const total = (typeof A.drawdownYears === 'number') ? A.drawdownYears + 1 : 41;
 
     for (let t=0; t<total; t++) {
@@ -409,13 +415,12 @@ function buildWorkbook(XLSX) {
 
       const OPEN = (t===0)
         ? `${startPotRef}`
-        : `INDIRECT(ADDRESS(ROW()-1, 8))`; // previous row End (col 8)
+        : `INDIRECT(ADDRESS(ROW()-1, 8))`; // previous row End (col H)
 
-      // Need = TargetIncomeToday * CPI^(yrsToRet + t) - OtherIncome
       const YEARS_FROM_TODAY = `(${yrsToRet}+${t})`;
       const DB_SELF = `IF(${AGE}>=${REF.dbSelfAge}, IF(${REF.hasDbSelf}="On", ${REF.dbSelfYr}, 0), 0)`;
       const DB_PART = `IF(${AGE}>=${REF.dbPartnerAge}, IF(${REF.hasDbPartner}="On", ${REF.dbPartnerYr}, 0), 0)`;
-      const RENT    = `${REF.rentYr}`; // keep simple (same as Results)
+      const RENT    = `${REF.rentYr}`;
       const OTHER   = `(${DB_SELF}+${DB_PART}+${RENT})`;
       const NEED    = `${TargetIncomeToday}*POWER(1+${REF.cpi}, ${YEARS_FROM_TODAY}) - ${OTHER}`;
 
@@ -427,19 +432,22 @@ function buildWorkbook(XLSX) {
     }
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{wch:10},{wch:8},{wch:18},{wch:22},{wch:20},{wch:18},{wch:18},{wch:18}];
 
-    // Depletion age summary (find first exact zero; left simple)
-    ws['A1'] = { v: 'Depletion age:' };
-    ws['B1'] = { f: `IFERROR(INDEX(B:B, MATCH(0, H:H, 0)), "")` }; // Match first 0 in "End" col H
+    // Make columns readable
+    ws['!cols'] = [
+      {wch:10},{wch:8},{wch:18},{wch:22},{wch:20},{wch:18},{wch:18},{wch:18}
+    ];
+
+    // Depletion summary (first exact 0 in End column H)
+    // Our table starts at row 3 (headers), so adjust the range accordingly.
+    ws['B2'] = { f: `IFERROR(INDEX(B:B, MATCH(0, H:H, 0)), "")` };
 
     XLSX.utils.book_append_sheet(wb, ws, title);
-  })('Drawdown — Current', projCurEndCell);
+  }
 
-  // ===== New Sheet 7: Drawdown — Max
-  (function(){
-    addDrawdown('Drawdown — Max', projMaxEndCell);
-  })();
+  // Build both drawdown sheets with a shared helper
+  addDrawdownSheet('Drawdown — Current', projCurEndCell);
+  addDrawdownSheet('Drawdown — Max',     projMaxEndCell);
 
   return wb;
 }
